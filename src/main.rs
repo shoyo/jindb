@@ -1,52 +1,74 @@
-use std::io::{self, Write};
+use std::convert::TryInto;
+use std::fs::{File, OpenOptions};
+use std::io::prelude::*;
+use std::io::SeekFrom;
+use std::io::Write;
 
-enum Query {
-    Help,
-    Quit,
-    Unrecognized,
-}
-
-fn parse_input(input: &str) -> Query {
-    if input == String::from(".quit") {
-        Query::Quit
-    } else if input == String::from(".help") {
-        Query::Help
-    } else {
-        Query::Unrecognized
-    }
-}
+const PAGE_SIZE: usize = 32;
+const DB_FILENAME: &str = "db.minusql";
 
 fn main() {
-    println!("Starting minuSQLi (2019)");
+    println!("minuSQL (2020)");
     println!("Enter .help for usage hints");
-    loop {
-        print!(">> ");
-        io::stdout().flush().unwrap();
+    //    loop {
+    //        print!("minuSQL > ");
+    //        io::stdout().flush().unwrap();
+    //
+    //        let mut query = String::new();
+    //        io::stdin()
+    //            .read_line(&mut query)
+    //            .expect("Error reading input");
+    //        println!("TODO");
+    //    }
 
-        let mut input = String::new();
+    write_to_disk(0, "hello world!".to_string());
+    write_to_disk(1, "foobar".to_string());
+    write_to_disk(2, "a".to_string());
 
-        io::stdin().read_line(&mut input)
-            .expect("Error reading line");
+    let data = read_from_disk(0).unwrap();
+    println!("Read: {}", std::str::from_utf8(&data).unwrap());
+    let data = read_from_disk(1).unwrap();
+    println!("Read: {}", std::str::from_utf8(&data).unwrap());
+    let data = read_from_disk(2).unwrap();
+    println!("Read: {}", std::str::from_utf8(&data).unwrap());
 
-        let input: String = match input.trim().parse() {
-            Ok(input) => input,
-            Err(_) => continue,
-        };
+    write_to_disk(1, "changed".to_string());
+    let data = "a".to_string();
+    let data = read_from_disk(1).unwrap();
+    println!("Read: {}", std::str::from_utf8(&data).unwrap());
+}
 
-        let query = parse_input(&input);
-
-        match query {
-            Query::Help => {
-                println!(".help   Show this message");
-                println!(".quit   Exit this program");
-            }
-            Query::Quit => {
-                println!("Shutting down.");
-                return;
-            },
-            Query::Unrecognized => {
-                println!("Unrecognized input");
-            },
-        }
+fn write_to_disk(page_id: usize, data: String) -> std::io::Result<()> {
+    if data.len() > PAGE_SIZE {
+        eprintln!(
+            "Error: Attempted to write data that exceeds page size of {}B",
+            PAGE_SIZE
+        );
+        std::process::exit(1);
     }
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(DB_FILENAME)?;
+    let offset = page_id * PAGE_SIZE;
+    file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
+
+    file.write_all(data.as_bytes());
+    for _ in 0..(PAGE_SIZE - data.len()) {
+        file.write(&[0]);
+    }
+
+    Ok(())
+}
+
+fn read_from_disk(page_id: usize) -> std::io::Result<Vec<u8>> {
+    let mut file = File::open(DB_FILENAME)?;
+    let offset = page_id * PAGE_SIZE;
+    file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
+
+    let mut buf = [0; PAGE_SIZE];
+    file.read_exact(&mut buf)?;
+
+    Ok(buf.to_vec())
 }
