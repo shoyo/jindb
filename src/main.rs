@@ -62,11 +62,42 @@ impl Page {
         page
     }
 
-    fn set_page_id(&mut self, id: u32) {}
+    /// Write an unsigned 32-bit integer at the specified location in the
+    /// byte array. Any existing value is overwritten.
+    fn write_u32(&mut self, value: u32, addr: u32) -> Result<(), String> {
+        if addr + 3 > PAGE_SIZE {
+            return Err(format!(
+                "Cannot write value to byte array address (overflow)"
+            ));
+        }
+        let addr = addr as usize;
+        self.data[addr] = (value & 0xff) as u8;
+        self.data[addr + 1] = ((value >> 8) & 0xff) as u8;
+        self.data[addr + 2] = ((value >> 16) & 0xff) as u8;
+        self.data[addr + 3] = ((value >> 24) & 0xff) as u8;
+        Ok(())
+    }
 
-    fn set_free_space_pointer(&mut self, offset: u32) {}
+    /// Set the page ID.
+    /// This value is located at offset 0 in the header.
+    fn set_page_id(&mut self, id: u32) -> Result<(), String> {
+        let offset = 0;
+        self.write_u32(id, offset)
+    }
 
-    fn set_num_records(&mut self, num: u32) {}
+    /// Set the free space pointer.
+    /// This value is located at offset 4 in the header.
+    fn set_free_space_pointer(&mut self, ptr: u32) -> Result<(), String> {
+        let offset = 4;
+        self.write_u32(ptr, offset)
+    }
+
+    /// Set the number of records contained in the page.
+    /// This value is located at offset 8 in the header.
+    fn set_num_records(&mut self, num: u32) -> Result<(), String> {
+        let offset = 8;
+        self.write_u32(num, offset)
+    }
 }
 
 struct Record {}
