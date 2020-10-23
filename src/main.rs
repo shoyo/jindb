@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
 
-const PAGE_SIZE: usize = 32;
+const PAGE_SIZE: u32 = 512;
 const DB_FILENAME: &str = "db.minusql";
 
 fn main() {
@@ -20,55 +20,86 @@ fn main() {
     //            .expect("Error reading input");
     //        println!("TODO");
     //    }
-
-    write_to_disk(0, "hello world!".to_string());
-    write_to_disk(1, "foobar".to_string());
-    write_to_disk(2, "a".to_string());
-
-    let data = read_from_disk(0).unwrap();
-    println!("Read: {}", std::str::from_utf8(&data).unwrap());
-    let data = read_from_disk(1).unwrap();
-    println!("Read: {}", std::str::from_utf8(&data).unwrap());
-    let data = read_from_disk(2).unwrap();
-    println!("Read: {}", std::str::from_utf8(&data).unwrap());
-
-    write_to_disk(1, "changed".to_string());
-    let data = "a".to_string();
-    let data = read_from_disk(1).unwrap();
-    println!("Read: {}", std::str::from_utf8(&data).unwrap());
 }
 
-fn write_to_disk(page_id: usize, data: String) -> std::io::Result<()> {
-    if data.len() > PAGE_SIZE {
-        eprintln!(
-            "Error: Attempted to write data that exceeds page size of {}B",
-            PAGE_SIZE
-        );
-        std::process::exit(1);
-    }
+/// A database page with slotted-page architecture.
+/// Stores a header and variable-length records that grow in opposite
+/// directions, similarly to a heap and stack.
+///
+/// Data format:
+/// --------------------------------------------------------
+///  HEADER (grows ->) | ... FREE ... | (<- grows) RECORDS
+/// --------------------------------------------------------
+///                                   ^ Free Space Pointer
+///
+///
+/// Header stores metadata (number denotes size in bytes):
+/// --------------------------------------------------------
+///  PAGE ID (4) | FREE SPACE POINTER (4) | NUM RECORDS (4)
+/// --------------------------------------------------------
+/// --------------------------------------------------------
+///  RECORD 1 LENGTH (4) | RECORD 1 OFFSET (4) |    ...
+/// --------------------------------------------------------
+///
+///
+/// Records:
+/// --------------------------------------------------------
+///          ...           | RECORD 3 | RECORD 2 | RECORD 1
+/// --------------------------------------------------------
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(DB_FILENAME)?;
-    let offset = page_id * PAGE_SIZE;
-    file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
-
-    file.write_all(data.as_bytes());
-    for _ in 0..(PAGE_SIZE - data.len()) {
-        file.write(&[0]);
-    }
-
-    Ok(())
+struct Page {
+    data: [u8; PAGE_SIZE as usize],
 }
 
-fn read_from_disk(page_id: usize) -> std::io::Result<Vec<u8>> {
-    let mut file = File::open(DB_FILENAME)?;
-    let offset = page_id * PAGE_SIZE;
-    file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
+impl Page {
+    pub fn new(page_id: u32) -> Self {
+        let mut page = Self {
+            data: [0; PAGE_SIZE as usize],
+        };
+        page.set_page_id(page_id);
+        page.set_free_space_pointer(PAGE_SIZE);
+        page.set_num_records(0);
+        page
+    }
 
-    let mut buf = [0; PAGE_SIZE];
-    file.read_exact(&mut buf)?;
+    fn set_page_id(&mut self, id: u32) {}
 
-    Ok(buf.to_vec())
+    fn set_free_space_pointer(&mut self, offset: u32) {}
+
+    fn set_num_records(&mut self, num: u32) {}
+}
+
+struct Record {}
+
+struct DiskManager;
+
+impl DiskManager {
+    pub fn new() -> Self {
+        Self
+    }
+
+    fn write_page(page_id: u32, page: Page) -> std::io::Result<()> {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(DB_FILENAME)?;
+
+        let offset = page_id * PAGE_SIZE;
+        file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
+        file.write_all(&page.data);
+        file.flush()?;
+
+        Ok(())
+    }
+
+    fn read_page(page_id: u32) -> std::io::Result<[u8; PAGE_SIZE as usize]> {
+        let mut file = File::open(DB_FILENAME)?;
+
+        let offset = page_id * PAGE_SIZE;
+        file.seek(SeekFrom::Start(offset.try_into().unwrap()))?;
+        let mut buf = [0; PAGE_SIZE as usize];
+        file.read_exact(&mut buf)?;
+
+        Ok(buf)
+    }
 }
