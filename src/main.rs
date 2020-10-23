@@ -4,22 +4,21 @@ use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
 
-const PAGE_SIZE: u32 = 512;
+const PAGE_SIZE: u32 = 64;
 const DB_FILENAME: &str = "db.minusql";
 
 fn main() {
     println!("minuSQL (2020)");
     println!("Enter .help for usage hints");
-    //    loop {
-    //        print!("minuSQL > ");
-    //        io::stdout().flush().unwrap();
-    //
-    //        let mut query = String::new();
-    //        io::stdin()
-    //            .read_line(&mut query)
-    //            .expect("Error reading input");
-    //        println!("TODO");
-    //    }
+
+    let mut page = Page::new(0);
+    page.set_page_id(654321);
+    let id = page.get_page_id().unwrap();
+    println!("read id: {}", id);
+
+    let dm = DiskManager::new();
+    let data = dm.read_page(0);
+    println!("{:?}", data.unwrap().to_vec());
 }
 
 /// A database page with slotted-page architecture.
@@ -62,6 +61,23 @@ impl Page {
         page
     }
 
+    /// Read an unsigned 32-bit integer at the specified location in the
+    /// byte array.
+    fn read_u32(&self, addr: u32) -> Result<u32, String> {
+        if addr + 3 > PAGE_SIZE {
+            return Err(format!(
+                "Cannot read value from byte address address (overflow)"
+            ));
+        }
+        let addr = addr as usize;
+        let mut bytes = [0; 4];
+        for i in 0..4 {
+            bytes[i] = self.data[addr + i];
+        }
+        let value = u32::from_le_bytes(bytes);
+        Ok(value)
+    }
+
     /// Write an unsigned 32-bit integer at the specified location in the
     /// byte array. Any existing value is overwritten.
     fn write_u32(&mut self, value: u32, addr: u32) -> Result<(), String> {
@@ -78,26 +94,37 @@ impl Page {
         Ok(())
     }
 
-    /// Set the page ID.
-    /// This value is located at offset 0 in the header.
-    fn set_page_id(&mut self, id: u32) -> Result<(), String> {
-        let offset = 0;
-        self.write_u32(id, offset)
+    /// Get the page ID.
+    fn get_page_id(&self) -> Result<u32, String> {
+        self.read_u32(0)
     }
 
-    /// Set the free space pointer.
-    /// This value is located at offset 4 in the header.
+    /// Set the page ID.
+    fn set_page_id(&mut self, id: u32) -> Result<(), String> {
+        self.write_u32(id, 0)
+    }
+
+    /// Get a pointer to the next free space.
+    fn get_free_space_pointer(&self) -> Result<u32, String> {
+        self.read_u32(4)
+    }
+
+    /// Set a pointer to the next free space.
     fn set_free_space_pointer(&mut self, ptr: u32) -> Result<(), String> {
-        let offset = 4;
-        self.write_u32(ptr, offset)
+        self.write_u32(ptr, 4)
+    }
+
+    /// Get the numer of records contained in the page.
+    fn get_num_records(&self) -> Result<u32, String> {
+        self.read_u32(8)
     }
 
     /// Set the number of records contained in the page.
-    /// This value is located at offset 8 in the header.
     fn set_num_records(&mut self, num: u32) -> Result<(), String> {
-        let offset = 8;
-        self.write_u32(num, offset)
+        self.write_u32(num, 8)
     }
+
+    fn insert_record(&mut self, record: Record) {}
 }
 
 struct Record {}
@@ -109,7 +136,7 @@ impl DiskManager {
         Self
     }
 
-    fn write_page(page_id: u32, page: Page) -> std::io::Result<()> {
+    fn write_page(&self, page_id: u32, page: Page) -> std::io::Result<()> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -123,7 +150,7 @@ impl DiskManager {
         Ok(())
     }
 
-    fn read_page(page_id: u32) -> std::io::Result<[u8; PAGE_SIZE as usize]> {
+    fn read_page(&self, page_id: u32) -> std::io::Result<[u8; PAGE_SIZE as usize]> {
         let mut file = File::open(DB_FILENAME)?;
 
         let offset = page_id * PAGE_SIZE;
