@@ -17,8 +17,8 @@ fn main() {
     println!("read id: {}", id);
 
     let dm = DiskManager::new();
-    let data = dm.read_page(0);
-    println!("{:?}", data.unwrap().to_vec());
+    let page_data = dm.read_page(0);
+    println!("{:?}", page_data.unwrap().to_vec());
 }
 
 /// A database page with slotted-page architecture.
@@ -46,6 +46,12 @@ fn main() {
 ///          ...           | RECORD 3 | RECORD 2 | RECORD 1
 /// --------------------------------------------------------
 
+const PAGE_ID_OFFSET: u32 = 0;
+const FREE_POINTER_OFFSET: u32 = 4;
+const NUM_RECORDS_OFFSET: u32 = 8;
+const RECORDS_OFFSET: u32 = 12;
+const RECORD_POINTER_SIZE: u32 = 8;
+
 struct Page {
     data: [u8; PAGE_SIZE as usize],
 }
@@ -56,7 +62,7 @@ impl Page {
             data: [0; PAGE_SIZE as usize],
         };
         page.set_page_id(page_id);
-        page.set_free_space_pointer(PAGE_SIZE);
+        page.set_free_space_pointer(PAGE_SIZE - 1);
         page.set_num_records(0);
         page
     }
@@ -64,9 +70,9 @@ impl Page {
     /// Read an unsigned 32-bit integer at the specified location in the
     /// byte array.
     fn read_u32(&self, addr: u32) -> Result<u32, String> {
-        if addr + 3 > PAGE_SIZE {
+        if addr + 4 > PAGE_SIZE {
             return Err(format!(
-                "Cannot read value from byte address address (overflow)"
+                "Cannot read value from byte array address (overflow)"
             ));
         }
         let addr = addr as usize;
@@ -79,9 +85,9 @@ impl Page {
     }
 
     /// Write an unsigned 32-bit integer at the specified location in the
-    /// byte array. Any existing value is overwritten.
+    /// byte array. The existing value is overwritten.
     fn write_u32(&mut self, value: u32, addr: u32) -> Result<(), String> {
-        if addr + 3 > PAGE_SIZE {
+        if addr + 4 > PAGE_SIZE {
             return Err(format!(
                 "Cannot write value to byte array address (overflow)"
             ));
@@ -96,38 +102,91 @@ impl Page {
 
     /// Get the page ID.
     fn get_page_id(&self) -> Result<u32, String> {
-        self.read_u32(0)
+        self.read_u32(PAGE_ID_OFFSET)
     }
 
     /// Set the page ID.
     fn set_page_id(&mut self, id: u32) -> Result<(), String> {
-        self.write_u32(id, 0)
+        self.write_u32(id, PAGE_ID_OFFSET)
     }
 
     /// Get a pointer to the next free space.
     fn get_free_space_pointer(&self) -> Result<u32, String> {
-        self.read_u32(4)
+        self.read_u32(FREE_POINTER_OFFSET)
     }
 
     /// Set a pointer to the next free space.
     fn set_free_space_pointer(&mut self, ptr: u32) -> Result<(), String> {
-        self.write_u32(ptr, 4)
+        self.write_u32(ptr, FREE_POINTER_OFFSET)
     }
 
     /// Get the numer of records contained in the page.
     fn get_num_records(&self) -> Result<u32, String> {
-        self.read_u32(8)
+        self.read_u32(NUM_RECORDS_OFFSET)
     }
 
     /// Set the number of records contained in the page.
     fn set_num_records(&mut self, num: u32) -> Result<(), String> {
-        self.write_u32(num, 8)
+        self.write_u32(num, NUM_RECORDS_OFFSET)
     }
 
-    fn insert_record(&mut self, record: Record) {}
+    /// Calculate the amount of free space (in bytes) left in the page.
+    fn get_free_space_remaining(&self) -> u32 {
+        let free_ptr = self.get_free_space_pointer().unwrap();
+        let num_records = self.get_num_records().unwrap();
+        free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
+    }
+
+    /// Insert a record in the page and update the header.
+    fn insert_record(&mut self, record: Record) -> Result<(), String> {
+        // Calculate header addresses for new length/offset entry
+        let num_records = self.get_num_records().unwrap();
+        let length_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
+        let offset_addr = length_addr + 4;
+
+        // Bounds-check for record insertion
+        let free_ptr = self.get_free_space_pointer().unwrap();
+        let new_free_ptr = free_ptr - record.len();
+        if new_free_ptr < offset_addr + 4 {
+            return Err(format!(
+                "Overflow: Record does not fit in page (ID={})",
+                self.get_page_id().unwrap()
+            ));
+        }
+
+        // Write record data to allocated space
+        let start = (new_free_ptr + 1) as usize;
+        let end = (free_ptr + 1) as usize;
+        for i in start..end {
+            self.data[i] = record.data[i];
+        }
+
+        // Update header
+        self.write_u32(length_addr, record.len());
+        self.write_u32(offset_addr, new_free_ptr + 1);
+        self.set_free_space_pointer(new_free_ptr);
+        self.set_num_records(num_records + 1);
+
+        Ok(())
+    }
+
+    /// Update a record in the page.
+    fn update_record(&mut self, record: Record) {}
 }
 
-struct Record {}
+struct Record {
+    data: Vec<u8>,
+}
+
+impl Record {
+    fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    fn len(&self) -> u32 {
+        self.data.len() as u32
+    }
+}
 
 struct DiskManager;
 
