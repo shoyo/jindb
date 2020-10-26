@@ -23,7 +23,7 @@ impl DiskManager {
 
         let offset = block_id * BLOCK_SIZE;
         file.seek(SeekFrom::Start(offset as u64))?;
-        file.write_all(&block.data);
+        file.write_all(&block.data)?;
         file.flush()?;
 
         Ok(())
@@ -81,9 +81,9 @@ impl Block {
         let mut block = Self {
             data: [0; BLOCK_SIZE as usize],
         };
-        block.set_block_id(block_id);
-        block.set_free_space_pointer(BLOCK_SIZE - 1);
-        block.set_num_records(0);
+        block.set_block_id(block_id).unwrap();
+        block.set_free_space_pointer(BLOCK_SIZE - 1).unwrap();
+        block.set_num_records(0).unwrap();
         block
     }
 
@@ -182,10 +182,10 @@ impl Block {
         }
 
         // Update header
-        self.set_free_space_pointer(new_free_ptr);
-        self.set_num_records(num_records + 1);
-        self.write_u32(new_free_ptr + 1, offset_addr);
-        self.write_u32(record.len(), length_addr);
+        self.set_free_space_pointer(new_free_ptr).unwrap();
+        self.set_num_records(num_records + 1).unwrap();
+        self.write_u32(new_free_ptr + 1, offset_addr).unwrap();
+        self.write_u32(record.len(), length_addr).unwrap();
 
         Ok(())
     }
