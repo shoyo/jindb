@@ -1,46 +1,6 @@
-use std::fs::{File, OpenOptions};
-use std::io::prelude::*;
-use std::io::SeekFrom;
-use std::io::Write;
+use super::record::Record;
 
-const DB_FILENAME: &str = "db.minusql";
 const BLOCK_SIZE: u32 = 64;
-
-/// The disk manager is responsible for managing blocks stored on disk.
-
-pub struct DiskManager;
-
-impl DiskManager {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn write_block(&self, block_id: u32, block: Block) -> std::io::Result<()> {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(DB_FILENAME)?;
-
-        let offset = block_id * BLOCK_SIZE;
-        file.seek(SeekFrom::Start(offset as u64))?;
-        file.write_all(&block.data)?;
-        file.flush()?;
-
-        Ok(())
-    }
-
-    pub fn read_block(&self, block_id: u32) -> std::io::Result<[u8; BLOCK_SIZE as usize]> {
-        let mut file = File::open(DB_FILENAME)?;
-
-        let offset = block_id * BLOCK_SIZE;
-        file.seek(SeekFrom::Start(offset as u64))?;
-        let mut buf = [0; BLOCK_SIZE as usize];
-        file.read_exact(&mut buf)?;
-
-        Ok(buf)
-    }
-}
-
 const BLOCK_ID_OFFSET: u32 = 0;
 const FREE_POINTER_OFFSET: u32 = 4;
 const NUM_RECORDS_OFFSET: u32 = 8;
@@ -73,7 +33,7 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// ---------------------------------------------------------
 
 pub struct Block {
-    data: [u8; BLOCK_SIZE as usize],
+    pub data: [u8; BLOCK_SIZE as usize],
 }
 
 impl Block {
@@ -225,44 +185,4 @@ impl BlockRepresentation {
             records: records,
         }
     }
-}
-
-/// A database record with variable-length attributes.
-///
-/// The initial section of the record contains a null bitmap which represents
-/// which attributes are null and should be ignored.
-///
-/// The next section of a record contains fixed-length values. Data types
-/// such as numerics, booleans, and dates are encoded as is, while variable-
-/// length data types such as varchars are encoded as a offset/length pair.
-///
-/// The actual variable-length data is stored consecutively after the initial
-/// fixed-length section and null bitmap.
-///
-/// Data format:
-/// ------------------------------------------------------------
-///  NULL BITMAP | FIXED-LENGTH VALUES | VARIABLE-LENGTH VALUES
-/// ------------------------------------------------------------
-///
-/// Metadata regarding a record is stored in a system catalog in a separate
-/// database block.
-
-pub struct Record {
-    data: Vec<u8>,
-}
-
-impl Record {
-    pub fn new(tmp: Vec<u8>) -> Self {
-        Self { data: tmp }
-    }
-
-    pub fn len(&self) -> u32 {
-        self.data.len() as u32
-    }
-}
-
-pub struct Schema {}
-
-pub struct Table {
-    schema: Schema,
 }
