@@ -1,11 +1,8 @@
+use super::constants::{
+    BLOCK_ID_OFFSET, BLOCK_SIZE, FREE_POINTER_OFFSET, NUM_RECORDS_OFFSET, RECORDS_OFFSET,
+    RECORD_POINTER_SIZE,
+};
 use super::record::Record;
-
-const BLOCK_SIZE: u32 = 64;
-const BLOCK_ID_OFFSET: u32 = 0;
-const FREE_POINTER_OFFSET: u32 = 4;
-const NUM_RECORDS_OFFSET: u32 = 8;
-const RECORDS_OFFSET: u32 = 12;
-const RECORD_POINTER_SIZE: u32 = 8;
 
 /// A database block with slotted-page architecture.
 /// Stores a header and variable-length records that grow in opposite
@@ -31,15 +28,23 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// ---------------------------------------------------------
 ///            ...          | RECORD 3 | RECORD 2 | RECORD 1
 /// ---------------------------------------------------------
+///
+///
+/// Block also provides an API to be used by the buffer manager for
+/// book-keeping such as pin count and dirty flag.
 
 pub struct Block {
     pub data: [u8; BLOCK_SIZE as usize],
+    pub pin_count: u32,
+    pub is_dirty: bool,
 }
 
 impl Block {
     pub fn new(block_id: u32) -> Self {
         let mut block = Self {
             data: [0; BLOCK_SIZE as usize],
+            pin_count: 0,
+            is_dirty: false,
         };
         block.set_block_id(block_id).unwrap();
         block.set_free_space_pointer(BLOCK_SIZE - 1).unwrap();

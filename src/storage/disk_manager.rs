@@ -1,12 +1,9 @@
 use super::block::Block;
-use super::record::Record;
+use super::constants::{BLOCK_SIZE, DB_FILENAME};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
-
-const DB_FILENAME: &str = "db.minusql";
-const BLOCK_SIZE: u32 = 64;
 
 /// The disk manager is responsible for managing blocks stored on disk.
 

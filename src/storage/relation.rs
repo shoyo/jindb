@@ -1,12 +1,23 @@
+/// A schema which defines a collection of attributes for a relation.
 pub struct Schema {
-    columns: Vec<Column>,
+    attributes: Vec<Attribute>,
 }
 
-pub struct Column {
+impl Schema {
+    /// Initialize a new schema with a vector of attributes, parsed from
+    /// left-to-right.
+    pub fn new(attributes: Vec<Attribute>) -> Self {
+        Self { attributes }
+    }
+}
+
+/// A single attribute in a relation. (i.e. "columns" in a table)
+pub struct Attribute {
     name: String,
     data_type: DataType,
 }
 
+/// Data types for values in the database.
 pub enum DataType {
     Boolean,
     TinyInt,
@@ -17,6 +28,7 @@ pub enum DataType {
     Varchar,
 }
 
+/// A database relation (i.e. table).
 pub struct Relation {
     name: String,
     schema: Schema,
