@@ -4,42 +4,47 @@ use super::constants::{
 };
 use super::record::Record;
 
-/// A database block with slotted-page architecture.
+/// An in-memory representation of a database block with slotted-page
+/// architecture. Gets written out to disk by the disk manager.
+///
 /// Stores a header and variable-length records that grow in opposite
-/// directions, similarly to a heap and stack.
+/// directions, similarly to a heap and stack. Also stores information
+/// to be used by the buffer manager for book-keeping such as pin
+/// count and dirty flag.
+///
 ///
 /// Data format:
-/// ---------------------------------------------------------
-///   HEADER (grows ->) | ... FREE ... | (<- grows) RECORDS
-/// ---------------------------------------------------------
-///                                    ^ Free Space Pointer
+/// |--------------------|--------------|---------------------|
+/// |  HEADER (grows ->) | ... FREE ... | (<- grows) RECORDS  |
+/// |--------------------|--------------|---------------------|
+///                                     ^ Free Space Pointer
 ///
 ///
 /// Header metadata (number denotes size in bytes):
-/// ---------------------------------------------------------
-///  BLOCK ID (4) | FREE SPACE POINTER (4) | NUM RECORDS (4)
-/// ---------------------------------------------------------
-/// ---------------------------------------------------------
-///  RECORD 1 OFFSET (4) | RECORD 1 LENGTH (4) |     ...
-/// ---------------------------------------------------------
+/// |--------------|------------------------|-----------------|
+/// | BLOCK ID (4) | FREE SPACE POINTER (4) | NUM RECORDS (4) |
+/// |--------------|------------------------|-----------------|
+/// |---------------------|---------------------|-------------|
+/// | RECORD 1 OFFSET (4) | RECORD 1 LENGTH (4) |     ...     |
+/// |---------------------|---------------------|-------------|
 ///
 ///
 /// Records:
-/// ---------------------------------------------------------
-///            ...          | RECORD 3 | RECORD 2 | RECORD 1
-/// ---------------------------------------------------------
-///
-///
-/// Block also provides an API to be used by the buffer manager for
-/// book-keeping such as pin count and dirty flag.
+/// |------------------------|----------|----------|----------|
+/// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
+/// |------------------------|----------|----------|----------|
 
 pub struct Block {
+    /// A copy of the raw byte array stored on disk
     pub data: [u8; BLOCK_SIZE as usize],
+    /// Number of pins on the block (pinned by concurrent threads)
     pub pin_count: u32,
+    /// True if data has been modified after reading from disk
     pub is_dirty: bool,
 }
 
 impl Block {
+    /// Create a new in-memory representation of a database block.
     pub fn new(block_id: u32) -> Self {
         let mut block = Self {
             data: [0; BLOCK_SIZE as usize],
@@ -105,7 +110,7 @@ impl Block {
         self.write_u32(ptr, FREE_POINTER_OFFSET)
     }
 
-    /// Get the numer of records contained in the block.
+    /// Get the number of records contained in the block.
     pub fn get_num_records(&self) -> Result<u32, String> {
         self.read_u32(NUM_RECORDS_OFFSET)
     }
@@ -157,37 +162,4 @@ impl Block {
 
     /// Update a record in the block.
     fn update_record(&mut self, record: Record) {}
-}
-
-/// A serialized representation of a database block meant for
-/// testing and debugging.
-
-struct BlockRepresentation {
-    block_id: u32,
-    free_space_pointer: u32,
-    num_records: u32,
-    free_space_remaining: u32,
-    record_pointers: Vec<(u32, u32)>,
-    records: Vec<Vec<u8>>,
-}
-
-impl BlockRepresentation {
-    pub fn new(block: &Block) -> Self {
-        let id = block.get_block_id().unwrap();
-        let ptr = block.get_free_space_pointer().unwrap();
-        let num = block.get_num_records().unwrap();
-        let space = block.get_free_space_remaining();
-
-        let ptrs = Vec::new();
-        let records = Vec::new();
-
-        Self {
-            block_id: id,
-            free_space_pointer: ptr,
-            num_records: num,
-            free_space_remaining: space,
-            record_pointers: ptrs,
-            records: records,
-        }
-    }
 }
