@@ -7,8 +7,8 @@ use std::collections::HashMap;
 /// from disk through the disk manager.
 pub struct BufferManager {
     /// Collection of buffer frames that can hold blocks
-    buffer_pool: Vec<BufferFrame>,
-    /// Mapping between blocks and the frames that hold them
+    buffer_pool: Vec<Option<Block>>,
+    /// Mapping from block ids to buffer frame ids
     block_table: HashMap<u32, u32>,
     /// Disk manager to access blocks on disk
     disk_manager: DiskManager,
@@ -17,9 +17,9 @@ pub struct BufferManager {
 impl BufferManager {
     /// Construct a new buffer manager.
     pub fn new(buffer_size: u32, disk_manager: DiskManager) -> Self {
-        let mut pool = Vec::new();
-        for i in 0..buffer_size {
-            pool.push(BufferFrame::new(i))
+        let mut pool: Vec<Option<Block>> = Vec::new();
+        for _ in 0..buffer_size as usize {
+            pool.push(None);
         }
         Self {
             buffer_pool: pool,
@@ -33,9 +33,19 @@ impl BufferManager {
         self.buffer_pool.len()
     }
 
+    /// Search the buffer pool for a block by its id and return a mutable reference.
+    fn get_block_by_id(&self, block_id: u32) -> Option<&mut Block> {
+        None
+    }
+
     /// Fetch the specified block from the buffer and return the block if
     /// successful.
     pub fn fetch_block(&mut self, block_id: u32) -> Option<Block> {
+        let block = match self.block_table.get(&block_id) {
+            Some(idx) => &self.buffer_pool[*idx as usize],
+            None => return None,
+        };
+        self.pin_block(block_id);
         None
     }
 
@@ -61,16 +71,5 @@ impl BufferManager {
     /// Allocate space for a new block and return the block if successful.
     pub fn new_block(&self, block_id: u32) -> Option<Block> {
         None
-    }
-}
-
-struct BufferFrame {
-    id: u32,
-    block: Option<Block>,
-}
-
-impl BufferFrame {
-    pub fn new(id: u32) -> Self {
-        Self { id, block: None }
     }
 }

@@ -1,8 +1,9 @@
 use super::constants::{
-    BLOCK_ID_OFFSET, BLOCK_SIZE, FREE_POINTER_OFFSET, NUM_RECORDS_OFFSET, RECORDS_OFFSET,
-    RECORD_POINTER_SIZE,
+    BLOCK_ID_OFFSET, BLOCK_SIZE, FREE_POINTER_OFFSET, LSN_OFFSET, NEXT_BLOCK_ID_OFFSET,
+    NUM_RECORDS_OFFSET, PREV_BLOCK_ID_OFFSET, RECORDS_OFFSET, RECORD_POINTER_SIZE,
 };
 use super::record::Record;
+use crate::buffer::latch::Latch;
 
 /// An in-memory representation of a database block with slotted-page
 /// architecture. Gets written out to disk by the disk manager.
@@ -14,42 +15,51 @@ use super::record::Record;
 ///
 ///
 /// Data format:
-/// |--------------------|--------------|---------------------|
+/// +--------------------+--------------+---------------------+
 /// |  HEADER (grows ->) | ... FREE ... | (<- grows) RECORDS  |
-/// |--------------------|--------------|---------------------|
+/// +--------------------+--------------+---------------------+
 ///                                     ^ Free Space Pointer
 ///
 ///
 /// Header metadata (number denotes size in bytes):
-/// |--------------|------------------------|-----------------|
-/// | BLOCK ID (4) | FREE SPACE POINTER (4) | NUM RECORDS (4) |
-/// |--------------|------------------------|-----------------|
-/// |---------------------|---------------------|-------------|
+/// +--------------+-----------------------+------------------+
+/// | BLOCK ID (4) | PREVIOUS BLOCK ID (4) | NEXT BLOCK ID (4)|
+/// +--------------+-----------------------+------------------+
+/// +------------------------+-----------------+--------------+
+/// | FREE SPACE POINTER (4) | NUM RECORDS (4) |    LSN (4)   |
+/// +------------------------+-----------------+--------------+
+/// +---------------------+---------------------+-------------+
 /// | RECORD 1 OFFSET (4) | RECORD 1 LENGTH (4) |     ...     |
-/// |---------------------|---------------------|-------------|
+/// +---------------------+---------------------+-------------+
 ///
 ///
 /// Records:
-/// |------------------------|----------|----------|----------|
+/// +------------------------+----------+----------+----------+
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
-/// |------------------------|----------|----------|----------|
+/// +------------------------+----------+----------+----------+
 
 pub struct Block {
+    /// A unique identifier for the block
+    pub id: u32,
     /// A copy of the raw byte array stored on disk
     pub data: [u8; BLOCK_SIZE as usize],
     /// Number of pins on the block (pinned by concurrent threads)
     pub pin_count: u32,
     /// True if data has been modified after reading from disk
     pub is_dirty: bool,
+    /// Latch for concurrent access
+    pub latch: Latch,
 }
 
 impl Block {
     /// Create a new in-memory representation of a database block.
     pub fn new(block_id: u32) -> Self {
         let mut block = Self {
+            id: block_id,
             data: [0; BLOCK_SIZE as usize],
             pin_count: 0,
             is_dirty: false,
+            latch: Latch::new(),
         };
         block.set_block_id(block_id).unwrap();
         block.set_free_space_pointer(BLOCK_SIZE - 1).unwrap();
@@ -100,6 +110,26 @@ impl Block {
         self.write_u32(id, BLOCK_ID_OFFSET)
     }
 
+    /// Get the previous block ID.
+    pub fn get_prev_block_id(&self) -> Result<u32, String> {
+        self.read_u32(PREV_BLOCK_ID_OFFSET)
+    }
+
+    /// Set the previous block ID.
+    pub fn set_prev_block_id(&mut self, id: u32) -> Result<(), String> {
+        self.write_u32(id, PREV_BLOCK_ID_OFFSET)
+    }
+
+    /// Get the next block ID.
+    pub fn get_next_block_id(&self) -> Result<u32, String> {
+        self.read_u32(NEXT_BLOCK_ID_OFFSET)
+    }
+
+    /// Set the next block ID.
+    pub fn set_next_block_id(&mut self, id: u32) -> Result<(), String> {
+        self.write_u32(id, NEXT_BLOCK_ID_OFFSET)
+    }
+
     /// Get a pointer to the next free space.
     pub fn get_free_space_pointer(&self) -> Result<u32, String> {
         self.read_u32(FREE_POINTER_OFFSET)
@@ -118,6 +148,16 @@ impl Block {
     /// Set the number of records contained in the block.
     pub fn set_num_records(&mut self, num: u32) -> Result<(), String> {
         self.write_u32(num, NUM_RECORDS_OFFSET)
+    }
+
+    /// Get the log sequence number (LSN).
+    pub fn get_lsn(&self) -> Result<u32, String> {
+        self.read_u32(LSN_OFFSET)
+    }
+
+    /// Set the log sequence number (LSN).
+    pub fn set_lsn(&mut self, lsn: u32) -> Result<(), String> {
+        self.write_u32(lsn, LSN_OFFSET)
     }
 
     /// Calculate the amount of free space (in bytes) left in the block.
@@ -161,5 +201,7 @@ impl Block {
     }
 
     /// Update a record in the block.
-    fn update_record(&mut self, record: Record) {}
+    fn update_record(&mut self, record: Record) -> Result<(), ()> {
+        Err(())
+    }
 }
