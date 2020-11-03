@@ -3,7 +3,6 @@ use super::constants::{
     NUM_RECORDS_OFFSET, PREV_BLOCK_ID_OFFSET, RECORDS_OFFSET, RECORD_POINTER_SIZE,
 };
 use super::record::Record;
-use crate::buffer::latch::Latch;
 
 /// An in-memory representation of a database block with slotted-page
 /// architecture. Gets written out to disk by the disk manager.
@@ -47,8 +46,6 @@ pub struct Block {
     pub pin_count: u32,
     /// True if data has been modified after reading from disk
     pub is_dirty: bool,
-    /// Latch for concurrent access
-    pub latch: Latch,
 }
 
 impl Block {
@@ -59,7 +56,6 @@ impl Block {
             data: [0; BLOCK_SIZE as usize],
             pin_count: 0,
             is_dirty: false,
-            latch: Latch::new(),
         };
         block.set_block_id(block_id).unwrap();
         block.set_free_space_pointer(BLOCK_SIZE - 1).unwrap();
