@@ -1,5 +1,4 @@
 pub mod buffer_manager;
-pub mod latch;
 
 #[cfg(test)]
 mod tests {

@@ -52,17 +52,16 @@ impl BufferManager {
 
     /// Fetch the specified block from the buffer, pin it, and return the block
     /// if successful.
-    pub fn fetch_block_latch(&mut self, block_id: u32) -> Option<Block> {
-        // match self.get_frame_id(block_id) {
-        //     Some(frame_id) => {
-        //         let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
-        //         let mut block = latch.write().unwrap();
-        //         block.pin_count += 1;
-        //         Some()
-        //     }
-        //     None => None,
-        // }
-        None
+    pub fn fetch_block_latch(&mut self, block_id: u32) -> Option<BlockLatch> {
+        match self.get_frame_id(block_id) {
+            Some(frame_id) => {
+                let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
+                let mut block = latch.write().unwrap();
+                block.pin_count += 1;
+                Some(Arc::clone(&latch))
+            }
+            None => None,
+        }
     }
 
     /// Flush the specified block to disk.
