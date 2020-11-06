@@ -1,9 +1,9 @@
-use minusql::{buffer, storage};
+use jin::*;
 
 fn main() {
-    println!("minuSQL (2020)");
+    println!("Jin (2020)");
     println!("Enter .help for usage hints");
 
-    let dm = storage::disk_manager::DiskManager::new();
+    let dm = disk::disk_manager::DiskManager::new();
     let bm = buffer::buffer_manager::BufferManager::new(128, dm);
 }

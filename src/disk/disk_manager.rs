@@ -1,5 +1,4 @@
-use super::block::Block;
-use super::constants::{BLOCK_SIZE, DB_FILENAME};
+use crate::common::constants::{BLOCK_SIZE, DB_FILENAME};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;

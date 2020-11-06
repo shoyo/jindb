@@ -15,6 +15,7 @@ impl Schema {
 pub struct Attribute {
     name: String,
     data_type: DataType,
+    nullable: bool,
 }
 
 /// Data types for values in the database.
@@ -26,10 +27,4 @@ pub enum DataType {
     BigInt,
     Decimal,
     Varchar,
-}
-
-/// A database relation (i.e. table).
-pub struct Relation {
-    name: String,
-    schema: Schema,
 }

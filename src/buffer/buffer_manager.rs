@@ -1,10 +1,10 @@
-use crate::storage::block::Block;
-use crate::storage::disk_manager::DiskManager;
+use crate::block::table_block::TableBlock;
+use crate::disk::disk_manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, RwLock};
 
 /// Type alias for a block protected by a R/W latch for concurrent access.
-type BlockLatch = Arc<RwLock<Block>>;
+type BlockLatch = Arc<RwLock<TableBlock>>;
 
 /// The buffer manager is responsible for fetching/flushing blocks that are
 /// managed in memory. Any blocks that don't exist in the buffer are retrieved
@@ -46,7 +46,7 @@ impl BufferManager {
     }
 
     /// Initialize a new block and return the block if successful.
-    pub fn new_block(&mut self) -> Option<Block> {
+    pub fn new_block(&mut self) -> Option<TableBlock> {
         None
     }
 

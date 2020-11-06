@@ -1,8 +1,15 @@
-use super::constants::{
-    BLOCK_ID_OFFSET, BLOCK_SIZE, FREE_POINTER_OFFSET, LSN_OFFSET, NEXT_BLOCK_ID_OFFSET,
-    NUM_RECORDS_OFFSET, PREV_BLOCK_ID_OFFSET, RECORDS_OFFSET, RECORD_POINTER_SIZE,
-};
-use super::record::Record;
+use crate::relation::record::Record;
+use crate::common::constants::{BlockIdT, BLOCK_SIZE};
+
+/// Constants for slotted-page block header
+const BLOCK_ID_OFFSET: u32 = 0;
+const PREV_BLOCK_ID_OFFSET: u32 = 4;
+const NEXT_BLOCK_ID_OFFSET: u32 = 8;
+const FREE_POINTER_OFFSET: u32 = 12;
+const NUM_RECORDS_OFFSET: u32 = 16;
+const LSN_OFFSET: u32 = 20;
+const RECORDS_OFFSET: u32 = 24;
+const RECORD_POINTER_SIZE: u32 = 8;
 
 /// An in-memory representation of a database block with slotted-page
 /// architecture. Gets written out to disk by the disk manager.
@@ -37,9 +44,9 @@ use super::record::Record;
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
 /// +------------------------+----------+----------+----------+
 
-pub struct Block {
+pub struct TableBlock {
     /// A unique identifier for the block
-    pub id: u32,
+    pub id: BlockIdT,
     /// A copy of the raw byte array stored on disk
     pub data: [u8; BLOCK_SIZE as usize],
     /// Number of pins on the block (pinned by concurrent threads)
@@ -48,7 +55,7 @@ pub struct Block {
     pub is_dirty: bool,
 }
 
-impl Block {
+impl TableBlock {
     /// Create a new in-memory representation of a database block.
     pub fn new(block_id: u32) -> Self {
         let mut block = Self {

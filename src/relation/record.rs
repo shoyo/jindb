@@ -1,4 +1,4 @@
-use super::relation::Schema;
+use crate::relation::schema::Schema;
 
 /// A database record with variable-length attributes.
 ///
