@@ -3,17 +3,20 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The disk manager is responsible for managing blocks stored on disk.
 
 pub struct DiskManager {
-    next_block_id: u32,
+    next_block_id: AtomicU32,
 }
 
 impl DiskManager {
     /// Create a new disk manager.
     pub fn new() -> Self {
-        Self { next_block_id: 0 }
+        Self {
+            next_block_id: AtomicU32::new(0),
+        }
     }
 
     /// Write the specified byte array out to disk.
@@ -52,9 +55,8 @@ impl DiskManager {
 
     /// Allocate a block on disk and return the id of the allocated block.
     pub fn allocate_block(&mut self) -> u32 {
-        let block_id = self.next_block_id;
-        self.next_block_id += 1;
-        block_id
+        // Note: .fetch_add() increments the value and returns the PREVIOUS value
+        self.next_block_id.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Deallocate the specified block on disk.
