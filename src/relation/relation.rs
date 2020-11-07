@@ -1,5 +1,5 @@
 use super::schema::Schema;
-use crate::buffer::buffer_manager::BufferManager;
+use crate::buffer::manager::BufferManager;
 use crate::common::constants::BlockIdT;
 
 /// Metadata for a database relation.

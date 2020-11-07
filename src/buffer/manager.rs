@@ -1,5 +1,5 @@
 use crate::block::table_block::TableBlock;
-use crate::disk::disk_manager::DiskManager;
+use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, RwLock};
 
