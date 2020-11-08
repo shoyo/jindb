@@ -6,3 +6,4 @@ pub const INVALID_BLOCK_ID: u32 = 0;
 pub type BlockIdT = u32;
 pub type RelationIdT = u32;
 pub type RecordIdT = u32;
+pub type BufferFrameIdT = u32;
