@@ -14,7 +14,7 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// An in-memory representation of a database block with slotted-page
 /// architecture. Gets written out to disk by the disk manager.
 ///
-/// Stores a header and variable-length records that grow in opposite
+/// Contains a header and variable-length records that grow in opposite
 /// directions, similarly to a heap and stack. Also stores information
 /// to be used by the buffer manager for book-keeping such as pin
 /// count and dirty flag.
