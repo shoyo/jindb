@@ -8,38 +8,43 @@ use crate::relation::record::Record;
 pub struct Heap {
     /// ID of the first block in the doubly linked list
     head_block_id: BlockIdT,
-
-    /// Buffer manager instance handling the blocks for this relation
-    buffer_manager: BufferManager,
 }
 
 impl Heap {
     /// Create a new heap for a database relation.
-    pub fn new(head_block_id: BlockIdT, buffer_manager: BufferManager) -> Self {
-        Self {
-            head_block_id,
-            buffer_manager,
-        }
+    pub fn new(buffer_manager: &mut BufferManager) -> Result<Self, String> {
+        let rwlatch = match buffer_manager.new_block() {
+            Some(latch) => latch,
+            None => {
+                return Err(format!(
+                    "Failed to initialize a head block for relation heap."
+                ))
+            }
+        };
+        let head_block = rwlatch.read().unwrap();
+        Ok(Self {
+            head_block_id: head_block.id,
+        })
     }
 
     /// Insert a record into the relation.
-    pub fn insert(record: Record) -> Result<(), ()> {
+    pub fn insert(&mut self, record: Record) -> Result<(), ()> {
         Err(())
     }
 
-    /// Mark the specified record as deleted.
+    /// Flag the specified record as deleted.
     /// The record is not actually deleted until .apply_delete() is called.
-    pub fn mark_delete(record_id: RecordIdT) -> Result<(), ()> {
+    pub fn flag_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 
-    /// Apply a delete operation to the specified record.
-    pub fn apply_delete(record_id: RecordIdT) -> Result<(), ()> {
+    /// Commit a delete operation for the specified record.
+    pub fn commit_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 
-    /// Rollback a delete operation.
-    pub fn rollback_delete(record_id: RecordIdT) -> Result<(), ()> {
+    /// Rollback a delete operation for the specified record.
+    pub fn rollback_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 }
