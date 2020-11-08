@@ -89,10 +89,13 @@ impl BufferManager {
     /// Unpin the specified block.
     /// Blocks with no pins can be evicted. Threads must unpin a block when
     /// finished operating on it.
-    pub fn unpin_block(&self, block_id: BlockIdT) -> Result<(), ()> {
+    pub fn unpin_block(&self, block_id: BlockIdT) -> Result<(), String> {
         let frame_id = self.get_frame_id(block_id).unwrap();
         let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
         let mut block = latch.write().unwrap();
+        if block.pin_count == 0 {
+            return Err(format!("Attempted to unpin a block with a pin count of 0."));
+        }
         block.pin_count -= 1;
         Ok(())
     }

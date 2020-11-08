@@ -17,13 +17,14 @@ impl Heap {
             Some(latch) => latch,
             None => {
                 return Err(format!(
-                    "Failed to initialize a head block for relation heap."
+                    "Failed to initialize the head block for a relation heap."
                 ))
             }
         };
-        let head_block = rwlatch.read().unwrap();
+        let head_block_id = rwlatch.read().unwrap().id;
+        buffer_manager.unpin_block(head_block_id).unwrap();
         Ok(Self {
-            head_block_id: head_block.id,
+            head_block_id: head_block_id,
         })
     }
 
