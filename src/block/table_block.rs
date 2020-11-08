@@ -1,5 +1,5 @@
-use crate::relation::record::Record;
 use crate::common::constants::{BlockIdT, BLOCK_SIZE};
+use crate::relation::record::Record;
 
 /// Constants for slotted-page block header
 const BLOCK_ID_OFFSET: u32 = 0;

@@ -1,3 +1,4 @@
+use crate::common::constants::BlockIdT;
 use crate::relation::schema::Schema;
 
 /// A database record with variable-length attributes.
@@ -21,12 +22,19 @@ use crate::relation::schema::Schema;
 /// database block.
 
 pub struct Record {
+    pub id: RecordId,
     pub data: Vec<u8>,
 }
 
 impl Record {
-    pub fn new(tmp: Vec<u8>) -> Self {
-        Self { data: tmp }
+    pub fn new(block_id: BlockIdT, slot_index: u32, tmp: Vec<u8>) -> Self {
+        Self {
+            id: RecordId {
+                block_id,
+                slot_index,
+            },
+            data: tmp,
+        }
     }
 
     pub fn len(&self) -> u32 {
@@ -34,4 +42,11 @@ impl Record {
     }
 
     pub fn get_column_value(&self, idx: u32, schema: &Schema) {}
+}
+
+/// A database record identifier comprised of the block ID and slot index that
+/// the record is located at.
+pub struct RecordId {
+    pub block_id: BlockIdT,
+    pub slot_index: u32,
 }
