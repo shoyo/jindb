@@ -5,16 +5,16 @@ use crate::common::constants::RelationIdT;
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {
     /// Unique ID for this relation
-    id: RelationIdT,
+    pub id: RelationIdT,
 
     /// User-defined name for this relation
-    name: String,
+    pub name: String,
 
     /// Schema for the attributes of this relation
-    schema: Schema,
+    pub schema: Schema,
 
     /// Collection of blocks on disk which contain records
-    heap: Heap,
+    pub heap: Heap,
 }
 
 impl Relation {
