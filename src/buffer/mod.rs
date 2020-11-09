@@ -8,7 +8,7 @@ mod tests {
     #[test]
     fn test_create_buffer_manager() {
         let dm = disk::manager::DiskManager::new();
-        let _ = buffer::manager::BufferManager::new(8, dm);
+        let _ = buffer::manager::BufferManager::new(dm);
         assert!(true);
     }
 }

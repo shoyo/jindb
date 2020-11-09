@@ -1,5 +1,5 @@
 use crate::block::table_block::TableBlock;
-use crate::common::constants::{BlockIdT, BufferFrameIdT};
+use crate::common::constants::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, RwLock};
@@ -12,6 +12,17 @@ type BlockLatch = Arc<RwLock<TableBlock>>;
 /// from disk through the disk manager.
 pub struct BufferManager {
     /// Collection of buffer frames that can hold guarded blocks
+    ///
+    /// Note:
+    /// Buffer pool is defined as a vector instead of a fixed-size array
+    /// because of limitations with Rust syntax.
+    /// To *safely* declare an N-length array of Option<T>, the options are:
+    ///     1) [None; N] syntax, which requires T to implement
+    ///        std::marker::Copy.
+    ///     2) Using Default::default(), which requires N <= 32.
+    /// Because of these limitations, the buffer pool is defined as a Vec type.
+    /// Despite this, the length of the vector should never change and should
+    /// always have a length of common::constants::BUFFER_SIZE.
     buffer_pool: Vec<Option<BlockLatch>>,
 
     /// Mapping from block IDs to buffer frame IDs
@@ -26,10 +37,10 @@ pub struct BufferManager {
 
 impl BufferManager {
     /// Construct a new buffer manager.
-    pub fn new(buffer_size: BufferFrameIdT, disk_manager: DiskManager) -> Self {
-        let mut pool: Vec<Option<BlockLatch>> = Vec::new();
+    pub fn new(disk_manager: DiskManager) -> Self {
+        let mut pool: Vec<Option<BlockLatch>> = Vec::with_capacity(BUFFER_SIZE as usize);
         let mut free: LinkedList<BufferFrameIdT> = LinkedList::new();
-        for i in 0..buffer_size as usize {
+        for i in 0..BUFFER_SIZE as usize {
             pool.push(None);
             free.push_back(i as BufferFrameIdT);
         }
@@ -48,6 +59,7 @@ impl BufferManager {
 
     /// Initialize a new block and return the block if successful.
     pub fn new_block(&mut self) -> Option<BlockLatch> {
+        let block_id = self.disk_manager.allocate_block();
         None
     }
 
