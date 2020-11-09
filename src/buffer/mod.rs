@@ -1,3 +1,4 @@
+pub mod eviction_policies;
 pub mod manager;
 
 #[cfg(test)]
