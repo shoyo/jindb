@@ -1,4 +1,6 @@
 use crate::block::table_block::TableBlock;
+use crate::buffer::eviction_policies::clock::ClockPolicy;
+use crate::buffer::eviction_policies::policy::Policy;
 use crate::common::constants::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
@@ -33,6 +35,9 @@ pub struct BufferManager {
 
     /// List of frame IDs that are not occupied
     free_list: LinkedList<BufferFrameIdT>,
+
+    /// Buffer eviction policy
+    policy: ClockPolicy,
 }
 
 impl BufferManager {
@@ -49,6 +54,7 @@ impl BufferManager {
             block_table: HashMap::new(),
             disk_manager,
             free_list: free,
+            policy: ClockPolicy::new(),
         }
     }
 

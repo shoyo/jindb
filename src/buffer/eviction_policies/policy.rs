@@ -15,15 +15,15 @@ pub trait Policy {
 
     /// Evict a block from the buffer according to the eviction policy and
     /// return the corresponding frame ID.
-    fn evict() -> Result<BufferFrameIdT, String>;
+    fn evict(&mut self) -> Result<BufferFrameIdT, String>;
 
     /// Indicate that the specified frame contains a pinned block and should
     /// not be evicted.
     /// Should be called after a block has been pinned to the buffer.
-    fn pin(frame_id: BufferFrameIdT);
+    fn pin(&mut self, frame_id: BufferFrameIdT);
 
     /// Indicate that the specified frame contains a block with a pin count
     /// of zero and can not be evicted.
     /// Should be called after a block reaches a pin count of zero.
-    fn unpin(frame_id: BufferFrameIdT);
+    fn unpin(&mut self, frame_id: BufferFrameIdT);
 }
