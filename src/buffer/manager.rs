@@ -24,7 +24,7 @@ pub struct BufferManager {
     ///     2) Using Default::default(), which requires N <= 32.
     /// Because of these limitations, the buffer pool is defined as a Vec type.
     /// Despite this, the length of the vector should never change and should
-    /// always have a length of common::constants::BUFFER_SIZE.
+    /// always be equal to common::constants::BUFFER_SIZE.
     buffer_pool: Vec<Option<BlockLatch>>,
 
     /// Mapping from block IDs to buffer frame IDs
