@@ -4,7 +4,7 @@ use crate::buffer::eviction_policies::policy::Policy;
 use crate::common::constants::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Type alias for a block protected by a R/W latch for concurrent access.
 type BlockLatch = Arc<RwLock<TableBlock>>;
@@ -28,13 +28,13 @@ pub struct BufferManager {
     buffer_pool: Vec<Option<BlockLatch>>,
 
     /// Mapping from block IDs to buffer frame IDs
-    block_table: HashMap<BlockIdT, BufferFrameIdT>,
+    block_table: Arc<Mutex<HashMap<BlockIdT, BufferFrameIdT>>>,
 
     /// Disk manager to access blocks on disk
     disk_manager: DiskManager,
 
     /// List of frame IDs that are not occupied
-    free_list: LinkedList<BufferFrameIdT>,
+    free_list: Arc<Mutex<LinkedList<BufferFrameIdT>>>,
 
     /// Buffer eviction policy
     policy: ClockPolicy,
@@ -51,9 +51,9 @@ impl BufferManager {
         }
         Self {
             buffer_pool: pool,
-            block_table: HashMap::new(),
+            block_table: Arc::new(Mutex::new(HashMap::new())),
             disk_manager,
-            free_list: free,
+            free_list: Arc::new(Mutex::new(free)),
             policy: ClockPolicy::new(),
         }
     }
@@ -66,6 +66,8 @@ impl BufferManager {
     /// Initialize a new block and return the block if successful.
     pub fn new_block(&mut self) -> Option<BlockLatch> {
         let block_id = self.disk_manager.allocate_block();
+        for i in 0..BUFFER_SIZE as usize {}
+
         None
     }
 
@@ -141,7 +143,8 @@ impl BufferManager {
     /// Return a value instead of a reference (which is the default for
     /// std::collections::HashMap).
     fn get_frame_id(&self, block_id: BlockIdT) -> Option<BufferFrameIdT> {
-        match self.block_table.get(&block_id) {
+        let table = self.block_table.lock().unwrap();
+        match table.get(&block_id) {
             Some(frame_id) => Some(*frame_id),
             None => None,
         }
