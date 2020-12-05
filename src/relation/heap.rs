@@ -13,15 +13,18 @@ pub struct Heap {
 impl Heap {
     /// Create a new heap for a database relation.
     pub fn new(buffer_manager: &mut BufferManager) -> Result<Self, String> {
-        let rwlatch = match buffer_manager.new_block() {
-            Some(latch) => latch,
-            None => {
+        let rwlatch = match buffer_manager.create_block() {
+            Ok(latch) => latch,
+            Err(_) => {
                 return Err(format!(
-                    "Failed to initialize the head block for a relation heap."
+                    "Failed to initialize the head block for a relation heap"
                 ))
             }
         };
-        let head_block_id = rwlatch.read().unwrap().id;
+        let head_block_id = match *rwlatch.read().unwrap() {
+            Some(block) => block.id,
+            None => panic!("Head block latch contained None"),
+        };
         buffer_manager.unpin_block(head_block_id).unwrap();
         Ok(Self {
             head_block_id: head_block_id,

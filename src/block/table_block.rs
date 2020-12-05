@@ -16,8 +16,8 @@ const RECORD_POINTER_SIZE: u32 = 8;
 ///
 /// Contains a header and variable-length records that grow in opposite
 /// directions, similarly to a heap and stack. Also stores information
-/// to be used by the buffer manager for book-keeping such as pin
-/// count and dirty flag.
+/// to be used by the buffer manager for book-keeping such as pin count
+/// and dirty flag.
 ///
 ///
 /// Data format:

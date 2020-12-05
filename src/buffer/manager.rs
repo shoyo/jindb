@@ -7,7 +7,7 @@ use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};
 
 /// Type alias for a block protected by a R/W latch for concurrent access.
-type BlockLatch = Arc<RwLock<TableBlock>>;
+type BlockLatch = Arc<RwLock<Option<TableBlock>>>;
 
 /// The buffer manager is responsible for fetching/flushing blocks that are
 /// managed in memory. Any blocks that don't exist in the buffer are retrieved
@@ -23,9 +23,9 @@ pub struct BufferManager {
     ///        std::marker::Copy.
     ///     2) Using Default::default(), which requires N <= 32.
     /// Because of these limitations, the buffer pool is defined as a Vec type.
-    /// Despite this, the length of the vector should never change and should
-    /// always be equal to common::constants::BUFFER_SIZE.
-    buffer_pool: Vec<Option<BlockLatch>>,
+    /// The length of the vector should never change and should always be equal
+    /// to common::constants::BUFFER_SIZE.
+    buffer_pool: Vec<BlockLatch>,
 
     /// Mapping from block IDs to buffer frame IDs
     block_table: Arc<Mutex<HashMap<BlockIdT, BufferFrameIdT>>>,
@@ -43,10 +43,10 @@ pub struct BufferManager {
 impl BufferManager {
     /// Construct a new buffer manager.
     pub fn new(disk_manager: DiskManager) -> Self {
-        let mut pool: Vec<Option<BlockLatch>> = Vec::with_capacity(BUFFER_SIZE as usize);
+        let mut pool: Vec<BlockLatch> = Vec::with_capacity(BUFFER_SIZE as usize);
         let mut free: LinkedList<BufferFrameIdT> = LinkedList::new();
         for i in 0..BUFFER_SIZE as usize {
-            pool.push(None);
+            pool.push(Arc::new(RwLock::new(None)));
             free.push_back(i as BufferFrameIdT);
         }
         Self {
@@ -63,46 +63,80 @@ impl BufferManager {
         self.buffer_pool.len() as BufferFrameIdT
     }
 
-    /// Initialize a new block and return the block if successful.
-    pub fn new_block(&mut self) -> Option<BlockLatch> {
+    /// Initialize a new block, pin it, and return the block latch.
+    /// If there are no open buffer frames and all existing blocks are pinned, then
+    /// return an error.
+    pub fn create_block(&mut self) -> Result<BlockLatch, ()> {
+        // Allocate space in disk and initialize the new block.
         let block_id = self.disk_manager.allocate_block();
-        for i in 0..BUFFER_SIZE as usize {}
+        let block = TableBlock::new(block_id);
+        let block_latch = Arc::new(RwLock::new(Some(block)));
 
-        None
+        // Find a frame in the buffer to house the newly created block.
+        // Starting by checking the free list, which is a list of open frame IDs.
+        let mut list = self.free_list.lock().unwrap();
+        if list.is_empty() {
+            // If free list is empty, then scan buffer frames for an unpinned block
+            for i in 0..BUFFER_SIZE as usize {}
+        } else {
+            // If the free list is not empty, then pop off an index and pin the block
+            // to the corresponding frame. Be sure to wrap the block in a block latch.
+            let open_frame_id = list.len() as usize;
+            let mut frame = self.buffer_pool[open_frame_id].write().unwrap();
+            // frame = block_latch;
+        }
+
+        Ok(block_latch.clone())
     }
 
-    /// Fetch the specified block from the buffer, pin it, and return the block
-    /// if successful.
-    pub fn fetch_block_latch(&mut self, block_id: BlockIdT) -> Option<BlockLatch> {
-        match self.get_frame_id(block_id) {
+    /// Fetch the specified block, pin it, and return the block latch.
+    /// If the block does not exist in the buffer, then fetch the block from disk.
+    /// If the block does not exist on disk, then return an error.
+    pub fn fetch_block(&mut self, block_id: BlockIdT) -> Result<BlockLatch, ()> {
+        match self._get_frame_id(block_id) {
             Some(frame_id) => {
-                let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
-                let mut block = latch.write().unwrap();
-                block.pin_count += 1;
-                Some(Arc::clone(&latch))
+                let latch = self._get_block_by_frame(frame_id).unwrap();
+                match *latch.write().unwrap() {
+                    Some(ref mut block) => {
+                        let foo = *block;
+                        foo.pin_count += 1;
+                        Ok(latch.clone())
+                    }
+                    None => panic!(),
+                }
             }
-            None => None,
+            None => todo!(),
         }
+    }
+
+    /// Delete the specified block.
+    /// If the block is pinned, then return an error.
+    pub fn delete_block(&mut self, block_id: BlockIdT) -> Result<(), ()> {
+        todo!()
     }
 
     /// Flush the specified block to disk.
     pub fn flush_block(&mut self, block_id: BlockIdT) -> Result<(), ()> {
-        Err(())
+        todo!()
     }
 
     /// Flush all blocks to disk.
     pub fn flush_all_blocks(&mut self) -> Result<(), ()> {
-        Err(())
+        todo!()
     }
 
     /// Pin the specified block to the buffer.
     /// Pinned blocks will never be evicted. Threads must pin a block to the
     /// buffer before operating on it.
     pub fn pin_block(&self, block_id: BlockIdT) -> Result<(), ()> {
-        let frame_id = self.get_frame_id(block_id).unwrap();
-        let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
-        let mut block = latch.write().unwrap();
-        block.pin_count += 1;
+        let frame_id = self._get_frame_id(block_id).unwrap();
+        let latch = self._get_block_by_frame(frame_id).unwrap();
+        match *latch.write().unwrap() {
+            Some(block) => block.pin_count += 1,
+            None => panic!(
+                "Attempted to pin a block contained in a block latch, but the latch contained None."
+            ),
+        }
         Ok(())
     }
 
@@ -110,42 +144,42 @@ impl BufferManager {
     /// Blocks with no pins can be evicted. Threads must unpin a block when
     /// finished operating on it.
     pub fn unpin_block(&self, block_id: BlockIdT) -> Result<(), String> {
-        let frame_id = self.get_frame_id(block_id).unwrap();
-        let latch = self.get_block_latch_by_frame_id(frame_id).unwrap();
-        let mut block = latch.write().unwrap();
-        if block.pin_count == 0 {
-            return Err(format!("Attempted to unpin a block with a pin count of 0."));
+        let frame_id = self._get_frame_id(block_id).unwrap();
+        let latch = self._get_block_by_frame(frame_id).unwrap();
+        match *latch.write().unwrap() {
+            Some(block) => {
+                if block.pin_count == 0 {
+                    return Err(format!("Attempted to unpin a block with a pin count of 0."));
+                }
+                block.pin_count -= 1;
+            }
+            None => panic!("Attempted to unpin a block contained in a block latch, but the latch contained None."),
         }
-        block.pin_count -= 1;
         Ok(())
     }
 
     /// Index the buffer pool and return the specified block latch.
-    /// Performs error handling for cases such as out-of-bounds and empty frames.
-    fn get_block_latch_by_frame_id(&self, frame_id: BufferFrameIdT) -> Result<BlockLatch, String> {
-        if frame_id >= self.buffer_size() {
-            return Err(format!(
-                "Frame ID {} out of range (buffer size = {}) [broken block table]",
-                frame_id,
-                self.buffer_size()
-            ));
-        }
-        match &self.buffer_pool[frame_id as usize] {
-            Some(latch) => Ok(Arc::clone(latch)),
-            None => Err(format!(
-                "Frame ID {} points to empty buffer frame [broken block table]",
-                frame_id
-            )),
-        }
+    fn _get_block_by_frame(&self, frame_id: BufferFrameIdT) -> Result<BlockLatch, String> {
+        let latch = self.buffer_pool[frame_id as usize];
+        Ok(latch.clone())
     }
 
-    /// Look up the frame ID of the specified block ID in the block table.
-    /// Return a value instead of a reference (which is the default for
-    /// std::collections::HashMap).
-    fn get_frame_id(&self, block_id: BlockIdT) -> Option<BufferFrameIdT> {
+    /// Find the specified block in the block table, and return its frame ID.
+    /// If the block does not exist in the block table, then return None.
+    /// Panic if the frame ID is out-of-bounds.
+    fn _get_frame_id(&self, block_id: BlockIdT) -> Option<BufferFrameIdT> {
         let table = self.block_table.lock().unwrap();
         match table.get(&block_id) {
-            Some(frame_id) => Some(*frame_id),
+            Some(frame_id) => {
+                if *frame_id >= self.buffer_size() {
+                    panic!(format!(
+                        "Frame ID {} out of range (buffer size = {}) [broken block table]",
+                        frame_id,
+                        self.buffer_size()
+                    ));
+                }
+                Some(*frame_id)
+            }
             None => None,
         }
     }
