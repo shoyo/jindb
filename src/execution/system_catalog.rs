@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 type RelationGuard = Arc<Mutex<Relation>>;
 
-struct SystemCatalog {
+pub struct SystemCatalog {
     /// Mapping of relation IDs to relations
     relations: HashMap<RelationIdT, RelationGuard>,
 

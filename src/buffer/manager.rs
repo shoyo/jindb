@@ -101,7 +101,10 @@ impl BufferManager {
                         block.pin_count += 1;
                         Ok(latch.clone())
                     }
-                    None => panic!("Specified block ID {} points to an empty buffer frame", block_id),
+                    None => panic!(
+                        "Specified block ID {} points to an empty buffer frame",
+                        block_id
+                    ),
                 };
                 latch
             }

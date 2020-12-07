@@ -13,9 +13,9 @@ impl Schema {
 
 /// A single attribute in a relation. (i.e. "columns" in a table)
 pub struct Attribute {
-    name: String,
-    data_type: DataType,
-    nullable: bool,
+    pub name: String,
+    pub data_type: DataType,
+    pub nullable: bool,
 }
 
 /// Data types for values in the database.
