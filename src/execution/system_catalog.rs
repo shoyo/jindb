@@ -19,7 +19,7 @@ struct SystemCatalog {
     /// Next relation ID to be used
     next_relation_id: AtomicU32,
 
-    /// Buffer manager instance backng the relations in this catalog
+    /// Buffer manager instance backing the relations in this catalog
     buffer_manager: BufferManager,
 }
 

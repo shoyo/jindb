@@ -3,7 +3,7 @@ use crate::common::constants::{BlockIdT, RecordIdT};
 use crate::relation::record::Record;
 
 /// A heap is a collection of blocks on disk which corresponds to a given relation.
-/// Blocks are chained together as a doubly linked list. Each block contains in its
+/// Blocks are connected together as a doubly linked list. Each block contains in its
 /// header the IDs of its previous and next blocks.
 pub struct Heap {
     /// ID of the first block in the doubly linked list
