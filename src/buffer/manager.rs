@@ -45,9 +45,9 @@ impl BufferManager {
     pub fn new(disk_manager: DiskManager) -> Self {
         let mut pool: Vec<BlockLatch> = Vec::with_capacity(BUFFER_SIZE as usize);
         let mut free: LinkedList<BufferFrameIdT> = LinkedList::new();
-        for i in 0..BUFFER_SIZE as usize {
+        for frame_id in 0..BUFFER_SIZE as usize {
             pool.push(Arc::new(RwLock::new(None)));
-            free.push_back(i as BufferFrameIdT);
+            free.push_back(frame_id as BufferFrameIdT);
         }
         Self {
             buffer_pool: pool,
@@ -83,7 +83,6 @@ impl BufferManager {
             // to the corresponding frame. Be sure to wrap the block in a block latch.
             let open_frame_id = list.len() as usize;
             let mut frame = self.buffer_pool[open_frame_id].write().unwrap();
-            // frame = block_latch;
         }
 
         Ok(block_latch.clone())
@@ -93,18 +92,20 @@ impl BufferManager {
     /// If the block does not exist in the buffer, then fetch the block from disk.
     /// If the block does not exist on disk, then return an error.
     pub fn fetch_block(&mut self, block_id: BlockIdT) -> Result<BlockLatch, ()> {
-        match self._get_frame_id(block_id) {
+        match self._block_table_lookup(block_id) {
+            // Block currently exists in the buffer, so pin it and return the latch.
             Some(frame_id) => {
                 let latch = self._get_block_by_frame(frame_id).unwrap();
-                match *latch.write().unwrap() {
+                let latch = match *latch.write().unwrap() {
                     Some(ref mut block) => {
-                        let foo = *block;
-                        foo.pin_count += 1;
+                        block.pin_count += 1;
                         Ok(latch.clone())
                     }
-                    None => panic!(),
-                }
+                    None => panic!("Specified block ID {} points to an empty buffer frame", block_id),
+                };
+                latch
             }
+            // Block does not currently exist in the buffer, so fetch the block from disk.
             None => todo!(),
         }
     }
@@ -129,10 +130,10 @@ impl BufferManager {
     /// Pinned blocks will never be evicted. Threads must pin a block to the
     /// buffer before operating on it.
     pub fn pin_block(&self, block_id: BlockIdT) -> Result<(), ()> {
-        let frame_id = self._get_frame_id(block_id).unwrap();
+        let frame_id = self._block_table_lookup(block_id).unwrap();
         let latch = self._get_block_by_frame(frame_id).unwrap();
         match *latch.write().unwrap() {
-            Some(block) => block.pin_count += 1,
+            Some(ref mut block) => block.pin_count += 1,
             None => panic!(
                 "Attempted to pin a block contained in a block latch, but the latch contained None."
             ),
@@ -144,10 +145,10 @@ impl BufferManager {
     /// Blocks with no pins can be evicted. Threads must unpin a block when
     /// finished operating on it.
     pub fn unpin_block(&self, block_id: BlockIdT) -> Result<(), String> {
-        let frame_id = self._get_frame_id(block_id).unwrap();
+        let frame_id = self._block_table_lookup(block_id).unwrap();
         let latch = self._get_block_by_frame(frame_id).unwrap();
         match *latch.write().unwrap() {
-            Some(block) => {
+            Some(ref mut block) => {
                 if block.pin_count == 0 {
                     return Err(format!("Attempted to unpin a block with a pin count of 0."));
                 }
@@ -160,14 +161,14 @@ impl BufferManager {
 
     /// Index the buffer pool and return the specified block latch.
     fn _get_block_by_frame(&self, frame_id: BufferFrameIdT) -> Result<BlockLatch, String> {
-        let latch = self.buffer_pool[frame_id as usize];
-        Ok(latch.clone())
+        let latch = self.buffer_pool[frame_id as usize].clone();
+        Ok(latch)
     }
 
     /// Find the specified block in the block table, and return its frame ID.
     /// If the block does not exist in the block table, then return None.
     /// Panic if the frame ID is out-of-bounds.
-    fn _get_frame_id(&self, block_id: BlockIdT) -> Option<BufferFrameIdT> {
+    fn _block_table_lookup(&self, block_id: BlockIdT) -> Option<BufferFrameIdT> {
         let table = self.block_table.lock().unwrap();
         match table.get(&block_id) {
             Some(frame_id) => {

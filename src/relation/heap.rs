@@ -22,7 +22,7 @@ impl Heap {
             }
         };
         let head_block_id = match *rwlatch.read().unwrap() {
-            Some(block) => block.id,
+            Some(ref block) => block.id,
             None => panic!("Head block latch contained None"),
         };
         buffer_manager.unpin_block(head_block_id).unwrap();
