@@ -1,3 +1,4 @@
+pub mod attribute;
 pub mod heap;
 pub mod iterator;
 pub mod record;

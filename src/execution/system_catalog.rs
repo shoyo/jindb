@@ -1,13 +1,11 @@
 use crate::buffer::manager::BufferManager;
 use crate::common::constants::RelationIdT;
 use crate::relation::heap::Heap;
-use crate::relation::relation::Relation;
+use crate::relation::relation::{Relation, RelationGuard};
 use crate::relation::schema::Schema;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-
-type RelationGuard = Arc<Mutex<Relation>>;
 
 pub struct SystemCatalog {
     /// Mapping of relation IDs to relations

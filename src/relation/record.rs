@@ -1,5 +1,6 @@
 use crate::common::constants::BlockIdT;
-use crate::relation::schema::{Attribute, Schema};
+use crate::relation::attribute::Attribute;
+use crate::relation::schema::Schema;
 use std::convert::TryInto;
 
 /// A database record with variable-length attributes.

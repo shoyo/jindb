@@ -2,6 +2,9 @@ use super::heap::Heap;
 use super::schema::Schema;
 use crate::common::constants::RelationIdT;
 use crate::relation::record::Record;
+use std::sync::{Arc, Mutex};
+
+pub type RelationGuard = Arc<Mutex<Relation>>;
 
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {
