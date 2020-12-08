@@ -1,15 +1,15 @@
 use jin::buffer::manager::BufferManager;
 use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
+use jin::relation::record::Record;
 use jin::relation::schema::{Attribute, DataType, Schema};
 
 fn main() {
     println!("Jin (2020)");
     println!("Enter .help for usage hints");
 
-    let dm = DiskManager::new();
-    let bm = BufferManager::new(dm);
-    let mut catalog = SystemCatalog::new(bm);
+    let buffer = BufferManager::new(DiskManager::new());
+    let mut catalog = SystemCatalog::new(buffer);
 
     let schema = Schema::new(vec![
         Attribute {
@@ -28,5 +28,7 @@ fn main() {
             nullable: false,
         },
     ]);
-    catalog.create_relation("Students".to_string(), schema);
+    let relation_guard = catalog
+        .create_relation("Students".to_string(), schema)
+        .unwrap();
 }

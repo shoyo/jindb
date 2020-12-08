@@ -1,6 +1,7 @@
 use super::heap::Heap;
 use super::schema::Schema;
 use crate::common::constants::RelationIdT;
+use crate::relation::record::Record;
 
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {

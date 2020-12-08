@@ -1,5 +1,6 @@
 use crate::common::constants::BlockIdT;
-use crate::relation::schema::Schema;
+use crate::relation::schema::{Attribute, Schema};
+use std::convert::TryInto;
 
 /// A database record with variable-length attributes.
 ///
@@ -8,7 +9,7 @@ use crate::relation::schema::Schema;
 ///
 /// The next section of a record contains fixed-length values. Data types
 /// such as numerics, booleans, and dates are encoded as is, while variable-
-/// length data types such as varchars are encoded as a offset/length pair.
+/// length data types such as varchar are encoded as a offset/length pair.
 ///
 /// The actual variable-length data is stored consecutively after the initial
 /// fixed-length section and null bitmap.
@@ -41,7 +42,9 @@ impl Record {
         self.data.len() as u32
     }
 
-    pub fn get_column_value(&self, idx: u32, schema: &Schema) {}
+    pub fn get_column_value(&self, idx: u32, schema: &Schema) -> &[u8] {
+        todo!()
+    }
 }
 
 /// A database record identifier comprised of the block ID and slot index that
