@@ -5,7 +5,7 @@ use crate::relation::relation::{Relation, RelationGuard};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-struct Transaction {
+pub struct Transaction {
     /// Unique ID for this transaction
     id: TransactionIdT,
 

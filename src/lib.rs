@@ -1,7 +1,9 @@
 pub mod block;
 pub mod buffer;
 pub mod common;
+pub mod concurrency;
 pub mod disk;
 pub mod execution;
 pub mod index;
+pub mod log;
 pub mod relation;

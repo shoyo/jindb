@@ -34,8 +34,4 @@ fn main() {
             ]),
         )
         .unwrap();
-
-    {
-        let relation = guard.lock().unwrap();
-    }
 }
