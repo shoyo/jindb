@@ -1,6 +1,6 @@
 use super::heap::Heap;
 use super::schema::Schema;
-use crate::common::constants::RelationIdT;
+use crate::common::constants::{RecordIdT, RelationIdT};
 use crate::relation::record::Record;
 use std::sync::{Arc, Mutex};
 
@@ -29,5 +29,21 @@ impl Relation {
             schema,
             heap,
         }
+    }
+
+    pub fn insert_record(&mut self, record: Record) -> Result<(), ()> {
+        self.heap.insert(record)
+    }
+
+    pub fn flag_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+        self.heap.flag_delete(record_id)
+    }
+
+    pub fn commit_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+        self.heap.commit_delete(record_id)
+    }
+
+    pub fn rollback_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+        self.heap.rollback_delete(record_id)
     }
 }
