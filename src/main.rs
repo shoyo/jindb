@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use jin::buffer::manager::BufferManager;
 use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;

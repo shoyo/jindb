@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 /// Type aliases
 pub type BlockIdT = u32;
 pub type RelationIdT = u32;

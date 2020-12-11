@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use super::heap::Heap;
 use super::schema::Schema;
 use crate::common::constants::{RecordIdT, RelationIdT};

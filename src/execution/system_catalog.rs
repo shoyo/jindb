@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::buffer::manager::BufferManager;
 use crate::common::constants::RelationIdT;
 use crate::relation::heap::Heap;

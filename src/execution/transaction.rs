@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::block::table_block::TableBlock;
 use crate::common::constants::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::relation::record::{Record, RecordId};

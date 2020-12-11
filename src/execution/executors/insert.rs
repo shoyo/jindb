@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::execution::executors::{BaseExecutor, ExecutorMeta};
 use crate::execution::plans::insert::InsertPlanNode;
 use crate::relation::record::Record;

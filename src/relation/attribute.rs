@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 /// A single attribute in a relation. (i.e. "columns" in a table)
 #[derive(Debug)]
 pub struct Attribute {

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::common::constants::BufferFrameIdT;
 
 /// An eviction policy trait for the database buffer.

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::execution::transaction::Transaction;
 use crate::relation::record::{Record, RecordId};
 use crate::relation::schema::Schema;

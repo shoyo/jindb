@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ */
+
 use crate::common::constants::{BlockIdT, BLOCK_SIZE};
 use crate::relation::record::Record;
 
