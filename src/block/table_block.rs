@@ -88,7 +88,7 @@ impl TableBlock {
     }
 
     /// Write an unsigned 32-bit integer at the specified location in the
-    /// byte array. The existing value is overwritten.
+    /// byte array. Any existing value is overwritten.
     pub fn write_u32(&mut self, value: u32, addr: u32) -> Result<(), String> {
         if addr + 4 > BLOCK_SIZE {
             return Err(format!(
