@@ -53,9 +53,9 @@ impl BufferManager {
     pub fn new(disk_manager: DiskManager, buffer_size: BufferFrameIdT) -> Self {
         let mut pool: Vec<BlockLatch> = Vec::with_capacity(buffer_size as usize);
         let mut free_list: LinkedList<BufferFrameIdT> = LinkedList::new();
-        for frame_id in 0..buffer_size as usize {
+        for frame_id in 0..buffer_size {
             pool.push(Arc::new(RwLock::new(None)));
-            free_list.push_back(frame_id as BufferFrameIdT);
+            free_list.push_back(frame_id);
         }
         Self {
             buffer_size,
@@ -81,11 +81,11 @@ impl BufferManager {
         let mut list = self.free_list.lock().unwrap();
         if list.is_empty() {
             // If free list is empty, then scan buffer frames for an unpinned block
-            for i in 0..self.buffer_size as usize {}
+            for i in 0..self.buffer_size {}
         } else {
             // If the free list is not empty, then pop off an index and pin the block
             // to the corresponding frame. Be sure to wrap the block in a block latch.
-            let open_frame_id = list.len() as usize;
+            let open_frame_id = list.len();
             let mut frame = self.buffer_pool[open_frame_id].write().unwrap();
         }
 
