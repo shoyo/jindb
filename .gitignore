@@ -2,3 +2,4 @@
 /target
 **/*.rs.bk
 db.jin
+test_db.jin
