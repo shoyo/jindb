@@ -4,7 +4,7 @@
  */
 
 use crate::buffer::manager::BufferManager;
-use crate::common::constants::{BlockIdT, RecordIdT};
+use crate::common::{BlockIdT, RecordIdT};
 use crate::relation::record::Record;
 
 /// A heap is a collection of blocks on disk which corresponds to a given relation.

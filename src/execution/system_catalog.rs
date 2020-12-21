@@ -4,7 +4,7 @@
  */
 
 use crate::buffer::manager::BufferManager;
-use crate::common::constants::RelationIdT;
+use crate::common::RelationIdT;
 use crate::relation::heap::Heap;
 use crate::relation::relation::{Relation, RelationGuard};
 use crate::relation::schema::Schema;

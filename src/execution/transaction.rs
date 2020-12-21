@@ -4,7 +4,7 @@
  */
 
 use crate::block::table_block::TableBlock;
-use crate::common::constants::{LsnT, TransactionIdT, INVALID_LSN};
+use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::relation::{Relation, RelationGuard};
 use std::collections::VecDeque;

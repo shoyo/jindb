@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::constants::{BlockIdT, BLOCK_SIZE};
+use crate::common::{BlockIdT, BLOCK_SIZE};
 use crate::relation::record::Record;
 
 /// Constants for slotted-page block header

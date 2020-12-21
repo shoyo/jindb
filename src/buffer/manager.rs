@@ -6,7 +6,7 @@
 use crate::block::table_block::TableBlock;
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::policy::Policy;
-use crate::common::constants::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
+use crate::common::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};

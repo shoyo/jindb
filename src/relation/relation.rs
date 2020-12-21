@@ -5,7 +5,7 @@
 
 use super::heap::Heap;
 use super::schema::Schema;
-use crate::common::constants::{RecordIdT, RelationIdT};
+use crate::common::{RecordIdT, RelationIdT};
 use crate::relation::record::Record;
 use std::sync::{Arc, Mutex};
 

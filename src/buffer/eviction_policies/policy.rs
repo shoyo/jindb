@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::constants::BufferFrameIdT;
+use crate::common::BufferFrameIdT;
 
 /// An eviction policy trait for the database buffer.
 /// The policy used decides which block in the buffer is evicted when the

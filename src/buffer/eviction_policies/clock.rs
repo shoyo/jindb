@@ -4,7 +4,7 @@
  */
 
 use super::policy::Policy;
-use crate::common::constants::BufferFrameIdT;
+use crate::common::BufferFrameIdT;
 
 /// A clock eviction policy for the database buffer.
 pub struct ClockPolicy {}

@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::constants::RelationIdT;
+use crate::common::RelationIdT;
 use crate::execution::plans::{AbstractPlanNode, PlanNode};
 use crate::relation::record::Record;
 use crate::relation::schema::Schema;

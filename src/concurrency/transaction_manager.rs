@@ -5,3 +5,9 @@
 
 // Dummy declaration for now.
 pub struct TransactionManager;
+
+impl TransactionManager {
+    pub fn new() -> Self {
+        Self
+    }
+}

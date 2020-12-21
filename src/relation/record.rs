@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::constants::BlockIdT;
+use crate::common::BlockIdT;
 use crate::relation::attribute::Attribute;
 use crate::relation::schema::Schema;
 use std::convert::TryInto;
