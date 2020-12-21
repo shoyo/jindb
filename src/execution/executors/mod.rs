@@ -4,7 +4,6 @@
  */
 
 use crate::buffer::manager::BufferManager;
-use crate::execution::plans::BasePlanNode;
 use crate::execution::system_catalog::SystemCatalog;
 use crate::execution::transaction::Transaction;
 use crate::relation::record::Record;

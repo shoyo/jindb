@@ -4,15 +4,29 @@
  */
 
 use crate::common::constants::RelationIdT;
-use crate::execution::plans::{BasePlanNode, PlanMeta};
+use crate::execution::plans::{AbstractPlanNode, PlanNode};
+use crate::relation::record::Record;
+use crate::relation::schema::Schema;
+use std::sync::{Arc, Mutex};
 
 pub struct InsertPlanNode<'a> {
-    meta: PlanMeta<'a>,
+    /// Relation affected by this insert plan.
     relation_id: RelationIdT,
+
+    children: Vec<PlanNode<'a>>,
+    output_schema: &'a Schema,
 }
 
-impl<'a> BasePlanNode<'a> for InsertPlanNode<'a> {
-    fn get_child(&self, child_idx: u32) -> &'a dyn BasePlanNode<'a> {
+impl<'a> AbstractPlanNode<'a> for InsertPlanNode<'a> {
+    fn next(&self) -> Option<Arc<Mutex<Record>>> {
         todo!()
+    }
+
+    fn get_children(&'a self) -> &'a Vec<PlanNode<'a>> {
+        &self.children
+    }
+
+    fn get_output_schema(&'a self) -> &'a Schema {
+        self.output_schema
     }
 }
