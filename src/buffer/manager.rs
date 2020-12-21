@@ -6,7 +6,7 @@
 use crate::block::table_block::TableBlock;
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::policy::Policy;
-use crate::common::{BlockIdT, BufferFrameIdT, BUFFER_SIZE};
+use crate::common::{BlockIdT, BufferFrameIdT};
 use crate::disk::manager::DiskManager;
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};
@@ -18,6 +18,9 @@ type BlockLatch = Arc<RwLock<Option<TableBlock>>>;
 /// managed in memory. Any blocks that don't exist in the buffer are retrieved
 /// from disk through the disk manager.
 pub struct BufferManager {
+    /// Number of buffer frames in the managed buffer pool
+    buffer_size: BufferFrameIdT,
+
     /// Collection of buffer frames that can hold guarded blocks
     ///
     /// Note:
@@ -29,7 +32,7 @@ pub struct BufferManager {
     ///     2) Using Default::default(), which requires N <= 32.
     /// Because of these limitations, the buffer pool is defined as a Vec type.
     /// The length of the vector should never change and should always be equal
-    /// to common::constants::BUFFER_SIZE.
+    /// to self.buffer_size.
     buffer_pool: Vec<BlockLatch>,
 
     /// Mapping from block IDs to buffer frame IDs
@@ -47,25 +50,21 @@ pub struct BufferManager {
 
 impl BufferManager {
     /// Construct a new buffer manager.
-    pub fn new(disk_manager: DiskManager) -> Self {
-        let mut pool: Vec<BlockLatch> = Vec::with_capacity(BUFFER_SIZE as usize);
+    pub fn new(disk_manager: DiskManager, buffer_size: BufferFrameIdT) -> Self {
+        let mut pool: Vec<BlockLatch> = Vec::with_capacity(buffer_size as usize);
         let mut free_list: LinkedList<BufferFrameIdT> = LinkedList::new();
-        for frame_id in 0..BUFFER_SIZE as usize {
+        for frame_id in 0..buffer_size as usize {
             pool.push(Arc::new(RwLock::new(None)));
             free_list.push_back(frame_id as BufferFrameIdT);
         }
         Self {
+            buffer_size,
             buffer_pool: pool,
             block_table: Arc::new(Mutex::new(HashMap::new())),
             disk_manager,
             free_list: Arc::new(Mutex::new(free_list)),
             policy: ClockPolicy::new(),
         }
-    }
-
-    /// Return the size of the buffer pool.
-    pub fn buffer_size(&self) -> BufferFrameIdT {
-        self.buffer_pool.len() as BufferFrameIdT
     }
 
     /// Initialize a new block, pin it, and return the block latch.
@@ -82,7 +81,7 @@ impl BufferManager {
         let mut list = self.free_list.lock().unwrap();
         if list.is_empty() {
             // If free list is empty, then scan buffer frames for an unpinned block
-            for i in 0..BUFFER_SIZE as usize {}
+            for i in 0..self.buffer_size as usize {}
         } else {
             // If the free list is not empty, then pop off an index and pin the block
             // to the corresponding frame. Be sure to wrap the block in a block latch.
@@ -180,11 +179,10 @@ impl BufferManager {
         let table = self.block_table.lock().unwrap();
         match table.get(&block_id) {
             Some(frame_id) => {
-                if *frame_id >= self.buffer_size() {
+                if *frame_id >= self.buffer_size {
                     panic!(format!(
                         "Frame ID {} out of range (buffer size = {}) [broken block table]",
-                        frame_id,
-                        self.buffer_size()
+                        frame_id, self.buffer_size
                     ));
                 }
                 Some(*frame_id)
