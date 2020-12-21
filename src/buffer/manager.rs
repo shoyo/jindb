@@ -49,16 +49,16 @@ impl BufferManager {
     /// Construct a new buffer manager.
     pub fn new(disk_manager: DiskManager) -> Self {
         let mut pool: Vec<BlockLatch> = Vec::with_capacity(BUFFER_SIZE as usize);
-        let mut free: LinkedList<BufferFrameIdT> = LinkedList::new();
+        let mut free_list: LinkedList<BufferFrameIdT> = LinkedList::new();
         for frame_id in 0..BUFFER_SIZE as usize {
             pool.push(Arc::new(RwLock::new(None)));
-            free.push_back(frame_id as BufferFrameIdT);
+            free_list.push_back(frame_id as BufferFrameIdT);
         }
         Self {
             buffer_pool: pool,
             block_table: Arc::new(Mutex::new(HashMap::new())),
             disk_manager,
-            free_list: Arc::new(Mutex::new(free)),
+            free_list: Arc::new(Mutex::new(free_list)),
             policy: ClockPolicy::new(),
         }
     }

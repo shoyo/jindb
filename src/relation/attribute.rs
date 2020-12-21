@@ -8,7 +8,27 @@
 pub struct Attribute {
     pub name: String,
     pub data_type: DataType,
+    pub primary: bool,
+    pub serial: bool,
     pub nullable: bool,
+}
+
+impl Attribute {
+    pub fn new(
+        name: &str,
+        data_type: DataType,
+        primary: bool,
+        serial: bool,
+        nullable: bool,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            data_type,
+            primary,
+            serial,
+            nullable,
+        }
+    }
 }
 
 /// Data types for values in the database.

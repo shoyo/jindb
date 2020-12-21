@@ -38,18 +38,14 @@ impl SystemCatalog {
     }
 
     /// Create a new relation.
-    pub fn create_relation(
-        &mut self,
-        name: String,
-        schema: Schema,
-    ) -> Result<RelationGuard, String> {
+    pub fn create_relation(&mut self, name: &str, schema: Schema) -> Result<RelationGuard, String> {
         let heap = match Heap::new(&mut self.buffer_manager) {
             Ok(heap) => heap,
             Err(e) => return Err(e),
         };
         let relation_id = self.get_next_relation_id();
-        let relation = Relation::new(relation_id, name.clone(), schema, heap);
-        self.relation_ids.insert(name, relation_id);
+        let relation = Relation::new(relation_id, name.to_string(), schema, heap);
+        self.relation_ids.insert(name.to_string(), relation_id);
 
         let guard = Arc::new(Mutex::new(relation));
         self.relations.insert(relation_id, guard.clone());
