@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::constants::{BLOCK_SIZE, DB_FILENAME};
+use crate::common::constants::BLOCK_SIZE;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -13,13 +13,15 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// The disk manager is responsible for managing blocks stored on disk.
 
 pub struct DiskManager {
+    db_filename: String,
     next_block_id: AtomicU32,
 }
 
 impl DiskManager {
     /// Create a new disk manager.
-    pub fn new() -> Self {
+    pub fn new(filename: &str) -> Self {
         Self {
+            db_filename: filename.to_string(),
             next_block_id: AtomicU32::new(0),
         }
     }
@@ -33,7 +35,7 @@ impl DiskManager {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(DB_FILENAME)?;
+            .open(&self.db_filename)?;
 
         let offset = block_id * BLOCK_SIZE;
         file.seek(SeekFrom::Start(offset as u64))?;
@@ -49,7 +51,7 @@ impl DiskManager {
         block_id: u32,
         block_data: &mut [u8; BLOCK_SIZE as usize],
     ) -> std::io::Result<()> {
-        let mut file = File::open(DB_FILENAME)?;
+        let mut file = File::open(&self.db_filename)?;
 
         let offset = block_id * BLOCK_SIZE;
         file.seek(SeekFrom::Start(offset as u64))?;
