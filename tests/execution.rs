@@ -11,20 +11,28 @@ use jin::relation::attribute::{Attribute, DataType};
 use jin::relation::schema::Schema;
 use std::sync::Arc;
 
-struct ExecutionTestContext {
-    disk_manager: DiskManager,
-    buffer_manager: BufferManager,
+mod common;
+
+struct TestContext {
     txn_manager: TransactionManager,
+    system_catalog: SystemCatalog,
 }
 
-fn setup() -> ExecutionTestContext {}
+fn setup() -> TestContext {
+    let buffer_manager = BufferManager::new(
+        DiskManager::new(common::TEST_DB_FILENAME),
+        common::TEST_BUFFER_SIZE,
+    );
+    TestContext {
+        system_catalog: SystemCatalog::new(buffer_manager),
+        txn_manager: TransactionManager::new(),
+    }
+}
 
 #[test]
 fn test_create_table() {
-    let disk_manager = DiskManager::new("test_db.jin");
-    let buffer_manager = BufferManager::new(disk_manager);
-    let mut catalog = SystemCatalog::new(buffer_manager);
-    let table = catalog.create_relation(
+    let mut context = setup();
+    let table = context.system_catalog.create_relation(
         "Students",
         Schema::new(
             (vec![
