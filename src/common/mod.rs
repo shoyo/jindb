@@ -12,6 +12,7 @@ pub type TransactionIdT = u32;
 pub type LsnT = u32;
 
 /// Global constants
+pub const DB_FILENAME: &str = "db.jin";
 pub const BLOCK_SIZE: u32 = 4096;
 pub const INVALID_BLOCK_ID: BlockIdT = 0;
 pub const INVALID_LSN: LsnT = 0;
