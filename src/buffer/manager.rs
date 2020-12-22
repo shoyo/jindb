@@ -18,7 +18,7 @@ type BlockLatch = Arc<RwLock<Option<TableBlock>>>;
 /// managed in memory. Any blocks that don't exist in the buffer are retrieved
 /// from disk through the disk manager.
 pub struct BufferManager {
-    /// Number of buffer frames in the managed buffer pool
+    /// Number of buffer frames in the buffer pool
     buffer_size: BufferFrameIdT,
 
     /// Collection of buffer frames that can hold guarded blocks
@@ -120,17 +120,17 @@ impl BufferManager {
     /// Delete the specified block.
     /// If the block is pinned, then return an error.
     pub fn delete_block(&mut self, block_id: BlockIdT) -> Result<(), ()> {
-        todo!()
+        Err(())
     }
 
     /// Flush the specified block to disk.
     pub fn flush_block(&mut self, block_id: BlockIdT) -> Result<(), ()> {
-        todo!()
+        Err(())
     }
 
     /// Flush all blocks to disk.
     pub fn flush_all_blocks(&mut self) -> Result<(), ()> {
-        todo!()
+        Err(())
     }
 
     /// Pin the specified block to the buffer.
