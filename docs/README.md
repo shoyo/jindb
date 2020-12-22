@@ -11,19 +11,26 @@ incomplete, inaccurate, and/or changed without advance notice.
 The internal code of Jin uses specific terms to refer to components of a database. Other 
 databases may use different terms to refer to the same component.
 
-* `Relation` refers to a table in the database.
 * `Block` refers to the smallest unit of data that is stored on and fetched from disk. Its size 
   varies between databases, but is typically between 1 KiB ~ 16 KiB. The default block size for 
   Jin is 4 KiB. Other databases may refer to blocks as pages.
 * `Record` refers to a conceptual "row" in a relation. Records are stored in blocks. Records 
   contained in a block always belong to the same table in a row-oriented database like Jin. Other 
   databases may refer to records as tuples.
+* `Relation` refers to a table in the database.
+* `Heap` refers to a collection of blocks that contain data for a relation. A heap-structured 
+  database makes no guarantees about the ordering of blocks in memory, meaning that records in a 
+  relation are not necessarily laid out sequentially on disk.
 * `Latch` refers to a mutex which protects critical sections of in-memory data structures from
   separate threads. Operating systems refer to latches as locks, but locks typically refer to a 
   different concept in the context of database concurrency.
 * `Lock` refers to the access control mechanism for transactions in the database. They protect the 
   data contained in a database so that separate user transactions don't mutate the data in a way 
   that violates ACID principles.
+  
+In other words,`Relations` are organized as `Heaps` which are a collection of `Blocks` which all 
+contain `Records`. Critical sections of internal data structures are protected from separate threads by 
+`Latches`, and stored data is protected from separate transactions by `Locks`.
 
 ## Source Directory
 The `src` directory contains the following modules.
@@ -48,12 +55,12 @@ The `src` directory contains the following modules.
 ### Database buffer
 Jin, like other disk-oriented databases, implements a database buffer. The 
 database buffer is managed by the buffer manager, which is responsible for fetching and
-flushing blocks that are held in an in-memory buffer pool. Holding blocks in memory reduces
-disk access and drastically speeds up query execution. The managed "buffer pool" for a
+flushing blocks that are held in an in-memory buffer pool. Holding blocks in memory reduces the 
+need for disk access and drastically speeds up query execution. The managed buffer pool for a
 database serves a similar purpose to virtual memory for RAM.
 
 The buffer pool is internally represented as a vector of buffer frames. A buffer frame may or 
-may not contain a block fetched from disk, so are represented as an `Option<Block>`. Threads may 
+may not contain a block fetched from disk, so is represented as an `Option<Block>`. Threads may 
 access the buffer pool vector without acquiring a latch (i.e. the vector itself is not wrapped 
 in any `Arc` or `Mutex`). However, in order for a thread to index the buffer pool and access a 
 specific buffer frame, a reader-writer latch must first be acquired. Once the latch is acquired, 
