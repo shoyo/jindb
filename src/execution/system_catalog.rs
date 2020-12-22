@@ -71,6 +71,7 @@ impl SystemCatalog {
 
     /// Return the next relation ID and atomically increment the counter.
     fn get_next_relation_id(&mut self) -> u32 {
+        // Note: .fetch_add() increments the value and returns the PREVIOUS value
         self.next_relation_id.fetch_add(1, Ordering::SeqCst)
     }
 }

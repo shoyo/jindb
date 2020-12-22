@@ -31,9 +31,7 @@ impl Heap {
             None => panic!("Head block latch contained None"),
         };
         buffer_manager.unpin_block(head_block_id).unwrap();
-        Ok(Self {
-            head_block_id: head_block_id,
-        })
+        Ok(Self { head_block_id })
     }
 
     /// Insert a record into the relation.

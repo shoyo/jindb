@@ -28,8 +28,7 @@ fn test_create_buffer_block() {
     let mut latches = Vec::new();
     for _ in 0..common::TEST_BUFFER_SIZE {
         let result = ctx.buffer_manager.create_block();
-        assert!(result.is_ok());
-        latches.push(result);
+        latches.push(result.unwrap());
     }
     let result = ctx.buffer_manager.create_block();
     assert!(result.is_err());

@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::relation::attribute::{type_size, Attribute};
+use crate::relation::attribute::{size_of, Attribute};
 use std::convert::TryInto;
 
 /// A schema which defines a collection of attributes for a relation.
@@ -29,7 +29,7 @@ impl Schema {
         let mut len = 0;
         let mut attrs = self.attributes.iter();
         while let Some(attr) = attrs.next() {
-            len += type_size(attr.data_type);
+            len += size_of(attr.data_type);
         }
         len.try_into().unwrap()
     }

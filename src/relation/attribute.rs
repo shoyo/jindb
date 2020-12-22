@@ -44,7 +44,7 @@ pub enum DataType {
 }
 
 /// Return the size of a data type in bytes.
-pub fn type_size(data_type: DataType) -> u8 {
+pub fn size_of(data_type: DataType) -> u8 {
     match data_type {
         DataType::Boolean => 1,
         DataType::TinyInt => 1,
