@@ -19,9 +19,9 @@ databases may use different terms to refer to the same component.
   contained in a block always belong to the same table in a row-oriented database like Jin. Other 
   databases may refer to records as tuples.
 * `Latch` refers to a mutex which protects critical sections of in-memory data structures from
-  separate threads. Operating systems refer to latches as locks, but locks refer to a different 
-  concept in the context of database concurrency.
-* `Lock` refers to the access control for transactions in the database. They protect the 
+  separate threads. Operating systems refer to latches as locks, but locks typically refer to a 
+  different concept in the context of database concurrency.
+* `Lock` refers to the access control mechanism for transactions in the database. They protect the 
   data contained in a database so that separate user transactions don't mutate the data in a way 
   that violates ACID principles.
 
@@ -42,9 +42,8 @@ The `src` directory contains the following modules.
 ## Details 
 
 ### Contents
-1. [Buffer pool](#buffer-pool)
-2. [Accessing blocks in the buffer](#accessing-blocks-in-the-buffer)
-3. [Relations and Heaps](#relations-and-heaps)
+1. [Database buffer](#database-buffer)
+2. [Relations and Heaps](#relations-and-heaps)
 
 ### Database buffer
 Jin, like other disk-oriented databases, implements a database buffer. The 
