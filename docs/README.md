@@ -2,7 +2,7 @@
 
 ## Overview
 This document contains descriptions and rationale for the design and implementation of Jin. It 
-mirrors the information on the [GitHub wiki](https://github.com/shoyo/jin/wiki/Developer-Documentation).
+mirrors the information on the [GitHub wiki](https://github.com/shoyo/jin/wiki).
 
 *Warning*: This document is a work-in-progress and any information contained in it may be 
 incomplete, inaccurate, and/or changed without advance notice.
