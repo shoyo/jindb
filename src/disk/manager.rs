@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::BLOCK_SIZE;
+use crate::common::{BLOCK_SIZE, HEADER_BLOCK_ID};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -22,7 +22,7 @@ impl DiskManager {
     pub fn new(filename: &str) -> Self {
         Self {
             db_filename: filename.to_string(),
-            next_block_id: AtomicU32::new(0),
+            next_block_id: AtomicU32::new(HEADER_BLOCK_ID + 1),
         }
     }
 

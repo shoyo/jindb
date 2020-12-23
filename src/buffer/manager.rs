@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::table_block::TableBlock;
+use crate::block::table_block::RelationBlock;
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::policy::Policy;
 use crate::common::{BlockIdT, BufferFrameIdT};
@@ -12,7 +12,7 @@ use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};
 
 /// Type alias for a block protected by a R/W latch for concurrent access.
-type BlockLatch = Arc<RwLock<Option<TableBlock>>>;
+type BlockLatch = Arc<RwLock<Option<RelationBlock>>>;
 
 /// The buffer manager is responsible for fetching/flushing blocks that are
 /// managed in memory. Any blocks that don't exist in the buffer are retrieved
@@ -73,7 +73,7 @@ impl BufferManager {
     pub fn create_block(&mut self) -> Result<BlockLatch, ()> {
         // Allocate space in disk and initialize the new block.
         let block_id = self.disk_manager.allocate_block();
-        let block = TableBlock::new(block_id);
+        let block = RelationBlock::new(block_id);
         let block_latch = Arc::new(RwLock::new(Some(block)));
 
         // Find a frame in the buffer to house the newly created block.

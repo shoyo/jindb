@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::table_block::TableBlock;
+use crate::block::table_block::RelationBlock;
 use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::relation::{Relation, RelationGuard};
@@ -24,10 +24,10 @@ pub struct Transaction {
     write_record_q: Arc<Mutex<VecDeque<WriteRecord>>>,
 
     /// Blocks that were latched during index operation
-    block_q: Arc<Mutex<VecDeque<TableBlock>>>,
+    block_q: Arc<Mutex<VecDeque<RelationBlock>>>,
 
     /// Blocks that were deleted during index operation
-    delete_block_q: Arc<Mutex<VecDeque<TableBlock>>>,
+    delete_block_q: Arc<Mutex<VecDeque<RelationBlock>>>,
 
     /// Shared-lock records held by this transaction
     shared_lock_q: Arc<Mutex<VecDeque<RecordId>>>,

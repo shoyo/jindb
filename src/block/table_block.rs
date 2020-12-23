@@ -49,7 +49,7 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
 /// +------------------------+----------+----------+----------+
 
-pub struct TableBlock {
+pub struct RelationBlock {
     /// A unique identifier for the block
     pub id: BlockIdT,
     /// A copy of the raw byte array stored on disk
@@ -60,7 +60,7 @@ pub struct TableBlock {
     pub is_dirty: bool,
 }
 
-impl TableBlock {
+impl RelationBlock {
     /// Create a new in-memory representation of a database block.
     pub fn new(block_id: u32) -> Self {
         let mut block = Self {
