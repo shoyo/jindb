@@ -3,6 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use crate::block::{read_u32, write_u32};
 use crate::common::{BlockIdT, BLOCK_SIZE};
 use crate::relation::record::Record;
 
@@ -75,97 +76,64 @@ impl RelationBlock {
         block
     }
 
-    /// Read an unsigned 32-bit integer at the specified location in the
-    /// byte array.
-    pub fn read_u32(&self, addr: u32) -> Result<u32, String> {
-        if addr + 4 > BLOCK_SIZE {
-            return Err(format!(
-                "Cannot read value from byte array address (overflow)"
-            ));
-        }
-        let addr = addr as usize;
-        let mut bytes = [0; 4];
-        for i in 0..4 {
-            bytes[i] = self.data[addr + i];
-        }
-        let value = u32::from_le_bytes(bytes);
-        Ok(value)
-    }
-
-    /// Write an unsigned 32-bit integer at the specified location in the
-    /// byte array. Any existing value is overwritten.
-    pub fn write_u32(&mut self, value: u32, addr: u32) -> Result<(), String> {
-        if addr + 4 > BLOCK_SIZE {
-            return Err(format!(
-                "Cannot write value to byte array address (overflow)"
-            ));
-        }
-        let addr = addr as usize;
-        self.data[addr] = (value & 0xff) as u8;
-        self.data[addr + 1] = ((value >> 8) & 0xff) as u8;
-        self.data[addr + 2] = ((value >> 16) & 0xff) as u8;
-        self.data[addr + 3] = ((value >> 24) & 0xff) as u8;
-        Ok(())
-    }
-
     /// Get the block ID.
     pub fn get_block_id(&self) -> Result<u32, String> {
-        self.read_u32(BLOCK_ID_OFFSET)
+        read_u32(&self.data, BLOCK_ID_OFFSET)
     }
 
     /// Set the block ID.
     pub fn set_block_id(&mut self, id: u32) -> Result<(), String> {
-        self.write_u32(id, BLOCK_ID_OFFSET)
+        write_u32(&mut self.data, id, BLOCK_ID_OFFSET)
     }
 
     /// Get the previous block ID.
     pub fn get_prev_block_id(&self) -> Result<u32, String> {
-        self.read_u32(PREV_BLOCK_ID_OFFSET)
+        read_u32(&self.data, PREV_BLOCK_ID_OFFSET)
     }
 
     /// Set the previous block ID.
     pub fn set_prev_block_id(&mut self, id: u32) -> Result<(), String> {
-        self.write_u32(id, PREV_BLOCK_ID_OFFSET)
+        write_u32(&mut self.data, id, PREV_BLOCK_ID_OFFSET)
     }
 
     /// Get the next block ID.
     pub fn get_next_block_id(&self) -> Result<u32, String> {
-        self.read_u32(NEXT_BLOCK_ID_OFFSET)
+        read_u32(&self.data, NEXT_BLOCK_ID_OFFSET)
     }
 
     /// Set the next block ID.
     pub fn set_next_block_id(&mut self, id: u32) -> Result<(), String> {
-        self.write_u32(id, NEXT_BLOCK_ID_OFFSET)
+        write_u32(&mut self.data, id, NEXT_BLOCK_ID_OFFSET)
     }
 
     /// Get a pointer to the next free space.
     pub fn get_free_space_pointer(&self) -> Result<u32, String> {
-        self.read_u32(FREE_POINTER_OFFSET)
+        read_u32(&self.data, FREE_POINTER_OFFSET)
     }
 
     /// Set a pointer to the next free space.
     pub fn set_free_space_pointer(&mut self, ptr: u32) -> Result<(), String> {
-        self.write_u32(ptr, FREE_POINTER_OFFSET)
+        write_u32(&mut self.data, ptr, FREE_POINTER_OFFSET)
     }
 
     /// Get the number of records contained in the block.
     pub fn get_num_records(&self) -> Result<u32, String> {
-        self.read_u32(NUM_RECORDS_OFFSET)
+        read_u32(&self.data, NUM_RECORDS_OFFSET)
     }
 
     /// Set the number of records contained in the block.
     pub fn set_num_records(&mut self, num: u32) -> Result<(), String> {
-        self.write_u32(num, NUM_RECORDS_OFFSET)
+        write_u32(&mut self.data, num, NUM_RECORDS_OFFSET)
     }
 
     /// Get the log sequence number (LSN).
     pub fn get_lsn(&self) -> Result<u32, String> {
-        self.read_u32(LSN_OFFSET)
+        read_u32(&self.data, LSN_OFFSET)
     }
 
     /// Set the log sequence number (LSN).
     pub fn set_lsn(&mut self, lsn: u32) -> Result<(), String> {
-        self.write_u32(lsn, LSN_OFFSET)
+        write_u32(&mut self.data, lsn, LSN_OFFSET)
     }
 
     /// Calculate the amount of free space (in bytes) left in the block.
@@ -202,8 +170,8 @@ impl RelationBlock {
         // Update header
         self.set_free_space_pointer(new_free_ptr).unwrap();
         self.set_num_records(num_records + 1).unwrap();
-        self.write_u32(new_free_ptr + 1, offset_addr).unwrap();
-        self.write_u32(record.len(), length_addr).unwrap();
+        write_u32(&mut self.data, new_free_ptr + 1, offset_addr).unwrap();
+        write_u32(&mut self.data, record.len(), length_addr).unwrap();
 
         Ok(())
     }
