@@ -53,10 +53,13 @@ const RECORD_POINTER_SIZE: u32 = 8;
 pub struct RelationBlock {
     /// A unique identifier for the block
     pub id: BlockIdT,
+
     /// A copy of the raw byte array stored on disk
     pub data: [u8; BLOCK_SIZE as usize],
+
     /// Number of pins on the block (pinned by concurrent threads)
     pub pin_count: u32,
+
     /// True if data has been modified after reading from disk
     pub is_dirty: bool,
 }
