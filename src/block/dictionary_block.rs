@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::{read_str512, read_u32, write_str512, write_u32};
+use crate::block::{read_str256, read_u32, write_str256, write_u32};
 use crate::common::{BlockIdT, BLOCK_SIZE, DICTIONARY_BLOCK_ID};
 
 const COUNT_OFFSET: u32 = 0;
@@ -62,7 +62,7 @@ impl DictionaryBlock {
         let entry_size = (NAME_LENGTH + ROOT_LENGTH) as usize;
 
         for i in (count_size..count_size + count * entry_size).step_by(entry_size) {
-            let name = read_str512(&self.data, i as u32).unwrap();
+            let name = read_str256(&self.data, i as u32).unwrap();
             if name == entry_name {
                 let block_id = read_u32(&self.data, i as u32 + NAME_LENGTH).unwrap();
                 return Some(block_id);
@@ -78,7 +78,7 @@ impl DictionaryBlock {
         let root_offset = name_offset + NAME_LENGTH;
 
         write_u32(&mut self.data, COUNT_OFFSET, count + 1).unwrap();
-        write_str512(&mut self.data, name_offset, name).unwrap();
+        write_str256(&mut self.data, name_offset, name).unwrap();
         write_u32(&mut self.data, root_offset, block_id).unwrap();
     }
 }
@@ -98,7 +98,7 @@ mod tests {
             let name_offset = COUNT_OFFSET + COUNT_LENGTH + i as u32 * (NAME_LENGTH + ROOT_LENGTH);
             let root_offset = name_offset + NAME_LENGTH;
 
-            write_str512(&mut array, name_offset, *name).unwrap();
+            write_str256(&mut array, name_offset, *name).unwrap();
             write_u32(&mut array, root_offset, *block_id).unwrap();
         }
 
@@ -140,7 +140,7 @@ mod tests {
         let mut block = setup();
         block.set("foo", 111);
         let offset = COUNT_OFFSET + COUNT_LENGTH + 4 * (NAME_LENGTH + ROOT_LENGTH);
-        assert_eq!(read_str512(&block.data, offset).unwrap(), "foo");
+        assert_eq!(read_str256(&block.data, offset).unwrap(), "foo");
         assert_eq!(read_u32(&block.data, offset + 64).unwrap(), 111);
     }
 

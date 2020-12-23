@@ -44,18 +44,18 @@ pub fn write_u32(
     Ok(())
 }
 
-/// Read a 64-byte string at the specified location in the byte array. It is assumed that the
+/// Read a 32-byte string at the specified location in the byte array. It is assumed that the
 /// string is encoded as valid UTF-8.
 #[inline]
-pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<String, String> {
-    if addr + 64 > BLOCK_SIZE {
+pub fn read_str256(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<String, String> {
+    if addr + 32 > BLOCK_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
 
     // Scan array from right and find where null bytes end.
-    let mut trim_idx = addr + 64;
-    for i in (addr..addr + 64).rev() {
+    let mut trim_idx = addr + 32;
+    for i in (addr..addr + 32).rev() {
         if array[i] != 0 {
             trim_idx = i + 1;
             break;
@@ -69,21 +69,21 @@ pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<Strin
     }
 }
 
-/// Write a 64-byte string at the specified location in the byte array. Any existing value is
+/// Write a 32-byte string at the specified location in the byte array. Any existing value is
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
 #[inline]
-pub fn write_str512(
+pub fn write_str256(
     array: &mut [u8; BLOCK_SIZE as usize],
     addr: u32,
     string: &str,
 ) -> Result<(), String> {
-    if addr + 64 > BLOCK_SIZE {
+    if addr + 32 > BLOCK_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
     let bytes = string.as_bytes();
-    if bytes.len() > 64 {
-        return Err(format!("Length of string cannot exceed 64 bytes"));
+    if bytes.len() > 32 {
+        return Err(format!("Length of string cannot exceed 32 bytes"));
     }
     for i in 0..bytes.len() {
         array[addr + i] = bytes[i];
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn test_read_str512() {
+    fn test_read_str256() {
         let mut array = [0; BLOCK_SIZE as usize];
 
         // Serialize expected string into byte array.
@@ -189,7 +189,7 @@ mod tests {
         }
 
         // Assert that read string is correct.
-        let result = read_str512(&array, offset as u32);
+        let result = read_str256(&array, offset as u32);
         assert!(result.is_ok());
 
         let actual = result.unwrap();
@@ -197,13 +197,13 @@ mod tests {
     }
 
     #[test]
-    fn test_write_str512() {
+    fn test_write_str256() {
         let mut array = [0; BLOCK_SIZE as usize];
 
         // Serialize value into byte array with function.
         let value = "Hello, World!".to_string();
         let offset = 1262;
-        let result = write_str512(&mut array, offset as u32, &value);
+        let result = write_str256(&mut array, offset as u32, &value);
         assert!(result.is_ok());
 
         // Assert that serialized bytes are correct.
@@ -216,17 +216,16 @@ mod tests {
     }
 
     #[test]
-    fn test_write_str512_too_long() {
+    fn test_write_str256_too_long() {
         let mut array = [0; BLOCK_SIZE as usize];
         let offset = 712;
-        let long = "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
-        let too_long =
-            "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
+        let long = "abcdefghijklmnopqrstuvwxyz";
+        let too_long = "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
 
-        let result = write_str512(&mut array, offset as u32, long);
+        let result = write_str256(&mut array, offset as u32, long);
         assert!(result.is_ok());
 
-        let result = write_str512(&mut array, offset as u32, too_long);
+        let result = write_str256(&mut array, offset as u32, too_long);
         assert!(result.is_err());
     }
 }
