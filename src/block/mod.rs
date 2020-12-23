@@ -10,8 +10,7 @@ pub mod relation_block;
 
 /// Utility functions for reading and writing byte arrays.
 
-/// Read an unsigned 32-bit integer at the specified location in the
-/// byte array.
+/// Read an unsigned 32-bit integer at the specified location in the byte array.
 #[inline]
 pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, String> {
     if addr + 4 > BLOCK_SIZE {
@@ -26,8 +25,8 @@ pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, Str
     Ok(value)
 }
 
-/// Write an unsigned 32-bit integer at the specified location in the
-/// byte array. Any existing value is overwritten.
+/// Write an unsigned 32-bit integer at the specified location in the byte array. Any existing
+/// value is overwritten.
 #[inline]
 pub fn write_u32(
     array: &mut [u8; BLOCK_SIZE as usize],
@@ -53,9 +52,20 @@ pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<Strin
         return Err(overflow_error());
     }
     let addr = addr as usize;
-    match String::from_utf8(Vec::from(&array[addr..addr + 64])) {
+
+    // Scan array from right and find where null bytes end.
+    let mut trim_idx = addr + 64;
+    for i in (addr..addr + 64).rev() {
+        if array[i] != 0 {
+            trim_idx = i + 1;
+            break;
+        }
+    }
+
+    // Parse byte array without trailing null bytes into String.
+    match String::from_utf8(Vec::from(&array[addr..trim_idx])) {
         Ok(s) => Ok(s),
-        Err(_) => Err(format!("Value stored in byte array is not valid UTF-8")),
+        Err(_) => return Err(format!("String stored in byte array is not valid UTF-8")),
     }
 }
 
@@ -63,7 +73,7 @@ pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<Strin
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
 #[inline]
 pub fn write_str512(
-    array: &[u8; BLOCK_SIZE as usize],
+    array: &mut [u8; BLOCK_SIZE as usize],
     addr: u32,
     string: &str,
 ) -> Result<(), String> {
@@ -71,6 +81,13 @@ pub fn write_str512(
         return Err(overflow_error());
     }
     let addr = addr as usize;
+    let bytes = string.as_bytes();
+    if bytes.len() > 64 {
+        return Err(format!("Length of string cannot exceed 64 bytes"));
+    }
+    for i in 0..bytes.len() {
+        array[addr + i] = bytes[i];
+    }
     Ok(())
 }
 
@@ -196,5 +213,20 @@ mod tests {
             let actual = array[offset + i];
             assert_eq!(actual, expected);
         }
+    }
+
+    #[test]
+    fn test_write_str512_too_long() {
+        let mut array = [0; BLOCK_SIZE as usize];
+        let offset = 712;
+        let long = "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
+        let too_long =
+            "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";
+
+        let result = write_str512(&mut array, offset as u32, long);
+        assert!(result.is_ok());
+
+        let result = write_str512(&mut array, offset as u32, too_long);
+        assert!(result.is_err());
     }
 }
