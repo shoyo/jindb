@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::table_block::RelationBlock;
+use crate::block::relation_block::RelationBlock;
 use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::relation::{Relation, RelationGuard};

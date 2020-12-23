@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::table_block::RelationBlock;
+use crate::block::relation_block::RelationBlock;
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::policy::Policy;
 use crate::common::{BlockIdT, BufferFrameIdT};
