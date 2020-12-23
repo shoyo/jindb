@@ -12,6 +12,7 @@ pub mod relation_block;
 
 /// Read an unsigned 32-bit integer at the specified location in the
 /// byte array.
+#[inline]
 pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, String> {
     if addr + 4 > BLOCK_SIZE {
         return Err(overflow_error());
@@ -27,6 +28,7 @@ pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, Str
 
 /// Write an unsigned 32-bit integer at the specified location in the
 /// byte array. Any existing value is overwritten.
+#[inline]
 pub fn write_u32(
     array: &mut [u8; BLOCK_SIZE as usize],
     addr: u32,
@@ -45,6 +47,7 @@ pub fn write_u32(
 
 /// Read a 64-byte string at the specified location in the byte array. It is assumed that the
 /// string is encoded as valid UTF-8.
+#[inline]
 pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<String, String> {
     if addr + 64 > BLOCK_SIZE {
         return Err(overflow_error());
@@ -58,6 +61,7 @@ pub fn read_str512(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<Strin
 
 /// Write a 64-byte string at the specified location in the byte array. Any existing value is
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
+#[inline]
 pub fn write_str512(
     array: &[u8; BLOCK_SIZE as usize],
     addr: u32,
@@ -71,6 +75,7 @@ pub fn write_str512(
 }
 
 /// Return an overflow error message.
+#[inline(always)]
 fn overflow_error() -> String {
     format!("Cannot read value from byte array address (overflow)")
 }
