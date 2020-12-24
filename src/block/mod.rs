@@ -8,6 +8,15 @@ use crate::common::BLOCK_SIZE;
 pub mod dictionary_block;
 pub mod relation_block;
 
+/// An enum for blocks stored in the database. A block, regardless of its contents, is
+/// common::BLOCK_SIZE bytes in length.
+/// Blocks can store various things, such as metadata (dictionary block), relation data (relation
+/// blocks), index headers (index header blocks) and indexes (index blocks).
+pub enum Block {
+    Dictionary(dictionary_block::DictionaryBlock),
+    Relation(relation_block::RelationBlock),
+}
+
 /// Utility functions for reading and writing byte arrays.
 
 /// Read an unsigned 32-bit integer at the specified location in the byte array.
@@ -95,15 +104,6 @@ pub fn write_str256(
 #[inline(always)]
 fn overflow_error() -> String {
     format!("Cannot read value from byte array address (overflow)")
-}
-
-/// An enum for blocks stored in the database. A block, regardless of its contents, is
-/// common::BLOCK_SIZE bytes in length.
-/// Blocks can store various things, such as metadata (dictionary block), relation data (relation
-/// blocks), index headers (index header blocks) and indexes (index blocks).
-pub enum Block {
-    Dictionary(dictionary_block::DictionaryBlock),
-    Relation(relation_block::RelationBlock),
 }
 
 #[cfg(test)]
