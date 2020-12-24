@@ -61,13 +61,13 @@ impl DiskManager {
     }
 
     /// Allocate a block on disk and return the id of the allocated block.
-    pub fn allocate_block(&mut self) -> u32 {
+    pub fn allocate_block(&self) -> u32 {
         // Note: .fetch_add() increments the value and returns the PREVIOUS value
         self.next_block_id.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Deallocate the specified block on disk.
-    pub fn deallocate_block(&mut self, _block_id: u32) -> Result<(), ()> {
+    pub fn deallocate_block(&self, _block_id: u32) -> Result<(), ()> {
         Ok(())
     }
 }
