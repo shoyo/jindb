@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::block::relation_block::RelationBlock;
 use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
+use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
 use crate::relation::relation::{Relation, RelationGuard};
 use std::collections::VecDeque;
@@ -23,11 +23,11 @@ pub struct Transaction {
     /// Write records ordered chronologically for an undo
     write_record_q: Arc<Mutex<VecDeque<WriteRecord>>>,
 
-    /// Blocks that were latched during index operation
-    block_q: Arc<Mutex<VecDeque<RelationBlock>>>,
+    /// Pages that were latched during index operation
+    page_q: Arc<Mutex<VecDeque<RelationPage>>>,
 
-    /// Blocks that were deleted during index operation
-    delete_block_q: Arc<Mutex<VecDeque<RelationBlock>>>,
+    /// Pages that were deleted during index operation
+    delete_page_q: Arc<Mutex<VecDeque<RelationPage>>>,
 
     /// Shared-lock records held by this transaction
     shared_lock_q: Arc<Mutex<VecDeque<RecordId>>>,
@@ -43,8 +43,8 @@ impl Transaction {
             state: TransactionState::Growing,
             prev_lsn: INVALID_LSN,
             write_record_q: Arc::new(Mutex::new(VecDeque::new())),
-            block_q: Arc::new(Mutex::new(VecDeque::new())),
-            delete_block_q: Arc::new(Mutex::new(VecDeque::new())),
+            page_q: Arc::new(Mutex::new(VecDeque::new())),
+            delete_page_q: Arc::new(Mutex::new(VecDeque::new())),
             shared_lock_q: Arc::new(Mutex::new(VecDeque::new())),
             exclusive_lock_q: Arc::new(Mutex::new(VecDeque::new())),
         }

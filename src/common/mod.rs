@@ -8,7 +8,7 @@
 /// annotated with "safe to modify".
 
 /// Type aliases
-pub type BlockIdT = u32;
+pub type PageIdT = u32;
 pub type RelationIdT = u32;
 pub type RecordIdT = u32;
 pub type BufferFrameIdT = u32;
@@ -17,7 +17,7 @@ pub type LsnT = u32;
 
 /// Global constants
 pub const DB_FILENAME: &str = "db.jin"; // safe to modify
-pub const BLOCK_SIZE: u32 = 4096; // safe to modify
+pub const PAGE_SIZE: u32 = 4096; // safe to modify
 pub const BUFFER_SIZE: BufferFrameIdT = 1024; // safe to modify
-pub const DICTIONARY_BLOCK_ID: BlockIdT = 0;
+pub const DICTIONARY_PAGE_ID: PageIdT = 0;
 pub const INVALID_LSN: LsnT = 0;

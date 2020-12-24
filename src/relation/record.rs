@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::BlockIdT;
+use crate::common::PageIdT;
 use crate::relation::attribute::Attribute;
 use crate::relation::schema::Schema;
 use std::convert::TryInto;
@@ -26,7 +26,7 @@ use std::convert::TryInto;
 /// ------------------------------------------------------------
 ///
 /// Metadata regarding a record is stored in a system catalog in a separate
-/// database block.
+/// database page.
 
 pub struct Record {
     pub id: RecordId,
@@ -34,10 +34,10 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn new(block_id: BlockIdT, slot_index: u32, tmp: Vec<u8>) -> Self {
+    pub fn new(page_id: PageIdT, slot_index: u32, tmp: Vec<u8>) -> Self {
         Self {
             id: RecordId {
-                block_id,
+                page_id,
                 slot_index,
             },
             data: tmp,
@@ -53,9 +53,9 @@ impl Record {
     }
 }
 
-/// A database record identifier comprised of the block ID and slot index that
+/// A database record identifier comprised of the page ID and slot index that
 /// the record is located at.
 pub struct RecordId {
-    pub block_id: BlockIdT,
+    pub page_id: PageIdT,
     pub slot_index: u32,
 }

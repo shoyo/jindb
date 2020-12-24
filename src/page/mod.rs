@@ -3,26 +3,26 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::BLOCK_SIZE;
+use crate::common::PAGE_SIZE;
 
-pub mod dictionary_block;
-pub mod relation_block;
+pub mod dictionary_page;
+pub mod relation_page;
 
-/// An enum for blocks stored in the database. A block, regardless of its contents, is
-/// common::BLOCK_SIZE bytes in length.
-/// Blocks can store various things, such as metadata (dictionary block), relation data (relation
-/// blocks), index headers (index header blocks) and indexes (index blocks).
-pub enum Block {
-    Dictionary(dictionary_block::DictionaryBlock),
-    Relation(relation_block::RelationBlock),
+/// An enum for pages stored in the database. A page, regardless of its contents, is
+/// common::PAGE_SIZE bytes in length.
+/// Pages can store various things, such as metadata (dictionary page), relation data (relation
+/// pages), index headers (index header pages) and indexes (index pages).
+pub enum Page {
+    Dictionary(dictionary_page::DictionaryPage),
+    Relation(relation_page::RelationPage),
 }
 
 /// Utility functions for reading and writing byte arrays.
 
 /// Read an unsigned 32-bit integer at the specified location in the byte array.
 #[inline]
-pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, String> {
-    if addr + 4 > BLOCK_SIZE {
+pub fn read_u32(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<u32, String> {
+    if addr + 4 > PAGE_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
@@ -38,11 +38,11 @@ pub fn read_u32(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<u32, Str
 /// value is overwritten.
 #[inline]
 pub fn write_u32(
-    array: &mut [u8; BLOCK_SIZE as usize],
+    array: &mut [u8; PAGE_SIZE as usize],
     addr: u32,
     value: u32,
 ) -> Result<(), String> {
-    if addr + 4 > BLOCK_SIZE {
+    if addr + 4 > PAGE_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
@@ -56,8 +56,8 @@ pub fn write_u32(
 /// Read a 32-byte string at the specified location in the byte array. It is assumed that the
 /// string is encoded as valid UTF-8.
 #[inline]
-pub fn read_str256(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<String, String> {
-    if addr + 32 > BLOCK_SIZE {
+pub fn read_str256(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<String, String> {
+    if addr + 32 > PAGE_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
@@ -82,11 +82,11 @@ pub fn read_str256(array: &[u8; BLOCK_SIZE as usize], addr: u32) -> Result<Strin
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
 #[inline]
 pub fn write_str256(
-    array: &mut [u8; BLOCK_SIZE as usize],
+    array: &mut [u8; PAGE_SIZE as usize],
     addr: u32,
     string: &str,
 ) -> Result<(), String> {
-    if addr + 32 > BLOCK_SIZE {
+    if addr + 32 > PAGE_SIZE {
         return Err(overflow_error());
     }
     let addr = addr as usize;
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_read_u32() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
 
         // Manually serialize expected value into byte array.
         let expected: u32 = 31415926;
@@ -132,20 +132,20 @@ mod tests {
 
     #[test]
     fn test_read_u32_overflow() {
-        let mut array = [1; BLOCK_SIZE as usize];
+        let mut array = [1; PAGE_SIZE as usize];
 
         // Assert that read is successful with no overflow.
-        let result = read_u32(&array, BLOCK_SIZE - 4);
+        let result = read_u32(&array, PAGE_SIZE - 4);
         assert!(result.is_ok());
 
         // Assert that read fails with an overflow.
-        let result = read_u32(&array, BLOCK_SIZE - 3);
+        let result = read_u32(&array, PAGE_SIZE - 3);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_write_u32() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
 
         // Serialize value into byte array with function.
         let value: u32 = 31415926;
@@ -164,21 +164,21 @@ mod tests {
 
     #[test]
     fn test_write_u32_overflow() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
         let value: u32 = 31415926;
 
         // Assert that write is successful with no overflow.
-        let result = write_u32(&mut array, BLOCK_SIZE - 4, value);
+        let result = write_u32(&mut array, PAGE_SIZE - 4, value);
         assert!(result.is_ok());
 
         // Assert that write fails with an overflow.
-        let result = write_u32(&mut array, BLOCK_SIZE - 3, value);
+        let result = write_u32(&mut array, PAGE_SIZE - 3, value);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_read_str256() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
 
         // Serialize expected string into byte array.
         let expected = "Hello, World!".to_string();
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_write_str256() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
 
         // Serialize value into byte array with function.
         let value = "Hello, World!".to_string();
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_write_str256_too_long() {
-        let mut array = [0; BLOCK_SIZE as usize];
+        let mut array = [0; PAGE_SIZE as usize];
         let offset = 712;
         let long = "abcdefghijklmnopqrstuvwxyz";
         let too_long = "abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz";

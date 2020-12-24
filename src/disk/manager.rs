@@ -3,18 +3,18 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{BLOCK_SIZE, DICTIONARY_BLOCK_ID};
+use crate::common::{DICTIONARY_PAGE_ID, PAGE_SIZE};
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-/// The disk manager is responsible for managing blocks stored on disk.
+/// The disk manager is responsible for managing pages stored on disk.
 
 pub struct DiskManager {
     db_filename: String,
-    next_block_id: AtomicU32,
+    next_page_id: AtomicU32,
 }
 
 impl DiskManager {
@@ -22,52 +22,52 @@ impl DiskManager {
     pub fn new(filename: &str) -> Self {
         Self {
             db_filename: filename.to_string(),
-            next_block_id: AtomicU32::new(DICTIONARY_BLOCK_ID + 1),
+            next_page_id: AtomicU32::new(DICTIONARY_PAGE_ID + 1),
         }
     }
 
     /// Write the specified byte array out to disk.
-    pub fn write_block(
+    pub fn write_page(
         &self,
-        block_id: u32,
-        block_data: &[u8; BLOCK_SIZE as usize],
+        page_id: u32,
+        page_data: &[u8; PAGE_SIZE as usize],
     ) -> std::io::Result<()> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
             .open(&self.db_filename)?;
 
-        let offset = block_id * BLOCK_SIZE;
+        let offset = page_id * PAGE_SIZE;
         file.seek(SeekFrom::Start(offset as u64))?;
-        file.write_all(block_data)?;
+        file.write_all(page_data)?;
         file.flush()?;
 
         Ok(())
     }
 
-    /// Read a single block's data into the specified byte array.
-    pub fn read_block(
+    /// Read a single page's data into the specified byte array.
+    pub fn read_page(
         &self,
-        block_id: u32,
-        block_data: &mut [u8; BLOCK_SIZE as usize],
+        page_id: u32,
+        page_data: &mut [u8; PAGE_SIZE as usize],
     ) -> std::io::Result<()> {
         let mut file = File::open(&self.db_filename)?;
 
-        let offset = block_id * BLOCK_SIZE;
+        let offset = page_id * PAGE_SIZE;
         file.seek(SeekFrom::Start(offset as u64))?;
-        file.read_exact(&mut *block_data)?;
+        file.read_exact(&mut *page_data)?;
 
         Ok(())
     }
 
-    /// Allocate a block on disk and return the id of the allocated block.
-    pub fn allocate_block(&self) -> u32 {
+    /// Allocate a page on disk and return the id of the allocated page.
+    pub fn allocate_page(&self) -> u32 {
         // Note: .fetch_add() increments the value and returns the PREVIOUS value
-        self.next_block_id.fetch_add(1, Ordering::SeqCst)
+        self.next_page_id.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// Deallocate the specified block on disk.
-    pub fn deallocate_block(&self, _block_id: u32) -> Result<(), ()> {
+    /// Deallocate the specified page on disk.
+    pub fn deallocate_page(&self, _page_id: u32) -> Result<(), ()> {
         Ok(())
     }
 }

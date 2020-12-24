@@ -22,7 +22,7 @@ pub struct Relation {
     /// Schema for the attributes of this relation
     pub schema: Schema,
 
-    /// Collection of blocks on disk which contain records
+    /// Collection of pages on disk which contain records
     pub heap: Heap,
 }
 
