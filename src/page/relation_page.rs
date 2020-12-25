@@ -4,8 +4,9 @@
  */
 
 use crate::common::{PageIdT, PAGE_SIZE};
-use crate::page::{read_u32, write_u32};
+use crate::page::{read_u32, write_u32, Page};
 use crate::relation::record::Record;
+use crate::relation::relation::Relation;
 
 /// Constants for slotted-page page header
 const PAGE_ID_OFFSET: u32 = 0;
@@ -52,16 +53,42 @@ const RECORD_POINTER_SIZE: u32 = 8;
 
 pub struct RelationPage {
     /// A unique identifier for the page
-    pub id: PageIdT,
+    id: PageIdT,
 
     /// A copy of the raw byte array stored on disk
-    pub data: [u8; PAGE_SIZE as usize],
+    data: [u8; PAGE_SIZE as usize],
 
     /// Number of pins on the page (pinned by concurrent threads)
-    pub pin_count: u32,
+    pin_count: u32,
 
     /// True if data has been modified after reading from disk
-    pub is_dirty: bool,
+    is_dirty: bool,
+}
+
+impl Page for RelationPage {
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn get_pin_count(&self) -> u32 {
+        self.pin_count
+    }
+
+    fn incr_pin_count(&mut self) {
+        self.pin_count += 1;
+    }
+
+    fn decr_pin_count(&mut self) {
+        self.pin_count -= 1;
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    fn set_dirty_flag(&mut self, flag: bool) {
+        self.is_dirty = flag;
+    }
 }
 
 impl RelationPage {

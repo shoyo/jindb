@@ -4,15 +4,15 @@
  */
 
 use crate::common::{PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
-use crate::page::{read_str256, read_u32, write_str256, write_u32};
+use crate::page::{read_str256, read_u32, write_str256, write_u32, Page};
 
 const COUNT_OFFSET: u32 = 0;
 const COUNT_LENGTH: u32 = 4;
 const NAME_LENGTH: u32 = 64;
 const ROOT_LENGTH: PageIdT = 4;
 
-/// The page with ID equal to 0 is a special page designated as the "dictionary page", which
-/// stores metadata for the relations and indexes in the database.
+/// The page with ID equal to DICTIONARY_PAGE_ID is a special page designated as the "dictionary
+/// page", which stores metadata for the relations and indexes in the database.
 /// Specifically, it stores key value pairs of relation/index names and their corresponding root
 /// page ID. It also stores the total number of entries in the page.
 ///
@@ -25,14 +25,46 @@ const ROOT_LENGTH: PageIdT = 4;
 /// | ENTRY COUNT (4) | ENTRY 1 NAME (64) | ENTRY 1 ROOT PAGE ID (4) | ... |
 /// +-----------------+-------------------+--------------------------+-----+
 
-/// Note: Pin count and dirty flag is unnecessary since the dictionary page is never evicted
-/// from the buffer.
+/// Note: Although a pin count and dirty flag exist, the dictionary page is never evicted from
+/// the buffer.
 pub struct DictionaryPage {
     /// A unique identifier for the page (always 0)
-    pub id: PageIdT,
+    id: PageIdT,
 
     /// Raw byte array
-    pub data: [u8; PAGE_SIZE as usize],
+    data: [u8; PAGE_SIZE as usize],
+
+    /// Number of pins on the page (pinned by concurrent threads)
+    pin_count: u32,
+
+    /// True if data has been modified after reading from disk
+    is_dirty: bool,
+}
+
+impl Page for DictionaryPage {
+    fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    fn get_pin_count(&self) -> u32 {
+        self.pin_count
+    }
+
+    fn incr_pin_count(&mut self) {
+        self.pin_count += 1;
+    }
+
+    fn decr_pin_count(&mut self) {
+        self.pin_count -= 1;
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    fn set_dirty_flag(&mut self, flag: bool) {
+        self.is_dirty = flag;
+    }
 }
 
 impl DictionaryPage {
@@ -41,6 +73,8 @@ impl DictionaryPage {
         Self {
             id: DICTIONARY_PAGE_ID,
             data: [0; PAGE_SIZE as usize],
+            pin_count: 0,
+            is_dirty: false,
         }
     }
 
@@ -105,6 +139,8 @@ mod tests {
         DictionaryPage {
             id: DICTIONARY_PAGE_ID,
             data: array,
+            pin_count: 0,
+            is_dirty: false,
         }
     }
 

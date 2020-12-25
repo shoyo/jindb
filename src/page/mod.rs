@@ -3,18 +3,27 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::PAGE_SIZE;
+use crate::common::{PageIdT, PAGE_SIZE};
 
 pub mod dictionary_page;
 pub mod relation_page;
 
-/// An enum for pages stored in the database. A page, regardless of its contents, is
+/// A trait for pages stored in the database. A page, regardless of its variant, is
 /// common::PAGE_SIZE bytes in length.
 /// Pages can store various things, such as metadata (dictionary page), relation data (relation
 /// pages), index headers (index header pages) and indexes (index pages).
-pub enum Page {
-    Dictionary(dictionary_page::DictionaryPage),
-    Relation(relation_page::RelationPage),
+pub trait Page {
+    fn get_id(&self) -> PageIdT;
+
+    fn get_pin_count(&self) -> u32;
+
+    fn incr_pin_count(&mut self);
+
+    fn decr_pin_count(&mut self);
+
+    fn is_dirty(&self) -> bool;
+
+    fn set_dirty_flag(&mut self, flag: bool);
 }
 
 /// Utility functions for reading and writing byte arrays.
