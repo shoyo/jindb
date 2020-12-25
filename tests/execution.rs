@@ -20,8 +20,8 @@ struct TestContext {
 
 fn setup() -> TestContext {
     let buffer_manager = BufferManager::new(
-        DiskManager::new(common::TEST_DB_FILENAME),
         common::TEST_BUFFER_SIZE,
+        DiskManager::new(common::TEST_DB_FILENAME),
     );
     TestContext {
         system_catalog: SystemCatalog::new(buffer_manager),

@@ -23,7 +23,7 @@ pub struct SystemCatalog {
     next_relation_id: AtomicU32,
 
     /// Buffer manager instance backing the relations in this catalog
-    buffer_manager: BufferManager,
+    buffer_manager: Arc<BufferManager>,
 }
 
 impl SystemCatalog {
@@ -33,16 +33,13 @@ impl SystemCatalog {
             relations: HashMap::new(),
             relation_ids: HashMap::new(),
             next_relation_id: AtomicU32::new(0),
-            buffer_manager,
+            buffer_manager: Arc::new(buffer_manager),
         }
     }
 
     /// Create a new relation.
-    pub fn create_relation(&mut self, name: &str, schema: Schema) -> Result<RelationGuard, String> {
-        let heap = match Heap::new(&mut self.buffer_manager) {
-            Ok(heap) => heap,
-            Err(e) => return Err(e),
-        };
+    pub fn create_relation(&mut self, name: &str, schema: Schema) -> Result<RelationGuard, ()> {
+        let heap = Heap::new(self.buffer_manager.clone())?;
         let relation_id = self.get_next_relation_id();
         let relation = Relation::new(relation_id, name.to_string(), schema, heap);
         self.relation_ids.insert(name.to_string(), relation_id);
