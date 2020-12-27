@@ -22,22 +22,23 @@ pub mod update;
 /// The `executors` directory contains definitions for executors for a query plan tree.
 /// Each executor type executes a certain operation (such as hash join, sequential scan, etc.)
 /// for a corresponding plan node.
-pub trait BaseExecutor<'a> {
+pub trait BaseExecutor {
     fn next() -> Option<Arc<Mutex<Record>>>;
 }
 
-pub struct ExecutorMeta<'a> {
-    transaction: &'a Transaction,
-    system_catalog: &'a SystemCatalog,
-    buffer_manager: &'a BufferManager,
+/// All of the metadata required to execute a given query.
+pub struct QueryMeta {
+    transaction: Arc<Transaction>,
+    system_catalog: Arc<SystemCatalog>,
+    buffer_manager: Arc<BufferManager>,
     // TODO: Implement and add log and lock managers
 }
 
-impl<'a> ExecutorMeta<'a> {
+impl<'a> QueryMeta {
     pub fn new(
-        transaction: &'a Transaction,
-        system_catalog: &'a SystemCatalog,
-        buffer_manager: &'a BufferManager,
+        transaction: Arc<Transaction>,
+        system_catalog: Arc<SystemCatalog>,
+        buffer_manager: Arc<BufferManager>,
     ) -> Self {
         Self {
             transaction,

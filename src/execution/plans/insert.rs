@@ -4,29 +4,33 @@
  */
 
 use crate::common::RelationIdT;
-use crate::execution::plans::{AbstractPlanNode, PlanNode};
+use crate::execution::plans::QueryPlanNode;
 use crate::relation::record::Record;
 use crate::relation::schema::Schema;
 use std::sync::{Arc, Mutex};
 
-pub struct InsertPlanNode<'a> {
+pub struct InsertPlanNode {
     /// Relation affected by this insert plan.
     relation_id: RelationIdT,
 
-    children: Vec<PlanNode<'a>>,
-    output_schema: &'a Schema,
+    children: Vec<Arc<Box<dyn QueryPlanNode>>>,
+    output_schema: Arc<Schema>,
 }
 
-impl<'a> AbstractPlanNode<'a> for InsertPlanNode<'a> {
+impl QueryPlanNode for InsertPlanNode {
     fn next(&self) -> Option<Arc<Mutex<Record>>> {
         todo!()
     }
 
-    fn get_children(&'a self) -> &'a Vec<PlanNode<'a>> {
-        &self.children
+    fn get_children(&self) -> Arc<Vec<Arc<Box<dyn QueryPlanNode>>>> {
+        todo!()
     }
 
-    fn get_output_schema(&'a self) -> &'a Schema {
-        self.output_schema
+    fn insert_child(&mut self, child: Arc<Box<dyn QueryPlanNode>>) {
+        todo!()
+    }
+
+    fn get_output_schema(&self) -> Arc<Schema> {
+        Arc::clone(&self.output_schema)
     }
 }

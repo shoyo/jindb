@@ -11,22 +11,16 @@ use std::thread;
 
 mod common;
 
-struct TestContext {
-    buffer_manager: Arc<BufferManager>,
-}
-
-fn setup() -> TestContext {
-    TestContext {
-        buffer_manager: Arc::new(BufferManager::new(
-            common::TEST_BUFFER_SIZE,
-            DiskManager::new(common::TEST_DB_FILENAME),
-        )),
-    }
+fn setup() -> Arc<BufferManager> {
+    Arc::new(BufferManager::new(
+        common::TEST_BUFFER_SIZE,
+        DiskManager::new(common::TEST_DB_FILENAME),
+    ))
 }
 
 #[test]
 fn test_create_buffer_page() {
-    let mut ctx = setup();
+    let manager = setup();
 
     // Create a page in the buffer manager.
     // Assert that the created page is initialized as expected.

@@ -18,27 +18,27 @@ pub mod hash_join;
 pub mod insert;
 pub mod sequential_scan;
 
-/// An abstract node in a query plan.
-type PlanNode<'a> = Arc<Mutex<dyn AbstractPlanNode<'a>>>;
-
-/// A public trait for query plan nodes. Nodes are connected as a directed acyclic graph.
-pub trait AbstractPlanNode<'a> {
+/// A public trait for query plan nodes.
+pub trait QueryPlanNode {
     /// Return the next record to be processed.
     /// This method is invoked repeatedly by the parent node during query execution.
     fn next(&self) -> Option<Arc<Mutex<Record>>>;
 
     /// Return all child nodes.
-    fn get_children(&'a self) -> &'a Vec<PlanNode<'a>>;
+    fn get_children(&self) -> Arc<Vec<Arc<Box<dyn QueryPlanNode>>>>;
 
     /// Return the n-th child node.
-    fn get_nth_child(&'a self, idx: usize) -> Option<PlanNode<'a>> {
+    fn get_nth_child(&self, idx: usize) -> Option<Arc<Box<dyn QueryPlanNode>>> {
         let children = self.get_children();
         if idx >= children.len() {
             return None;
         }
-        Some(children[idx].clone())
+        Some(Arc::clone(&children[idx]))
     }
 
+    /// Append a child node.
+    fn insert_child(&mut self, child: Arc<Box<dyn QueryPlanNode>>);
+
     /// Return the schema of the records outputted by this node.
-    fn get_output_schema(&'a self) -> &'a Schema;
+    fn get_output_schema(&self) -> Arc<Schema>;
 }

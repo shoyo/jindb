@@ -3,7 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-// Dummy declaration for now.
+/// The transaction manager is responsible for tracking all transactions that run within the
+/// database.
 pub struct TransactionManager;
 
 impl TransactionManager {
