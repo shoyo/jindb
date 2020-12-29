@@ -3,31 +3,26 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::RelationIdT;
 use crate::execution::plans::{PlanVariant, QueryPlanNode};
 use crate::relation::record::Record;
 use crate::relation::schema::Schema;
 use std::sync::{Arc, Mutex, RwLock};
 
-pub struct InsertPlanNode {
-    /// Relation affected by this insert plan.
-    relation_id: RelationIdT,
-
+pub struct SeqScanPlanNode {
     children: Arc<RwLock<Vec<Arc<Box<dyn QueryPlanNode>>>>>,
     output_schema: Arc<Schema>,
 }
 
-impl InsertPlanNode {
-    pub fn new(relation_id: RelationIdT, output_schema: Arc<Schema>) -> Self {
+impl SeqScanPlanNode {
+    pub fn new(output_schema: Arc<Schema>) -> Self {
         Self {
-            relation_id,
             children: Arc::new(RwLock::new(Vec::new())),
             output_schema,
         }
     }
 }
 
-impl QueryPlanNode for InsertPlanNode {
+impl QueryPlanNode for SeqScanPlanNode {
     fn next(&self) -> Option<Arc<Mutex<Record>>> {
         todo!()
     }
@@ -41,6 +36,6 @@ impl QueryPlanNode for InsertPlanNode {
     }
 
     fn get_variant(&self) -> PlanVariant {
-        PlanVariant::Insert
+        PlanVariant::SeqScan
     }
 }

@@ -3,4 +3,39 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-struct AggregationPlanNode {}
+use crate::execution::plans::{PlanVariant, QueryPlanNode};
+use crate::relation::record::Record;
+use crate::relation::schema::Schema;
+use std::sync::{Arc, Mutex, RwLock};
+
+pub struct AggregationPlanNode {
+    children: Arc<RwLock<Vec<Arc<Box<dyn QueryPlanNode>>>>>,
+    output_schema: Arc<Schema>,
+}
+
+impl AggregationPlanNode {
+    pub fn new(output_schema: Arc<Schema>) -> Self {
+        Self {
+            children: Arc::new(RwLock::new(Vec::new())),
+            output_schema,
+        }
+    }
+}
+
+impl QueryPlanNode for AggregationPlanNode {
+    fn next(&self) -> Option<Arc<Mutex<Record>>> {
+        todo!()
+    }
+
+    fn get_children(&self) -> Arc<RwLock<Vec<Arc<Box<dyn QueryPlanNode>>>>> {
+        Arc::clone(&self.children)
+    }
+
+    fn get_output_schema(&self) -> Arc<Schema> {
+        Arc::clone(&self.output_schema)
+    }
+
+    fn get_variant(&self) -> PlanVariant {
+        PlanVariant::Aggregation
+    }
+}

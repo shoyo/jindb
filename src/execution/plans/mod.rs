@@ -11,12 +11,12 @@
 /// (follows the "Volcano Model").
 use crate::relation::record::Record;
 use crate::relation::schema::Schema;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub mod aggregation;
 pub mod hash_join;
 pub mod insert;
-pub mod sequential_scan;
+pub mod seq_scan;
 
 /// A public trait for query plan nodes.
 pub trait QueryPlanNode {
@@ -25,11 +25,12 @@ pub trait QueryPlanNode {
     fn next(&self) -> Option<Arc<Mutex<Record>>>;
 
     /// Return all child nodes.
-    fn get_children(&self) -> Arc<Vec<Arc<Box<dyn QueryPlanNode>>>>;
+    fn get_children(&self) -> Arc<RwLock<Vec<Arc<Box<dyn QueryPlanNode>>>>>;
 
     /// Return the n-th child node.
     fn get_nth_child(&self, idx: usize) -> Option<Arc<Box<dyn QueryPlanNode>>> {
-        let children = self.get_children();
+        let rwlock = self.get_children();
+        let children = rwlock.read().unwrap();
         if idx >= children.len() {
             return None;
         }
@@ -37,8 +38,22 @@ pub trait QueryPlanNode {
     }
 
     /// Append a child node.
-    fn insert_child(&mut self, child: Arc<Box<dyn QueryPlanNode>>);
+    fn insert_child(&mut self, child: Arc<Box<dyn QueryPlanNode>>) {
+        let children = self.get_children();
+        children.write().unwrap().push(child);
+    }
 
     /// Return the schema of the records outputted by this node.
     fn get_output_schema(&self) -> Arc<Schema>;
+
+    /// Return the variant of this plan node.
+    fn get_variant(&self) -> PlanVariant;
+}
+
+#[derive(Clone, Copy)]
+pub enum PlanVariant {
+    Aggregation,
+    Insert,
+    HashJoin,
+    SeqScan,
 }
