@@ -25,8 +25,8 @@ const ROOT_LENGTH: PageIdT = 4;
 /// | ENTRY COUNT (4) | ENTRY 1 NAME (64) | ENTRY 1 ROOT PAGE ID (4) | ... |
 /// +-----------------+-------------------+--------------------------+-----+
 
-/// Note: Although a pin count and dirty flag exist, the dictionary page is never evicted from
-/// the buffer.
+/// Note: Although a pin count and dirty flag exist, the current implementation is such
+/// that the dictionary page is never evicted from the buffer.
 pub struct DictionaryPage {
     /// A unique identifier for the page (always 0)
     id: PageIdT,
