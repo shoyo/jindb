@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{PageIdT, PAGE_SIZE};
+use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 
 pub mod dictionary_page;
 pub mod relation_page;
@@ -24,6 +24,10 @@ pub trait Page {
     fn is_dirty(&self) -> bool;
 
     fn set_dirty_flag(&mut self, flag: bool);
+
+    fn get_lsn(&self) -> LsnT;
+
+    fn set_lsn(&mut self, lsn: LsnT);
 }
 
 /// Utility functions for reading and writing byte arrays.

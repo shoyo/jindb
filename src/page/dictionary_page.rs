@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
+use crate::common::{LsnT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
 use crate::page::{read_str256, read_u32, write_str256, write_u32, Page};
 
 const COUNT_OFFSET: u32 = 0;
@@ -64,6 +64,14 @@ impl Page for DictionaryPage {
 
     fn set_dirty_flag(&mut self, flag: bool) {
         self.is_dirty = flag;
+    }
+
+    fn get_lsn(&self) -> u32 {
+        todo!()
+    }
+
+    fn set_lsn(&mut self, lsn: LsnT) {
+        todo!()
     }
 }
 

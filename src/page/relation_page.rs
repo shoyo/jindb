@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{PageIdT, PAGE_SIZE};
+use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::{read_u32, write_u32, Page};
 use crate::relation::record::Record;
 use crate::relation::relation::Relation;
@@ -89,6 +89,14 @@ impl Page for RelationPage {
     fn set_dirty_flag(&mut self, flag: bool) {
         self.is_dirty = flag;
     }
+
+    fn get_lsn(&self) -> u32 {
+        read_u32(&self.data, LSN_OFFSET).unwrap()
+    }
+
+    fn set_lsn(&mut self, lsn: LsnT) {
+        write_u32(&mut self.data, lsn, LSN_OFFSET).unwrap()
+    }
 }
 
 impl RelationPage {
@@ -100,93 +108,83 @@ impl RelationPage {
             pin_count: 0,
             is_dirty: false,
         };
-        page.set_page_id(page_id).unwrap();
-        page.set_free_space_pointer(PAGE_SIZE - 1).unwrap();
-        page.set_num_records(0).unwrap();
+        page.set_page_id(page_id);
+        page.set_free_space_pointer(PAGE_SIZE - 1);
+        page.set_num_records(0);
         page
     }
 
     /// Get the page ID.
-    pub fn get_page_id(&self) -> Result<u32, String> {
-        read_u32(&self.data, PAGE_ID_OFFSET)
+    pub fn get_page_id(&self) -> u32 {
+        read_u32(&self.data, PAGE_ID_OFFSET).unwrap()
     }
 
     /// Set the page ID.
-    pub fn set_page_id(&mut self, id: u32) -> Result<(), String> {
-        write_u32(&mut self.data, id, PAGE_ID_OFFSET)
+    pub fn set_page_id(&mut self, id: u32) {
+        write_u32(&mut self.data, id, PAGE_ID_OFFSET).unwrap()
     }
 
     /// Get the previous page ID.
-    pub fn get_prev_page_id(&self) -> Result<u32, String> {
-        read_u32(&self.data, PREV_PAGE_ID_OFFSET)
+    pub fn get_prev_page_id(&self) -> u32 {
+        read_u32(&self.data, PREV_PAGE_ID_OFFSET).unwrap()
     }
 
     /// Set the previous page ID.
-    pub fn set_prev_page_id(&mut self, id: u32) -> Result<(), String> {
-        write_u32(&mut self.data, id, PREV_PAGE_ID_OFFSET)
+    pub fn set_prev_page_id(&mut self, id: u32) {
+        write_u32(&mut self.data, id, PREV_PAGE_ID_OFFSET).unwrap()
     }
 
     /// Get the next page ID.
-    pub fn get_next_page_id(&self) -> Result<u32, String> {
-        read_u32(&self.data, NEXT_PAGE_ID_OFFSET)
+    pub fn get_next_page_id(&self) -> u32 {
+        read_u32(&self.data, NEXT_PAGE_ID_OFFSET).unwrap()
     }
 
     /// Set the next page ID.
-    pub fn set_next_page_id(&mut self, id: u32) -> Result<(), String> {
-        write_u32(&mut self.data, id, NEXT_PAGE_ID_OFFSET)
+    pub fn set_next_page_id(&mut self, id: u32) {
+        write_u32(&mut self.data, id, NEXT_PAGE_ID_OFFSET).unwrap()
     }
 
     /// Get a pointer to the next free space.
-    pub fn get_free_space_pointer(&self) -> Result<u32, String> {
-        read_u32(&self.data, FREE_POINTER_OFFSET)
+    pub fn get_free_space_pointer(&self) -> u32 {
+        read_u32(&self.data, FREE_POINTER_OFFSET).unwrap()
     }
 
     /// Set a pointer to the next free space.
-    pub fn set_free_space_pointer(&mut self, ptr: u32) -> Result<(), String> {
-        write_u32(&mut self.data, ptr, FREE_POINTER_OFFSET)
+    pub fn set_free_space_pointer(&mut self, ptr: u32) {
+        write_u32(&mut self.data, ptr, FREE_POINTER_OFFSET).unwrap()
     }
 
     /// Get the number of records contained in the page.
-    pub fn get_num_records(&self) -> Result<u32, String> {
-        read_u32(&self.data, NUM_RECORDS_OFFSET)
+    pub fn get_num_records(&self) -> u32 {
+        read_u32(&self.data, NUM_RECORDS_OFFSET).unwrap()
     }
 
     /// Set the number of records contained in the page.
-    pub fn set_num_records(&mut self, num: u32) -> Result<(), String> {
-        write_u32(&mut self.data, num, NUM_RECORDS_OFFSET)
-    }
-
-    /// Get the log sequence number (LSN).
-    pub fn get_lsn(&self) -> Result<u32, String> {
-        read_u32(&self.data, LSN_OFFSET)
-    }
-
-    /// Set the log sequence number (LSN).
-    pub fn set_lsn(&mut self, lsn: u32) -> Result<(), String> {
-        write_u32(&mut self.data, lsn, LSN_OFFSET)
+    pub fn set_num_records(&mut self, num: u32) {
+        write_u32(&mut self.data, num, NUM_RECORDS_OFFSET).unwrap()
     }
 
     /// Calculate the amount of free space (in bytes) left in the page.
     pub fn get_free_space_remaining(&self) -> u32 {
-        let free_ptr = self.get_free_space_pointer().unwrap();
-        let num_records = self.get_num_records().unwrap();
+        let free_ptr = self.get_free_space_pointer();
+        let num_records = self.get_num_records();
         free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
     }
 
     /// Insert a record in the page and update the header.
     pub fn insert_record(&mut self, record: Record) -> Result<(), String> {
         // Calculate header addresses for new length/offset entry
-        let num_records = self.get_num_records().unwrap();
+        let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         let length_addr = offset_addr + 4;
 
         // Bounds-check for record insertion
-        let free_ptr = self.get_free_space_pointer().unwrap();
+        let free_ptr = self.get_free_space_pointer();
         let new_free_ptr = free_ptr - record.len();
         if new_free_ptr < length_addr + 3 {
             return Err(format!(
                 "Overflow: Record does not fit in page (ID={})",
-                self.get_page_id().unwrap()
+                self.get_page_id()
             ));
         }
 
@@ -198,10 +196,10 @@ impl RelationPage {
         }
 
         // Update header
-        self.set_free_space_pointer(new_free_ptr).unwrap();
-        self.set_num_records(num_records + 1).unwrap();
-        write_u32(&mut self.data, new_free_ptr + 1, offset_addr).unwrap();
-        write_u32(&mut self.data, record.len(), length_addr).unwrap();
+        self.set_free_space_pointer(new_free_ptr);
+        self.set_num_records(num_records + 1);
+        write_u32(&mut self.data, new_free_ptr + 1, offset_addr);
+        write_u32(&mut self.data, record.len(), length_addr);
 
         Ok(())
     }
