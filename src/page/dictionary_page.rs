@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Copyright (c) 2020 - 2021.  Shoyo Inokuchi.
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
@@ -67,11 +67,11 @@ impl Page for DictionaryPage {
     }
 
     fn get_lsn(&self) -> u32 {
-        todo!()
+        unimplemented!()
     }
 
     fn set_lsn(&mut self, lsn: LsnT) {
-        todo!()
+        unimplemented!()
     }
 }
 
