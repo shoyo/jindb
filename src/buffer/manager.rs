@@ -4,30 +4,39 @@
  */
 
 use crate::buffer::eviction_policies::clock::ClockPolicy;
-use crate::buffer::eviction_policies::policy::Policy;
+use crate::buffer::eviction_policies::lru::LRUPolicy;
+use crate::buffer::eviction_policies::{EvictionPolicy, PolicyVariant};
 use crate::buffer::{Buffer, PageLatch};
 use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
 use crate::page::{Page, PageVariant};
-use std::sync::RwLockReadGuard;
+use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 /// The buffer manager is responsible for fetching/flushing pages that are managed in memory.
 /// Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
 pub struct BufferManager {
     buffer: Buffer,
     disk_manager: DiskManager,
-    evict_policy: ClockPolicy,
+    evict_policy: Arc<Mutex<Box<dyn EvictionPolicy>>>,
 }
 
 impl BufferManager {
     /// Construct a new buffer manager.
-    pub fn new(buffer_size: BufferFrameIdT, disk_manager: DiskManager) -> Self {
+    pub fn new(
+        buffer_size: BufferFrameIdT,
+        disk_manager: DiskManager,
+        evict_policy: PolicyVariant,
+    ) -> Self {
+        let policy: Box<dyn EvictionPolicy> = match evict_policy {
+            PolicyVariant::Clock => Box::new(ClockPolicy::new()),
+            PolicyVariant::LRU => Box::new(LRUPolicy::new()),
+        };
         Self {
             buffer: Buffer::new(buffer_size),
             disk_manager,
-            evict_policy: ClockPolicy::new(),
+            evict_policy: Arc::new(Mutex::new(policy)),
         }
     }
 
@@ -64,12 +73,11 @@ impl BufferManager {
                 new_page.incr_pin_count();
                 *frame = Some(new_page);
 
-                return Ok(page_latch.clone());
+                Ok(page_latch.clone())
             }
             // If the free list is empty, then refer to the eviction policy to choose a victim page.
-            None => {}
+            None => Err(()),
         }
-        Err(())
     }
 
     /// Fetch the specified page, pin it, and return its page latch.

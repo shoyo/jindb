@@ -3,6 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use jin::buffer::eviction_policies::PolicyVariant;
 use jin::buffer::manager::BufferManager;
 use jin::concurrency::transaction_manager::TransactionManager;
 use jin::disk::manager::DiskManager;
@@ -22,6 +23,7 @@ fn setup() -> TestContext {
     let buffer_manager = BufferManager::new(
         common::TEST_BUFFER_SIZE,
         DiskManager::new(common::TEST_DB_FILENAME),
+        PolicyVariant::Clock,
     );
     TestContext {
         system_catalog: SystemCatalog::new(buffer_manager),

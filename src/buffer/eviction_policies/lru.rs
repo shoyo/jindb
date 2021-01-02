@@ -3,18 +3,20 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use super::policy::Policy;
+use crate::buffer::eviction_policies::EvictionPolicy;
 use crate::common::BufferFrameIdT;
 
 /// An LRU eviction policy for the database buffer.
 pub struct LRUPolicy {}
 
-impl Policy for LRUPolicy {
-    fn new() -> Self {
+impl LRUPolicy {
+    pub fn new() -> Self {
         Self {}
     }
+}
 
-    fn evict(&mut self) -> Result<BufferFrameIdT, String> {
+impl EvictionPolicy for LRUPolicy {
+    fn evict(&mut self) -> Option<BufferFrameIdT> {
         todo!()
     }
 
