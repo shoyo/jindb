@@ -16,6 +16,14 @@ use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 /// The buffer manager is responsible for fetching/flushing pages that are managed in memory.
 /// Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
+/// Multiple threads may make requests to the buffer manager in parallel, so its implementation
+/// must be thread-safe.
+///
+/// The buffer manager manages three components to accomplish its tasks: Buffer, DiskManager,
+/// and EvictionPolicy. The Buffer is an abstraction over several data structures that are each
+/// guarded by a Mutex or Rwlock. The disk manager is not guarded by any locks, but its API is
+/// (should be) atomic and thread-safe. The eviction policy is explicitly protected by a Mutex as
+/// shown in the type signature.
 pub struct BufferManager {
     buffer: Buffer,
     disk_manager: DiskManager,
