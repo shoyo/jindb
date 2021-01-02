@@ -1,4 +1,4 @@
-# Jin DBMS
+# ![alt text](https://github.com/shoyo/jin/blob/main/images/logo.svg)
 
 ## About
 A disk-oriented, relational database written in Rust from scratch.
