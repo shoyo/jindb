@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Copyright (c) 2020 - 2021.  Shoyo Inokuchi.
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
@@ -36,14 +36,12 @@ fn test_create_table() {
         .system_catalog
         .create_relation(
             "Students",
-            Schema::new(
-                (vec![
-                    Attribute::new("id", DataType::Varchar, true, true, false),
-                    Attribute::new("name", DataType::Varchar, false, false, false),
-                    Attribute::new("school", DataType::Varchar, false, false, false),
-                    Attribute::new("grade", DataType::TinyInt, false, false, false),
-                ]),
-            ),
+            Schema::new(vec![
+                Attribute::new("id", DataType::Varchar, true, true, false),
+                Attribute::new("name", DataType::Varchar, false, false, false),
+                Attribute::new("school", DataType::Varchar, false, false, false),
+                Attribute::new("grade", DataType::TinyInt, false, false, false),
+            ]),
         )
         .unwrap();
     let relation = result.lock().unwrap();

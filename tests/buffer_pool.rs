@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020.  Shoyo Inokuchi.
+ * Copyright (c) 2020 - 2021.  Shoyo Inokuchi.
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
@@ -23,10 +23,23 @@ fn test_create_buffer_page() {
     let manager = setup();
 
     // Create a page in the buffer manager.
+    let page_latch = manager.create_relation_page().unwrap();
+    let frame = page_latch.read().unwrap();
+
     // Assert that the created page is initialized as expected.
+    assert!(frame.is_some());
+    let page = frame.as_ref().unwrap();
+    assert_eq!(page.get_id(), 1);
+    assert_eq!(page.get_pin_count(), 1);
+    assert_eq!(page.is_dirty(), false);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
-    // existing pages are pinned. (i.e. all held latches are still in scope)
+    // existing pages are pinned.
+    let mut latches = Vec::new();
+    for _ in 1..common::TEST_BUFFER_SIZE {
+        latches.push(manager.create_relation_page().unwrap());
+    }
+    assert!(manager.create_relation_page().is_err());
 }
 
 #[test]
