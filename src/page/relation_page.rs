@@ -95,7 +95,7 @@ impl Page for RelationPage {
     }
 
     fn set_lsn(&mut self, lsn: LsnT) {
-        write_u32(&mut self.data, lsn, LSN_OFFSET).unwrap()
+        write_u32(&mut self.data, LSN_OFFSET, lsn).unwrap()
     }
 }
 
@@ -121,7 +121,7 @@ impl RelationPage {
 
     /// Set the page ID.
     pub fn set_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, id, PAGE_ID_OFFSET).unwrap()
+        write_u32(&mut self.data, PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the previous page ID.
@@ -131,7 +131,7 @@ impl RelationPage {
 
     /// Set the previous page ID.
     pub fn set_prev_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, id, PREV_PAGE_ID_OFFSET).unwrap()
+        write_u32(&mut self.data, PREV_PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the next page ID.
@@ -141,7 +141,7 @@ impl RelationPage {
 
     /// Set the next page ID.
     pub fn set_next_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, id, NEXT_PAGE_ID_OFFSET).unwrap()
+        write_u32(&mut self.data, NEXT_PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get a pointer to the next free space.
@@ -151,7 +151,7 @@ impl RelationPage {
 
     /// Set a pointer to the next free space.
     pub fn set_free_space_pointer(&mut self, ptr: u32) {
-        write_u32(&mut self.data, ptr, FREE_POINTER_OFFSET).unwrap()
+        write_u32(&mut self.data, FREE_POINTER_OFFSET, ptr).unwrap()
     }
 
     /// Get the number of records contained in the page.
@@ -161,7 +161,7 @@ impl RelationPage {
 
     /// Set the number of records contained in the page.
     pub fn set_num_records(&mut self, num: u32) {
-        write_u32(&mut self.data, num, NUM_RECORDS_OFFSET).unwrap()
+        write_u32(&mut self.data, NUM_RECORDS_OFFSET, num).unwrap()
     }
 
     /// Calculate the amount of free space (in bytes) left in the page.

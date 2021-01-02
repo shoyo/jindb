@@ -122,7 +122,7 @@ pub fn write_str256(
 /// Return an overflow error message.
 #[inline(always)]
 fn overflow_error() -> String {
-    format!("Cannot read value from byte array address (overflow)")
+    format!("Cannot access value from byte array address (overflow)")
 }
 
 #[cfg(test)]
