@@ -15,11 +15,12 @@ pub mod manager;
 pub type PageLatch = Arc<RwLock<Option<Box<dyn Page>>>>;
 
 /// The database buffer and associated data structures.
-/// The buffer instance is managed by a buffer manager.
+/// Functions should be wary of the order in which they lock the buffer's data structures to
+/// prevent deadlocks.
 pub struct Buffer {
     pool: Vec<PageLatch>,
-    page_table: RwLock<HashMap<PageIdT, BufferFrameIdT>>,
     free_list: Mutex<LinkedList<BufferFrameIdT>>,
+    page_table: RwLock<HashMap<PageIdT, BufferFrameIdT>>,
 }
 
 impl Buffer {

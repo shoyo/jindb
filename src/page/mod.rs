@@ -30,6 +30,12 @@ pub trait Page {
     fn set_lsn(&mut self, lsn: LsnT);
 }
 
+/// Page variants
+pub enum PageVariant {
+    Dictionary,
+    Relation,
+}
+
 /// Utility functions for reading and writing byte arrays.
 
 /// Read an unsigned 32-bit integer at the specified location in the byte array.

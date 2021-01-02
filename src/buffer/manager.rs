@@ -6,9 +6,12 @@
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::policy::Policy;
 use crate::buffer::{Buffer, PageLatch};
-use crate::common::{BufferFrameIdT, PageIdT};
+use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE};
 use crate::disk::manager::DiskManager;
-use crate::page::Page;
+use crate::page::dictionary_page::DictionaryPage;
+use crate::page::relation_page::RelationPage;
+use crate::page::{Page, PageVariant};
+use std::sync::RwLockReadGuard;
 
 /// The buffer manager is responsible for fetching/flushing pages that are managed in memory.
 /// Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
@@ -28,20 +31,48 @@ impl BufferManager {
         }
     }
 
-    /// Initialize a new page, pin it, and return the page latch.
+    /// Initialize a relation page, pin it, and return its page latch.
+    pub fn create_relation_page(&self) -> Result<PageLatch, ()> {
+        self._create_page(PageVariant::Relation)
+    }
+
+    /// Initialize a dictionary page, pin it, and return its page latch.
+    pub fn create_dictionary_page(&self) -> Result<PageLatch, ()> {
+        self._create_page(PageVariant::Dictionary)
+    }
+
+    /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
-    pub fn create_page(&self) -> Result<PageLatch, ()> {
+    fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, ()> {
         // Allocate space in disk and initialize the new page.
+        let page_id = self.disk_manager.allocate_page();
 
         // Find a frame in the buffer to house the newly created page.
-        // Starting by checking the free list, which is a list of open frame IDs.
-        // If free list is empty, then scan buffer frames for an unpinned page
-        // If the free list is not empty, then pop off an index and pin the page
-        // to the corresponding frame. Be sure to wrap the page in a page latch.
+        // Start by checking the free list, which is a list of open frame IDs.
+        let mut free_list = self.buffer.free_list.lock().unwrap();
+        match free_list.pop_front() {
+            // If the free list is not empty, pop off the first item and pin the page to the
+            // corresponding buffer frame.
+            Some(frame_id) => {
+                let page_latch = self.buffer.pool[frame_id as usize].clone();
+                let mut frame = page_latch.write().unwrap();
+                let mut new_page: Box<dyn Page> = match variant {
+                    PageVariant::Dictionary => Box::new(DictionaryPage::new()),
+                    PageVariant::Relation => Box::new(RelationPage::new(page_id)),
+                };
+
+                new_page.incr_pin_count();
+                *frame = Some(new_page);
+
+                return Ok(page_latch.clone());
+            }
+            // If the free list is empty, then refer to the eviction policy to choose a victim page.
+            None => {}
+        }
         Err(())
     }
 
-    /// Fetch the specified page, pin it, and return the page latch.
+    /// Fetch the specified page, pin it, and return its page latch.
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
     pub fn fetch_page(&self, page_id: PageIdT) -> Result<PageLatch, ()> {

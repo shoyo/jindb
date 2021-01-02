@@ -20,7 +20,7 @@ pub struct Heap {
 impl Heap {
     /// Create a new heap for a database relation.
     pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, ()> {
-        let page_latch = buffer_manager.create_page()?;
+        let page_latch = buffer_manager.create_relation_page()?;
         let head_page_id = match *page_latch.read().unwrap() {
             Some(ref page) => page.get_id(),
             None => panic!("Head page latch contained None"),
