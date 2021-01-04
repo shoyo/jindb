@@ -46,6 +46,14 @@ impl Page for DictionaryPage {
         self.id
     }
 
+    fn get_data(&self) -> &[u8; PAGE_SIZE as usize] {
+        &self.data
+    }
+
+    fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+        &mut self.data
+    }
+
     fn get_pin_count(&self) -> u32 {
         self.pin_count
     }

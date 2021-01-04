@@ -15,6 +15,10 @@ pub mod relation_page;
 pub trait Page {
     fn get_id(&self) -> PageIdT;
 
+    fn get_data(&self) -> &[u8; PAGE_SIZE as usize];
+
+    fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize];
+
     fn get_pin_count(&self) -> u32;
 
     fn incr_pin_count(&mut self);
