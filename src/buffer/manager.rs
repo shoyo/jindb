@@ -24,12 +24,12 @@ use std::sync::{Arc, Mutex};
 /// The buffer manager manages three components to accomplish its tasks: Buffer, DiskManager,
 /// and EvictionPolicy. The Buffer is an abstraction over several data structures that are each
 /// guarded by a Mutex or Rwlock. The EvictionPolicy is also an abstraction over guarded data
-/// structures.The disk manager is not explicitly guarded by any locks, but its API is (should
+/// structures. The disk manager is not explicitly guarded by any locks, but its API is (should
 /// be) atomic and thread-safe.
 pub struct BufferManager {
     buffer: Buffer,
     disk_manager: DiskManager,
-    evict_policy: Arc<Mutex<Box<dyn EvictionPolicy>>>,
+    evict_policy: Arc<Mutex<Box<dyn EvictionPolicy + Send + Sync>>>,
 }
 
 impl BufferManager {
@@ -39,7 +39,7 @@ impl BufferManager {
         disk_manager: DiskManager,
         evict_policy: PolicyVariant,
     ) -> Self {
-        let policy: Box<dyn EvictionPolicy> = match evict_policy {
+        let policy: Box<dyn EvictionPolicy + Send + Sync> = match evict_policy {
             PolicyVariant::Clock => Box::new(ClockPolicy::new(buffer_size)),
             PolicyVariant::LRU => Box::new(LRUPolicy::new(buffer_size)),
             PolicyVariant::Slow => Box::new(SlowPolicy::new(buffer_size)),
@@ -87,7 +87,7 @@ impl BufferManager {
 
                 // Allocate space on disk and initialize the new page.
                 let page_id = self.disk_manager.allocate_page();
-                let mut new_page: Box<dyn Page> = match variant {
+                let mut new_page: Box<dyn Page + Send + Sync> = match variant {
                     PageVariant::Dictionary => Box::new(DictionaryPage::new()),
                     PageVariant::Relation => Box::new(RelationPage::new(page_id)),
                 };
@@ -107,7 +107,7 @@ impl BufferManager {
     /// Fetch the specified page, pin it, and return its page latch.
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
-    pub fn fetch_page(&self, _page_id: PageIdT) -> Result<PageLatch, ()> {
+    pub fn fetch_page(&self, page_id: PageIdT) -> Result<PageLatch, ()> {
         Err(())
     }
 

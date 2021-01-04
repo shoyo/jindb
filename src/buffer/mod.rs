@@ -12,7 +12,7 @@ pub mod eviction_policies;
 pub mod manager;
 
 /// Type alias for a page protected by a R/W latch for concurrent access.
-pub type PageLatch = Arc<RwLock<Option<Box<dyn Page>>>>;
+pub type PageLatch = Arc<RwLock<Option<Box<dyn Page + Send + Sync>>>>;
 
 /// The database buffer and associated data structures.
 /// Functions should be wary of the order in which they lock the buffer's data structures to
