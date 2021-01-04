@@ -9,7 +9,6 @@ use jin::disk::manager::DiskManager;
 use jin::page::Page;
 use std::sync::Arc;
 
-
 mod common;
 
 fn setup() -> Arc<BufferManager> {
@@ -20,7 +19,6 @@ fn setup() -> Arc<BufferManager> {
     ))
 }
 
-#[ignore]
 #[test]
 fn test_create_buffer_page() {
     let manager = setup();

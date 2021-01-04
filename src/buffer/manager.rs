@@ -12,6 +12,7 @@ use crate::common::{BufferFrameIdT, PageIdT};
 use crate::disk::manager::DiskManager;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
+use crate::page::PageVariant::Relation;
 use crate::page::{Page, PageVariant};
 use std::sync::{Arc, Mutex};
 
@@ -43,6 +44,7 @@ impl BufferManager {
             PolicyVariant::LRU => Box::new(LRUPolicy::new(buffer_size)),
             PolicyVariant::Slow => Box::new(SlowPolicy::new(buffer_size)),
         };
+
         Self {
             buffer: Buffer::new(buffer_size),
             disk_manager,
@@ -63,67 +65,39 @@ impl BufferManager {
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
     fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, BufFrameErr> {
-        // Allocate space in disk and initialize the new page.
-        let page_id = self.disk_manager.allocate_page();
-
-        // Find a frame in the buffer to house the newly created page.
-        // Start by checking the free list, which is a list of open frame IDs.
-        let mut free_list = self.buffer.free_list.lock().unwrap();
-        match free_list.pop_front() {
-            // If the free list is not empty, pop off the first item and pin the page to the
-            // corresponding buffer frame.
+        let policy = self.evict_policy.lock().unwrap();
+        match policy.evict() {
             Some(frame_id) => {
+                // Acquire latches to specified page and page table.
                 let page_latch = self.buffer.pool[frame_id as usize].clone();
                 let mut frame = page_latch.write().unwrap();
                 let mut page_table = self.buffer.page_table.write().unwrap();
 
+                // Flush the existing page out to disk if necessary.
+                if let Some(page) = frame.as_ref() {
+                    if page.is_dirty() {
+                        self.disk_manager
+                            .write_page(page.get_id(), page.get_data())
+                            .unwrap();
+                    }
+                }
+
+                // Allocate space on disk and initialize the new page.
+                let page_id = self.disk_manager.allocate_page();
                 let mut new_page: Box<dyn Page> = match variant {
                     PageVariant::Dictionary => Box::new(DictionaryPage::new()),
                     PageVariant::Relation => Box::new(RelationPage::new(page_id)),
                 };
 
-                let policy = self.evict_policy.lock().unwrap();
+                // Update the page table and pin the new page to the buffer.
+                page_table.insert(new_page.get_id(), frame_id);
                 new_page.incr_pin_count();
-                policy.pin(new_page.get_id());
                 *frame = Some(new_page);
-                page_table.insert(page_id, frame_id);
 
+                // Return a reference to the page latch.
                 Ok(page_latch.clone())
             }
-            // If the free list is empty, then refer to the eviction policy to choose a victim page.
-            None => {
-                let policy = self.evict_policy.lock().unwrap();
-                match policy.evict() {
-                    // If a page can be evicted, flush out the victim page to disk if necessary
-                    // and overwrite the buffer frame.
-                    Some(frame_id) => {
-                        let page_latch = self.buffer.pool[frame_id as usize].clone();
-                        let mut frame = page_latch.write().unwrap();
-                        let mut page_table = self.buffer.page_table.write().unwrap();
-                        let page = frame.as_ref().unwrap(); // Frame is guaranteed to be Some.
-
-                        if page.is_dirty() {
-                            self.disk_manager
-                                .write_page(page.get_id(), page.get_data())
-                                .unwrap();
-                        }
-
-                        let mut new_page: Box<dyn Page> = match variant {
-                            PageVariant::Dictionary => Box::new(DictionaryPage::new()),
-                            PageVariant::Relation => Box::new(RelationPage::new(page_id)),
-                        };
-                        let policy = self.evict_policy.lock().unwrap();
-                        new_page.incr_pin_count();
-                        policy.pin(new_page.get_id());
-                        *frame = Some(new_page);
-                        page_table.insert(page_id, frame_id);
-
-                        Ok(page_latch.clone())
-                    }
-                    // If no page can be evicted, then give up and return an error.
-                    None => Err(BufFrameErr::new()),
-                }
-            }
+            None => Err(BufFrameErr::new()),
         }
     }
 

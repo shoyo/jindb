@@ -19,7 +19,6 @@ pub type PageLatch = Arc<RwLock<Option<Box<dyn Page>>>>;
 /// prevent deadlocks.
 pub struct Buffer {
     pool: Vec<PageLatch>,
-    free_list: Mutex<LinkedList<BufferFrameIdT>>,
     page_table: RwLock<HashMap<PageIdT, BufferFrameIdT>>,
 }
 
@@ -27,17 +26,9 @@ impl Buffer {
     pub fn new(size: BufferFrameIdT) -> Self {
         let mut pool = Vec::with_capacity(size as usize);
         let page_table = RwLock::new(HashMap::new());
-        let mut tmp_list = LinkedList::new();
-        for frame_id in 0..size {
+        for _ in 0..size {
             pool.push(Arc::new(RwLock::new(None)));
-            tmp_list.push_back(frame_id);
         }
-        let free_list = Mutex::new(tmp_list);
-
-        Self {
-            pool,
-            page_table,
-            free_list,
-        }
+        Self { pool, page_table }
     }
 }
