@@ -51,18 +51,18 @@ impl BufferManager {
     }
 
     /// Initialize a relation page, pin it, and return its page latch.
-    pub fn create_relation_page(&self) -> Result<PageLatch, ()> {
+    pub fn create_relation_page(&self) -> Result<PageLatch, BufFrameErr> {
         self._create_page(PageVariant::Relation)
     }
 
     /// Initialize a dictionary page, pin it, and return its page latch.
-    pub fn create_dictionary_page(&self) -> Result<PageLatch, ()> {
+    pub fn create_dictionary_page(&self) -> Result<PageLatch, BufFrameErr> {
         self._create_page(PageVariant::Dictionary)
     }
 
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
-    fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, ()> {
+    fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, BufFrameErr> {
         // Allocate space in disk and initialize the new page.
         let page_id = self.disk_manager.allocate_page();
 
@@ -75,18 +75,55 @@ impl BufferManager {
             Some(frame_id) => {
                 let page_latch = self.buffer.pool[frame_id as usize].clone();
                 let mut frame = page_latch.write().unwrap();
+                let mut page_table = self.buffer.page_table.write().unwrap();
+
                 let mut new_page: Box<dyn Page> = match variant {
                     PageVariant::Dictionary => Box::new(DictionaryPage::new()),
                     PageVariant::Relation => Box::new(RelationPage::new(page_id)),
                 };
 
+                let policy = self.evict_policy.lock().unwrap();
                 new_page.incr_pin_count();
+                policy.pin(new_page.get_id());
                 *frame = Some(new_page);
+                page_table.insert(page_id, frame_id);
 
                 Ok(page_latch.clone())
             }
             // If the free list is empty, then refer to the eviction policy to choose a victim page.
-            None => Err(()),
+            None => {
+                let policy = self.evict_policy.lock().unwrap();
+                match policy.evict() {
+                    // If a page can be evicted, flush out the victim page to disk if necessary
+                    // and overwrite the buffer frame.
+                    Some(frame_id) => {
+                        let page_latch = self.buffer.pool[frame_id as usize].clone();
+                        let mut frame = page_latch.write().unwrap();
+                        let mut page_table = self.buffer.page_table.write().unwrap();
+                        let page = frame.as_ref().unwrap(); // Frame is guaranteed to be Some.
+
+                        if page.is_dirty() {
+                            self.disk_manager
+                                .write_page(page.get_id(), page.get_data())
+                                .unwrap();
+                        }
+
+                        let mut new_page: Box<dyn Page> = match variant {
+                            PageVariant::Dictionary => Box::new(DictionaryPage::new()),
+                            PageVariant::Relation => Box::new(RelationPage::new(page_id)),
+                        };
+                        let policy = self.evict_policy.lock().unwrap();
+                        new_page.incr_pin_count();
+                        policy.pin(new_page.get_id());
+                        *frame = Some(new_page);
+                        page_table.insert(page_id, frame_id);
+
+                        Ok(page_latch.clone())
+                    }
+                    // If no page can be evicted, then give up and return an error.
+                    None => Err(BufFrameErr::new()),
+                }
+            }
         }
     }
 
@@ -137,5 +174,22 @@ impl BufferManager {
     /// Panic if the frame ID is out-of-bounds.
     fn _page_table_lookup(&self, page_id: PageIdT) -> Option<BufferFrameIdT> {
         None
+    }
+}
+
+/// Custom error types to be used by the buffer manager.
+
+/// Error to be thrown when no buffer frames are open, and every page occupying a buffer frame is
+/// pinned and cannot be evicted.
+#[derive(Debug)]
+pub struct BufFrameErr {
+    msg: String,
+}
+
+impl BufFrameErr {
+    fn new() -> Self {
+        Self {
+            msg: format!("No available buffer frames, and all pages are pinned"),
+        }
     }
 }

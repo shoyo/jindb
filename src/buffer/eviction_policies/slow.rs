@@ -46,19 +46,16 @@ impl EvictionPolicy for SlowPolicy {
             }
         }
 
-        if count == 0 {
+        if count > 1 {
             panic!(
-                "Can't pin: No instances of frame ID {} found in queue",
-                frame_id
-            );
-        }
-        if count != 1 {
-            panic!(
-                "Can't pin: {} instances of frame ID {} found in queue",
+                "Found {} instances of frame ID {} in queue, expected 0 or 1",
                 count, frame_id
             );
         }
-        queue.remove(idx);
+        if count == 1 {
+            queue.remove(idx);
+        }
+        // If the page has already been pinned, count will equal 0 and we do nothing.
     }
 
     fn unpin(&self, frame_id: u32) {
@@ -70,7 +67,7 @@ impl EvictionPolicy for SlowPolicy {
             .len();
         if count > 0 {
             panic!(
-                "Can't unpin: {} instances of frame ID {} found in queue",
+                "Found {} instances of frame ID {} in queue, expected 0",
                 count, frame_id
             );
         }
