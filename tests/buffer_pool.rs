@@ -16,10 +16,11 @@ fn setup() -> Arc<BufferManager> {
     Arc::new(BufferManager::new(
         common::TEST_BUFFER_SIZE,
         DiskManager::new(common::TEST_DB_FILENAME),
-        PolicyVariant::Clock,
+        PolicyVariant::Slow,
     ))
 }
 
+#[ignore]
 #[test]
 fn test_create_buffer_page() {
     let manager = setup();
@@ -44,6 +45,7 @@ fn test_create_buffer_page() {
     assert!(manager.create_relation_page().is_err());
 }
 
+#[ignore]
 #[test]
 fn test_fetch_buffer_page() {
     let mut ctx = setup();
@@ -54,6 +56,7 @@ fn test_fetch_buffer_page() {
     // Assert that the operation is successful and correct.
 }
 
+#[ignore]
 #[test]
 fn test_delete_buffer_page() {
     let mut ctx = setup();
