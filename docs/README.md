@@ -87,3 +87,8 @@ pages in its sequence.
 ### Disk manager
 The disk manager ...
 ...the disk manager is inherently thread-safe so doesn't require a mutex.
+
+### Free list in buffer
+Potentially delete the free list because with the current implementation the free list and 
+eviction policy struct serve overlapping purposes and keeping both structures updated and in 
+sync possibly incurs performance cost.
