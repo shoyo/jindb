@@ -3,9 +3,11 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-/// Note: The type aliases and global constants below are primarily to improve readability
-/// throughout the codebase. The values should not be configured/modified unless explicitly
-/// annotated with "safe to modify".
+pub mod collections;
+
+/// Note: This file is NOT a configuration file. The type aliases and global constants below are
+/// primarily meant to improve readability throughout the codebase. The values should not be
+/// configured/modified unless explicitly annotated with "safe to modify".
 
 /// Type aliases
 pub type PageIdT = u32;
