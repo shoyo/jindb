@@ -5,6 +5,7 @@
 
 use crate::buffer::eviction_policies::clock::ClockPolicy;
 use crate::buffer::eviction_policies::lru::LRUPolicy;
+use crate::buffer::eviction_policies::slow::SlowPolicy;
 use crate::buffer::eviction_policies::{EvictionPolicy, PolicyVariant};
 use crate::buffer::{Buffer, PageLatch};
 use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE};
@@ -21,9 +22,9 @@ use std::sync::{Arc, Mutex, RwLockReadGuard};
 ///
 /// The buffer manager manages three components to accomplish its tasks: Buffer, DiskManager,
 /// and EvictionPolicy. The Buffer is an abstraction over several data structures that are each
-/// guarded by a Mutex or Rwlock. The disk manager is not guarded by any locks, but its API is
-/// (should be) atomic and thread-safe. The eviction policy is explicitly protected by a Mutex as
-/// shown in the type signature.
+/// guarded by a Mutex or Rwlock. The EvictionPolicy is also an abstraction over guarded data
+/// structures.The disk manager is not explicitly guarded by any locks, but its API is (should
+/// be) atomic and thread-safe.
 pub struct BufferManager {
     buffer: Buffer,
     disk_manager: DiskManager,
@@ -38,8 +39,9 @@ impl BufferManager {
         evict_policy: PolicyVariant,
     ) -> Self {
         let policy: Box<dyn EvictionPolicy> = match evict_policy {
-            PolicyVariant::Clock => Box::new(ClockPolicy::new()),
-            PolicyVariant::LRU => Box::new(LRUPolicy::new()),
+            PolicyVariant::Clock => Box::new(ClockPolicy::new(buffer_size)),
+            PolicyVariant::LRU => Box::new(LRUPolicy::new(buffer_size)),
+            PolicyVariant::Slow => Box::new(SlowPolicy::new(buffer_size)),
         };
         Self {
             buffer: Buffer::new(buffer_size),
