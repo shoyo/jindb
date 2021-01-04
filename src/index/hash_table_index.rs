@@ -23,15 +23,15 @@ impl<'a, K, V> HashIndex<'a, K, V> {
 }
 
 impl<'a, K, V> Index<'a> for HashIndex<'a, K, V> {
-    fn get(key: &Record, txn: &'a Transaction) -> Vec<RecordId> {
+    fn get(_key: &Record, _txn: &'a Transaction) -> Vec<RecordId> {
         todo!()
     }
 
-    fn set(key: &Record, rid: RecordId, txn: &'a Transaction) {
+    fn set(_key: &Record, _rid: RecordId, _txn: &'a Transaction) {
         todo!()
     }
 
-    fn delete(key: &Record, rid: RecordId, txn: &'a Transaction) {
+    fn delete(_key: &Record, _rid: RecordId, _txn: &'a Transaction) {
         todo!()
     }
 }

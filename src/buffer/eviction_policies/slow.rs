@@ -60,7 +60,7 @@ impl EvictionPolicy for SlowPolicy {
 
     fn unpin(&self, frame_id: u32) {
         let mut queue = self.queue.lock().unwrap();
-        let mut count = queue
+        let count = queue
             .iter()
             .map(|id| id == &frame_id)
             .collect::<Vec<bool>>()

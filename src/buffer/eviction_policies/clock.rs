@@ -10,7 +10,7 @@ use crate::common::BufferFrameIdT;
 pub struct ClockPolicy {}
 
 impl ClockPolicy {
-    pub fn new(buffer_size: BufferFrameIdT) -> Self {
+    pub fn new(_buffer_size: BufferFrameIdT) -> Self {
         Self {}
     }
 }
@@ -20,11 +20,11 @@ impl EvictionPolicy for ClockPolicy {
         todo!()
     }
 
-    fn pin(&self, frame_id: BufferFrameIdT) {
+    fn pin(&self, _frame_id: BufferFrameIdT) {
         todo!()
     }
 
-    fn unpin(&self, frame_id: BufferFrameIdT) {
+    fn unpin(&self, _frame_id: BufferFrameIdT) {
         todo!()
     }
 }

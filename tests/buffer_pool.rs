@@ -8,7 +8,7 @@ use jin::buffer::manager::BufferManager;
 use jin::disk::manager::DiskManager;
 use jin::page::Page;
 use std::sync::Arc;
-use std::thread;
+
 
 mod common;
 
@@ -48,7 +48,7 @@ fn test_create_buffer_page() {
 #[ignore]
 #[test]
 fn test_fetch_buffer_page() {
-    let mut ctx = setup();
+    let _ctx = setup();
 
     // Create a page in the buffer manager.
 
@@ -59,7 +59,7 @@ fn test_fetch_buffer_page() {
 #[ignore]
 #[test]
 fn test_delete_buffer_page() {
-    let mut ctx = setup();
+    let _ctx = setup();
 
     // Create a page in the buffer manager.
 

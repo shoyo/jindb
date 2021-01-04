@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::BufferManager;
+
 use crate::execution::transaction::Transaction;
 use crate::index::{Index, IndexMeta};
 use crate::relation::record::{Record, RecordId};
@@ -26,15 +26,15 @@ impl<'a, K: std::cmp::Ord, V> BTreeIndex<'a, K, V> {
 }
 
 impl<'a, K: std::cmp::Ord, V> Index<'a> for BTreeIndex<'a, K, V> {
-    fn get(key: &Record, txn: &'a Transaction) -> Vec<RecordId> {
+    fn get(_key: &Record, _txn: &'a Transaction) -> Vec<RecordId> {
         todo!()
     }
 
-    fn set(key: &Record, rid: RecordId, txn: &'a Transaction) {
+    fn set(_key: &Record, _rid: RecordId, _txn: &'a Transaction) {
         todo!()
     }
 
-    fn delete(key: &Record, rid: RecordId, txn: &'a Transaction) {
+    fn delete(_key: &Record, _rid: RecordId, _txn: &'a Transaction) {
         todo!()
     }
 }

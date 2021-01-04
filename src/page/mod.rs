@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_read_u32_overflow() {
-        let mut array = [1; PAGE_SIZE as usize];
+        let array = [1; PAGE_SIZE as usize];
 
         // Assert that read is successful with no overflow.
         let result = read_u32(&array, PAGE_SIZE - 4);

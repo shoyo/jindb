@@ -60,12 +60,12 @@ impl EvictionPolicy for LRUPolicy {
     fn pin(&self, frame_id: BufferFrameIdT) {
         let map = self.map.lock().unwrap();
         match map.get(&frame_id) {
-            Some(node) => {
-                let queue = self.queue.lock().unwrap();
+            Some(_node) => {
+                let _queue = self.queue.lock().unwrap();
             }
             None => todo!(),
         }
-        let queue = self.queue.lock().unwrap();
+        let _queue = self.queue.lock().unwrap();
     }
 
     fn unpin(&self, frame_id: BufferFrameIdT) {
@@ -85,6 +85,6 @@ mod tests {
 
     #[test]
     fn test_create_lru() {
-        let lru = setup();
+        let _lru = setup();
     }
 }

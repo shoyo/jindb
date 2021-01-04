@@ -30,23 +30,23 @@ impl Heap {
     }
 
     /// Insert a record into the relation.
-    pub fn insert(&mut self, record: Record) -> Result<(), ()> {
+    pub fn insert(&mut self, _record: Record) -> Result<(), ()> {
         Err(())
     }
 
     /// Flag the specified record as deleted.
     /// The record is not actually deleted until .apply_delete() is called.
-    pub fn flag_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn flag_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 
     /// Commit a delete operation for the specified record.
-    pub fn commit_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn commit_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 
     /// Rollback a delete operation for the specified record.
-    pub fn rollback_delete(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn rollback_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
         Err(())
     }
 }

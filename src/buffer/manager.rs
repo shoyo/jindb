@@ -8,12 +8,12 @@ use crate::buffer::eviction_policies::lru::LRUPolicy;
 use crate::buffer::eviction_policies::slow::SlowPolicy;
 use crate::buffer::eviction_policies::{EvictionPolicy, PolicyVariant};
 use crate::buffer::{Buffer, PageLatch};
-use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE};
+use crate::common::{BufferFrameIdT, PageIdT};
 use crate::disk::manager::DiskManager;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
 use crate::page::{Page, PageVariant};
-use std::sync::{Arc, Mutex, RwLockReadGuard};
+use std::sync::{Arc, Mutex};
 
 /// The buffer manager is responsible for fetching/flushing pages that are managed in memory.
 /// Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
@@ -130,18 +130,18 @@ impl BufferManager {
     /// Fetch the specified page, pin it, and return its page latch.
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
-    pub fn fetch_page(&self, page_id: PageIdT) -> Result<PageLatch, ()> {
+    pub fn fetch_page(&self, _page_id: PageIdT) -> Result<PageLatch, ()> {
         Err(())
     }
 
     /// Delete the specified page.
     /// If the page is pinned, then return an error.
-    pub fn delete_page(&self, page_id: PageIdT) -> Result<(), ()> {
+    pub fn delete_page(&self, _page_id: PageIdT) -> Result<(), ()> {
         Err(())
     }
 
     /// Flush the specified page to disk.
-    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), ()> {
+    pub fn flush_page(&self, _page_id: PageIdT) -> Result<(), ()> {
         Err(())
     }
 
@@ -153,26 +153,26 @@ impl BufferManager {
     /// Pin the specified page to the buffer.
     /// Pinned pages will never be evicted. Threads must pin a page to the
     /// buffer before operating on it.
-    pub fn pin_page(&self, page_id: PageIdT) -> Result<(), ()> {
+    pub fn pin_page(&self, _page_id: PageIdT) -> Result<(), ()> {
         Err(())
     }
 
     /// Unpin the specified page.
     /// Pages with no pins can be evicted. Threads must unpin a page when
     /// finished operating on it.
-    pub fn unpin_page(&self, page_id: PageIdT) -> Result<(), ()> {
+    pub fn unpin_page(&self, _page_id: PageIdT) -> Result<(), ()> {
         Err(())
     }
 
     /// Index the buffer pool and return the specified page latch.
-    fn _get_page_by_frame(&self, frame_id: BufferFrameIdT) -> Result<PageLatch, ()> {
+    fn _get_page_by_frame(&self, _frame_id: BufferFrameIdT) -> Result<PageLatch, ()> {
         Err(())
     }
 
     /// Find the specified page in the page table, and return its frame ID.
     /// If the page does not exist in the page table, then return None.
     /// Panic if the frame ID is out-of-bounds.
-    fn _page_table_lookup(&self, page_id: PageIdT) -> Option<BufferFrameIdT> {
+    fn _page_table_lookup(&self, _page_id: PageIdT) -> Option<BufferFrameIdT> {
         None
     }
 }

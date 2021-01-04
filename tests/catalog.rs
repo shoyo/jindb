@@ -10,7 +10,7 @@ use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::attribute::{Attribute, DataType};
 use jin::relation::schema::Schema;
-use std::sync::Arc;
+
 
 mod common;
 

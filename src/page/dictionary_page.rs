@@ -78,7 +78,7 @@ impl Page for DictionaryPage {
         unimplemented!()
     }
 
-    fn set_lsn(&mut self, lsn: LsnT) {
+    fn set_lsn(&mut self, _lsn: LsnT) {
         unimplemented!()
     }
 }

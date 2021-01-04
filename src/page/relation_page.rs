@@ -6,7 +6,7 @@
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::{read_u32, write_u32, Page};
 use crate::relation::record::Record;
-use crate::relation::relation::Relation;
+
 
 /// Constants for slotted-page page header
 const PAGE_ID_OFFSET: u32 = 0;
@@ -213,7 +213,7 @@ impl RelationPage {
     }
 
     /// Update a record in the page.
-    fn update_record(&mut self, record: Record) -> Result<(), ()> {
+    fn update_record(&mut self, _record: Record) -> Result<(), ()> {
         Err(())
     }
 }

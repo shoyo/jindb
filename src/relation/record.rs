@@ -4,9 +4,9 @@
  */
 
 use crate::common::PageIdT;
-use crate::relation::attribute::Attribute;
+
 use crate::relation::schema::Schema;
-use std::convert::TryInto;
+
 
 /// A database record with variable-length attributes.
 ///
@@ -48,7 +48,7 @@ impl Record {
         self.data.len() as u32
     }
 
-    pub fn get_column_value(&self, idx: u32, schema: &Schema) -> &[u8] {
+    pub fn get_column_value(&self, _idx: u32, _schema: &Schema) -> &[u8] {
         todo!()
     }
 }
