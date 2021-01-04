@@ -65,10 +65,8 @@ impl BufferManager {
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
     fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, BufFrameErr> {
-        let victim;
-
         let policy = self.evict_policy.lock().unwrap();
-        victim = policy.evict();
+        let victim = policy.evict();
         drop(policy); // Drop latch on eviction policy to minimize contention.
 
         match victim {
