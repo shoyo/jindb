@@ -4,9 +4,8 @@
  */
 
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
-use crate::page::{read_u32, write_u32, Page};
+use crate::page::{read_u32, write_u32, Page, PageVariant};
 use crate::relation::record::Record;
-
 
 /// Constants for slotted-page page header
 const PAGE_ID_OFFSET: u32 = 0;
@@ -104,6 +103,10 @@ impl Page for RelationPage {
 
     fn set_lsn(&mut self, lsn: LsnT) {
         write_u32(&mut self.data, LSN_OFFSET, lsn).unwrap()
+    }
+
+    fn get_variant(&self) -> PageVariant {
+        PageVariant::Relation
     }
 }
 

@@ -4,7 +4,7 @@
  */
 
 use crate::common::{LsnT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
-use crate::page::{read_str256, read_u32, write_str256, write_u32, Page};
+use crate::page::{read_str256, read_u32, write_str256, write_u32, Page, PageVariant};
 
 const COUNT_OFFSET: u32 = 0;
 const COUNT_LENGTH: u32 = 4;
@@ -77,6 +77,10 @@ impl Page for DictionaryPage {
 
     fn set_lsn(&mut self, _lsn: LsnT) {
         unimplemented!()
+    }
+
+    fn get_variant(&self) -> PageVariant {
+        PageVariant::Dictionary
     }
 }
 

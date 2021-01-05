@@ -90,6 +90,10 @@ impl Page for ClassifierPage {
     fn set_lsn(&mut self, _lsn: u32) {
         unimplemented!()
     }
+
+    fn get_variant(&self) -> PageVariant {
+        PageVariant::Classifier
+    }
 }
 
 impl ClassifierPage {

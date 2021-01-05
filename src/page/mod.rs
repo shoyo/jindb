@@ -33,6 +33,8 @@ pub trait Page {
     fn get_lsn(&self) -> LsnT;
 
     fn set_lsn(&mut self, lsn: LsnT);
+
+    fn get_variant(&self) -> PageVariant;
 }
 
 /// Page variants
