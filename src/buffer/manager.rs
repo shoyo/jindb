@@ -98,9 +98,14 @@ impl BufferManager {
                 let frame_latch = self._get_frame_latch(frame_id);
                 let mut frame = frame_latch.write().unwrap();
 
-                // Flush the existing page out to disk if necessary.
+                // Assert that selected page is a valid victim page.
+                frame.assert_no_pins();
+
+                // Write the existing page out to disk if necessary.
                 if let Some(ref page) = frame.page {
-                    self._flush_page(page);
+                    if frame.is_dirty {
+                        self._write_to_disk(page);
+                    }
                 }
 
                 // Allocate space on disk and initialize the new page.
@@ -119,6 +124,7 @@ impl BufferManager {
                 let mut page_table = self.page_table.write().unwrap();
                 page_table.insert(new_page.get_id(), frame_id);
                 self.replacer.pin(frame_id);
+                frame.pin_count += 1;
                 frame.page = Some(new_page);
 
                 // Return a reference to the page latch.
@@ -147,7 +153,9 @@ impl BufferManager {
                     let frame = page_latch.write().unwrap();
 
                     if let Some(ref page) = frame.page {
-                        self._flush_page(page);
+                        if frame.is_dirty {
+                            self._write_to_disk(page);
+                        }
                     }
 
                     let mut page_data = [0; PAGE_SIZE as usize];
@@ -163,19 +171,30 @@ impl BufferManager {
     }
 
     /// Delete the specified page.
-    /// If the page is pinned, then return an error.
-    pub fn delete_page(&self, _page_id: PageIdT) -> Result<(), ()> {
-        Err(())
-    }
+    /// If the page doesn't exist in the buffer or is pinned, then return an error.
+    pub fn delete_page(&self, page_id: PageIdT) -> Result<(), ()> {
+        match self._page_table_lookup(page_id) {
+            Some(frame_id) => {
+                let frame_latch = self._get_frame_latch(frame_id);
+                let mut frame = frame_latch.write().unwrap();
 
-    /// Flush the specified page to disk. Do nothing if the page hasn't been modified.
-    ///
-    /// Note: This method in isolation is NOT thread-safe. This method should only be called in
-    /// the context of another buffer manager method which is thread-safe.
-    fn _flush_page(&self, page: &Box<dyn Page + Send + Sync>) {
-        self.disk_manager
-            .write_page(page.get_id(), page.get_data())
-            .unwrap();
+                match frame.pin_count {
+                    0 => {
+                        let mut page_table = self.page_table.write().unwrap();
+                        let mut type_chart = self.type_chart.write().unwrap();
+                        page_table.remove(&page_id).unwrap();
+                        type_chart.remove(&page_id).unwrap();
+
+                        self.disk_manager.deallocate_page(page_id);
+                        self.replacer.unpin(page_id);
+                        frame.reset();
+                        Ok(())
+                    }
+                    _ => Err(()),
+                }
+            }
+            None => Err(()),
+        }
     }
 
     /// Flush all pages to disk.
@@ -198,6 +217,13 @@ impl BufferManager {
             None => None,
         }
     }
+
+    /// Write the specified page to disk.
+    fn _write_to_disk(&self, page: &Box<dyn Page + Send + Sync>) {
+        self.disk_manager
+            .write_page(page.get_id(), page.get_data())
+            .unwrap();
+    }
 }
 
 /// Custom error types to be used by the buffer manager.
@@ -213,6 +239,19 @@ impl NoBufFrameErr {
     fn new() -> Self {
         Self {
             msg: format!("No available buffer frames, and all pages are pinned"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PageDneErr {
+    msg: String,
+}
+
+impl PageDneErr {
+    fn new(page_id: PageIdT) -> Self {
+        Self {
+            msg: format!("Page (ID = {}) does not exist in the buffer", page_id),
         }
     }
 }

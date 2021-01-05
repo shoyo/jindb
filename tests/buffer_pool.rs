@@ -29,8 +29,8 @@ fn test_create_buffer_page() {
     let frame = frame_latch.read().unwrap();
 
     // Assert that the created page is initialized as expected.
-    assert!(frame.page.is_some());
-    let page = frame.page.as_ref().unwrap();
+    assert!(frame.get_page().is_some());
+    let page = frame.get_page().as_ref().unwrap();
     assert_eq!(page.get_id(), 1);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
@@ -52,7 +52,7 @@ fn test_fetch_buffer_page() {
     thread::spawn(move || {
         let frame_latch = manager.create_relation_page().unwrap();
         let frame = frame_latch.read().unwrap();
-        let page = frame.page.as_ref().unwrap();
+        let page = frame.get_page().as_ref().unwrap();
         assert_eq!(page.get_id(), 1);
         tx.send(page.get_id());
     });
@@ -62,8 +62,8 @@ fn test_fetch_buffer_page() {
         let page_id = rx.recv().unwrap();
         let frame_latch = managerc.fetch_page(page_id).unwrap();
         let frame = frame_latch.read().unwrap();
-        assert!(frame.page.is_some());
-        let page = frame.page.as_ref().unwrap();
+        assert!(frame.get_page().is_some());
+        let page = frame.get_page().as_ref().unwrap();
         assert_eq!(page.get_id(), 1);
 
         let result = managerc.fetch_page(2);
@@ -74,11 +74,15 @@ fn test_fetch_buffer_page() {
 #[ignore]
 #[test]
 fn test_delete_buffer_page() {
-    let _ctx = setup();
+    let manager = setup();
 
     // Create a page in the buffer manager.
+    let frame_latch = manager.create_relation_page().unwrap();
+    let frame = frame_latch.write().unwrap();
 
     // Assert that the page cannot be deleted while pinned.
+    let result = manager.delete_page(frame.get_id());
+    assert!(result.is_err());
 
     // Assert that the page can be deleted when its pin count is zero.
 }

@@ -22,7 +22,7 @@ impl Heap {
     pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, NoBufFrameErr> {
         let frame_latch = buffer_manager.create_relation_page()?;
         let frame = frame_latch.read().unwrap();
-        let head_page_id = match frame.page {
+        let head_page_id = match frame.get_page() {
             Some(ref page) => page.get_id(),
             None => panic!("Head page latch contained None"),
         };
