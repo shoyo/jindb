@@ -5,6 +5,7 @@
 
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 
+pub mod classifier_page;
 pub mod dictionary_page;
 pub mod relation_page;
 
@@ -36,6 +37,7 @@ pub trait Page {
 
 /// Page variants
 pub enum PageVariant {
+    Classifier,
     Dictionary,
     Relation,
 }
