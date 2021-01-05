@@ -16,6 +16,7 @@ use crate::page::relation_page::RelationPage;
 use crate::page::PageVariant::Relation;
 use crate::page::{Page, PageVariant};
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, RwLock};
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
@@ -130,7 +131,7 @@ impl BufferManager {
                 // Return a reference to the page latch.
                 Ok(frame_latch.clone())
             }
-            None => Err(NoBufFrameErr::new()),
+            None => Err(NoBufFrameErr),
         }
     }
 
@@ -163,16 +164,15 @@ impl BufferManager {
 
                     let mut page_table = self.page_table.write().unwrap();
 
-                    Err(NoBufFrameErr::new())
+                    Err(NoBufFrameErr)
                 }
-                None => Err(NoBufFrameErr::new()),
+                None => Err(NoBufFrameErr),
             },
         }
     }
 
-    /// Delete the specified page.
-    /// If the page doesn't exist in the buffer or is pinned, then return an error.
-    pub fn delete_page(&self, page_id: PageIdT) -> Result<(), ()> {
+    /// Delete the specified page. If the page is pinned, then return an error.
+    pub fn delete_page(&self, page_id: PageIdT) -> Result<(), PinCountErr> {
         match self._page_table_lookup(page_id) {
             Some(frame_id) => {
                 let frame_latch = self.buffer.get(frame_id);
@@ -190,11 +190,19 @@ impl BufferManager {
                         frame.reset();
                         Ok(())
                     }
-                    _ => Err(()),
+                    _ => Err(PinCountErr),
                 }
             }
-            None => Err(()),
+            None => {
+                self.disk_manager.deallocate_page(page_id);
+                Ok(())
+            }
         }
+    }
+
+    /// Flush the specified page to disk.
+    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), ()> {
+        Err(())
     }
 
     /// Flush all pages to disk.
@@ -226,27 +234,7 @@ impl BufferManager {
 /// Error to be thrown when no buffer frames are open, and every page occupying a buffer frame is
 /// pinned and cannot be evicted.
 #[derive(Debug)]
-pub struct NoBufFrameErr {
-    msg: String,
-}
-
-impl NoBufFrameErr {
-    fn new() -> Self {
-        Self {
-            msg: format!("No available buffer frames, and all pages are pinned"),
-        }
-    }
-}
+pub struct NoBufFrameErr;
 
 #[derive(Debug)]
-pub struct PageDneErr {
-    msg: String,
-}
-
-impl PageDneErr {
-    fn new(page_id: PageIdT) -> Self {
-        Self {
-            msg: format!("Page (ID = {}) does not exist in the buffer", page_id),
-        }
-    }
-}
+pub struct PinCountErr;
