@@ -13,7 +13,7 @@ const ROOT_LENGTH: PageIdT = 4;
 
 /// The page with ID equal to DICTIONARY_PAGE_ID is a special page designated as the "dictionary
 /// page", which stores metadata for the relations and indexes in the database.
-/// Specifically, it stores key value pairs of relation/index names and their corresponding root
+/// Specifically, it stores key-value pairs of relation/index names and their corresponding root
 /// page ID. It also stores the total number of entries in the page.
 ///
 /// Whenever a relation or index is needed, the corresponding root page ID is looked up in this
@@ -25,7 +25,7 @@ const ROOT_LENGTH: PageIdT = 4;
 /// | ENTRY COUNT (4) | ENTRY 1 NAME (64) | ENTRY 1 ROOT PAGE ID (4) | ... |
 /// +-----------------+-------------------+--------------------------+-----+
 pub struct DictionaryPage {
-    /// A unique identifier for the page (always 0)
+    /// A unique identifier for the page
     id: PageIdT,
 
     /// Raw byte array
@@ -104,7 +104,7 @@ impl DictionaryPage {
     /// Search the dictionary for the given entry name and return the corresponding root page ID
     /// if it exists. Return None if the entry is not found.
     pub fn get(&self, entry_name: &str) -> Option<PageIdT> {
-        let count = read_u32(&self.data, COUNT_OFFSET).unwrap() as usize;
+        let count = self.get_count() as usize;
         let count_size = (COUNT_OFFSET + COUNT_LENGTH) as usize;
         let entry_size = (NAME_LENGTH + ROOT_LENGTH) as usize;
 
@@ -120,7 +120,7 @@ impl DictionaryPage {
 
     /// Insert an entry name/root page ID pair into the dictionary.
     pub fn set(&mut self, name: &str, page_id: PageIdT) {
-        let count = read_u32(&self.data, COUNT_OFFSET).unwrap();
+        let count = self.get_count();
         let name_offset = COUNT_OFFSET + COUNT_LENGTH + count * (NAME_LENGTH + ROOT_LENGTH);
         let root_offset = name_offset + NAME_LENGTH;
 
