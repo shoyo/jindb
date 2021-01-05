@@ -30,12 +30,6 @@ pub struct DictionaryPage {
 
     /// Raw byte array
     data: [u8; PAGE_SIZE as usize],
-
-    /// Number of pins on the page (pinned by concurrent threads)
-    pin_count: u32,
-
-    /// True if data has been modified after reading from disk
-    is_dirty: bool,
 }
 
 impl Page for DictionaryPage {
@@ -49,26 +43,6 @@ impl Page for DictionaryPage {
 
     fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
         &mut self.data
-    }
-
-    fn get_pin_count(&self) -> u32 {
-        self.pin_count
-    }
-
-    fn incr_pin_count(&mut self) {
-        self.pin_count += 1;
-    }
-
-    fn decr_pin_count(&mut self) {
-        self.pin_count -= 1;
-    }
-
-    fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-
-    fn set_dirty_flag(&mut self, flag: bool) {
-        self.is_dirty = flag;
     }
 
     fn get_lsn(&self) -> u32 {
@@ -90,8 +64,6 @@ impl DictionaryPage {
         Self {
             id: DICTIONARY_PAGE_ID,
             data: [0; PAGE_SIZE as usize],
-            pin_count: 0,
-            is_dirty: false,
         }
     }
 
@@ -200,8 +172,6 @@ mod tests {
         DictionaryPage {
             id: DICTIONARY_PAGE_ID,
             data: array,
-            pin_count: 0,
-            is_dirty: false,
         }
     }
 

@@ -32,8 +32,6 @@ fn test_create_buffer_page() {
     assert!(frame.is_some());
     let page = frame.as_ref().unwrap();
     assert_eq!(page.get_id(), 1);
-    assert_eq!(page.get_pin_count(), 1);
-    assert_eq!(page.is_dirty(), false);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
     // existing pages are pinned.

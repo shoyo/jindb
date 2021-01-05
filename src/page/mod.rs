@@ -20,16 +20,6 @@ pub trait Page {
 
     fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize];
 
-    fn get_pin_count(&self) -> u32;
-
-    fn incr_pin_count(&mut self);
-
-    fn decr_pin_count(&mut self);
-
-    fn is_dirty(&self) -> bool;
-
-    fn set_dirty_flag(&mut self, flag: bool);
-
     fn get_lsn(&self) -> LsnT;
 
     fn set_lsn(&mut self, lsn: LsnT);

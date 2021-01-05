@@ -113,7 +113,6 @@ impl BufferManager {
                 // Update the page table and pin the new page to the buffer.
                 let mut page_table = self.buffer.page_table.write().unwrap();
                 page_table.insert(new_page.get_id(), frame_id);
-                new_page.incr_pin_count();
                 self.evict_policy.pin(frame_id);
                 *frame = Some(new_page);
 
@@ -132,9 +131,7 @@ impl BufferManager {
             // If the page is already in the buffer, pin it and return its latch.
             Some(frame_id) => {
                 let page_latch = self._get_page_latch(frame_id);
-                let mut frame = page_latch.write().unwrap();
-                let mut page = frame.as_mut().unwrap();
-                page.incr_pin_count();
+                self.evict_policy.pin(frame_id);
                 Ok(page_latch.clone())
             }
             // Otherwise, the page must be read from disk and replace an existing page in the
@@ -171,11 +168,9 @@ impl BufferManager {
     /// Note: This method in isolation is NOT thread-safe. This method should only be called in
     /// the context of another buffer manager method which is thread-safe.
     fn _flush_page(&self, page: &Box<dyn Page + Send + Sync>) {
-        if page.is_dirty() {
-            self.disk_manager
-                .write_page(page.get_id(), page.get_data())
-                .unwrap();
-        }
+        self.disk_manager
+            .write_page(page.get_id(), page.get_data())
+            .unwrap();
     }
 
     /// Flush all pages to disk.
