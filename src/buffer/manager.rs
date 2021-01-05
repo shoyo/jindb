@@ -95,7 +95,7 @@ impl BufferManager {
         match self.replacer.evict() {
             Some(frame_id) => {
                 // Acquire latch for victim page.
-                let frame_latch = self._get_frame_latch(frame_id);
+                let frame_latch = self.buffer.get(frame_id);
                 let mut frame = frame_latch.write().unwrap();
 
                 // Assert that selected page is a valid victim page.
@@ -141,7 +141,7 @@ impl BufferManager {
         match self._page_table_lookup(page_id) {
             // If the page is already in the buffer, pin it and return its latch.
             Some(frame_id) => {
-                let page_latch = self._get_frame_latch(frame_id);
+                let page_latch = self.buffer.get(frame_id);
                 self.replacer.pin(frame_id);
                 Ok(page_latch.clone())
             }
@@ -149,7 +149,7 @@ impl BufferManager {
             // buffer. If there aren't any pages that can be evicted, give up and return an error.
             None => match self.replacer.evict() {
                 Some(frame_id) => {
-                    let page_latch = self._get_frame_latch(frame_id);
+                    let page_latch = self.buffer.get(frame_id);
                     let frame = page_latch.write().unwrap();
 
                     if let Some(ref page) = frame.page {
@@ -175,7 +175,7 @@ impl BufferManager {
     pub fn delete_page(&self, page_id: PageIdT) -> Result<(), ()> {
         match self._page_table_lookup(page_id) {
             Some(frame_id) => {
-                let frame_latch = self._get_frame_latch(frame_id);
+                let frame_latch = self.buffer.get(frame_id);
                 let mut frame = frame_latch.write().unwrap();
 
                 match frame.pin_count {
@@ -200,11 +200,6 @@ impl BufferManager {
     /// Flush all pages to disk.
     pub fn flush_all_pages(&self) -> Result<(), ()> {
         Err(())
-    }
-
-    /// Index the buffer pool and return the specified frame latch.
-    fn _get_frame_latch(&self, frame_id: BufferFrameIdT) -> FrameLatch {
-        self.buffer.pool[frame_id as usize].clone()
     }
 
     /// Find the specified page in the page table, and return its frame ID.
