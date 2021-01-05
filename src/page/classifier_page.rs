@@ -164,3 +164,58 @@ impl Iterator for ClassifierPageIterator {
         Some((page_id, page_type))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    /// Return a classifier page with a pre-configured byte array.
+    fn setup() -> ClassifierPage {
+        let mut array = [0; PAGE_SIZE as usize];
+        let entries = get_entries();
+
+        write_u32(&mut array, COUNT_OFFSET, entries.len() as u32).unwrap();
+        for (i, (page_id, page_type)) in entries.iter().enumerate() {
+            let id_offset = COUNT_OFFSET + COUNT_LENGTH + i as u32 * (ID_LENGTH + TYPE_LENGTH);
+            let type_offset = id_offset + ID_LENGTH;
+
+            write_u32(&mut array, id_offset, *page_id).unwrap();
+
+            let page_type = match *page_type {
+                PageVariant::Classifier => CLASSIFIER_TYPE,
+                PageVariant::Dictionary => DICTIONARY_TYPE,
+                PageVariant::Relation => RELATION_TYPE,
+            };
+            write_u32(&mut array, type_offset, page_type).unwrap();
+        }
+
+        ClassifierPage {
+            id: CLASSIFIER_PAGE_ID,
+            data: array,
+            pin_count: 0,
+            is_dirty: false,
+        }
+    }
+
+    fn get_entries() -> HashMap<PageIdT, PageVariant> {
+        let mut entries = HashMap::new();
+        entries.insert(0, PageVariant::Dictionary);
+        entries.insert(1, PageVariant::Classifier);
+        entries.insert(1234, PageVariant::Relation);
+        entries.insert(4321, PageVariant::Relation);
+        entries
+    }
+
+    #[test]
+    fn test_iteration() {
+        let mut page = setup();
+        let entries = get_entries();
+        let mut cnt = 0;
+        for (page_id, page_type) in page {
+            cnt += 1;
+            assert_eq!(entries.get(&page_id).unwrap(), &page_type);
+        }
+        assert_eq!(cnt, entries.len());
+    }
+}

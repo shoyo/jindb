@@ -261,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn test_iterator() {
+    fn test_iteration() {
         let mut page = setup();
         let entries = get_entries();
         let mut cnt = 0;

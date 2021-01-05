@@ -36,6 +36,7 @@ pub trait Page {
 }
 
 /// Page variants
+#[derive(Debug, Eq, PartialEq)]
 pub enum PageVariant {
     Classifier,
     Dictionary,
