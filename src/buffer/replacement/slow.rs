@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::eviction_policies::EvictionPolicy;
+use crate::buffer::replacement::PageReplacer;
 use crate::common::BufferFrameIdT;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -11,11 +11,11 @@ use std::sync::{Arc, Mutex};
 /// A terribly inefficient eviction policy with O(1) evict and O(N) pin/unpin operations. This
 /// struct is strictly meant as a placeholder policy.
 /// Use a LRU or clock based eviction policy during actual database use.
-pub struct SlowPolicy {
+pub struct SlowReplacer {
     queue: Arc<Mutex<VecDeque<BufferFrameIdT>>>,
 }
 
-impl SlowPolicy {
+impl SlowReplacer {
     pub fn new(buffer_size: BufferFrameIdT) -> Self {
         let mut queue = VecDeque::with_capacity(buffer_size as usize);
         for frame_id in 0..buffer_size {
@@ -27,7 +27,7 @@ impl SlowPolicy {
     }
 }
 
-impl EvictionPolicy for SlowPolicy {
+impl PageReplacer for SlowReplacer {
     fn evict(&self) -> Option<u32> {
         let mut queue = self.queue.lock().unwrap();
         queue.pop_front()
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_evict() {
         let test_buffer_size = 5;
-        let policy = SlowPolicy::new(test_buffer_size);
+        let policy = SlowReplacer::new(test_buffer_size);
 
         for i in 0..test_buffer_size {
             let id = policy.evict();

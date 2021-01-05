@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::eviction_policies::EvictionPolicy;
+use crate::buffer::replacement::PageReplacer;
 use crate::common::BufferFrameIdT;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ type DequeNode = Arc<BufferFrameIdT>;
 
 /// An LRU eviction policy for the database buffer.
 #[derive(Debug)]
-pub struct LRUPolicy {
+pub struct LRUReplacer {
     /// A queue for maintaining buffer frame IDs. The head of the queue is always the next frame in
     /// line to be evicted.
     ///
@@ -32,7 +32,7 @@ pub struct LRUPolicy {
     map: Arc<Mutex<HashMap<BufferFrameIdT, DequeNode>>>,
 }
 
-impl LRUPolicy {
+impl LRUReplacer {
     pub fn new(buffer_size: BufferFrameIdT) -> Self {
         let mut queue = VecDeque::with_capacity(buffer_size as usize);
         let mut map = HashMap::with_capacity(buffer_size as usize);
@@ -48,7 +48,7 @@ impl LRUPolicy {
     }
 }
 
-impl EvictionPolicy for LRUPolicy {
+impl PageReplacer for LRUReplacer {
     fn evict(&self) -> Option<BufferFrameIdT> {
         let mut queue = self.queue.lock().unwrap();
         match queue.pop_front() {
@@ -78,9 +78,9 @@ impl EvictionPolicy for LRUPolicy {
 mod tests {
     use super::*;
 
-    fn setup() -> LRUPolicy {
+    fn setup() -> LRUReplacer {
         let test_buffer_size = 5;
-        LRUPolicy::new(test_buffer_size)
+        LRUReplacer::new(test_buffer_size)
     }
 
     #[test]

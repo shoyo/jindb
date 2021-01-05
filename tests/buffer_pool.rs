@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::buffer::eviction_policies::PolicyVariant;
 use jin::buffer::manager::BufferManager;
+use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::disk::manager::DiskManager;
 use jin::page::Page;
 use std::sync::{mpsc, Arc};
@@ -16,7 +16,7 @@ fn setup() -> Arc<BufferManager> {
     Arc::new(BufferManager::new(
         common::TEST_BUFFER_SIZE,
         DiskManager::new(common::TEST_DB_FILENAME),
-        PolicyVariant::Slow,
+        ReplacerAlgorithm::Slow,
     ))
 }
 

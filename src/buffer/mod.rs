@@ -8,8 +8,8 @@ use crate::page::{Page, PageVariant};
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};
 
-pub mod eviction_policies;
 pub mod manager;
+pub mod replacement;
 
 /// Type alias for a page protected by a R/W latch for concurrent access.
 pub type PageLatch = Arc<RwLock<Option<Box<dyn Page + Send + Sync>>>>;
@@ -19,8 +19,6 @@ pub type PageLatch = Arc<RwLock<Option<Box<dyn Page + Send + Sync>>>>;
 /// prevent deadlocks.
 pub struct Buffer {
     pool: Vec<PageLatch>,
-    page_table: Arc<RwLock<HashMap<PageIdT, BufferFrameIdT>>>,
-    type_chart: Arc<RwLock<HashMap<PageIdT, PageVariant>>>,
 }
 
 impl Buffer {
@@ -29,10 +27,6 @@ impl Buffer {
         for _ in 0..size {
             pool.push(Arc::new(RwLock::new(None)));
         }
-        Self {
-            pool,
-            page_table: Arc::new(RwLock::new(HashMap::new())),
-            type_chart: Arc::new(RwLock::new(HashMap::new())),
-        }
+        Self { pool }
     }
 }

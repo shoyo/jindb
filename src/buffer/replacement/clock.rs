@@ -3,19 +3,19 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::eviction_policies::EvictionPolicy;
+use crate::buffer::replacement::PageReplacer;
 use crate::common::BufferFrameIdT;
 
 /// A clock eviction policy for the database buffer.
-pub struct ClockPolicy {}
+pub struct ClockReplacer {}
 
-impl ClockPolicy {
+impl ClockReplacer {
     pub fn new(_buffer_size: BufferFrameIdT) -> Self {
         Self {}
     }
 }
 
-impl EvictionPolicy for ClockPolicy {
+impl PageReplacer for ClockReplacer {
     fn evict(&self) -> Option<BufferFrameIdT> {
         todo!()
     }

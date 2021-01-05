@@ -10,7 +10,7 @@ pub mod slow;
 use crate::common::BufferFrameIdT;
 
 /// Eviction policy variants
-pub enum PolicyVariant {
+pub enum ReplacerAlgorithm {
     Clock,
     LRU,
     Slow,
@@ -22,7 +22,7 @@ pub enum PolicyVariant {
 ///
 /// As a general rule, pages that are pinned to the buffer are never evicted. This means that
 /// there are cases where no pages can be removed, and the eviction operation fails.
-pub trait EvictionPolicy {
+pub trait PageReplacer {
     /// Evict a page from the buffer according to the eviction policy and return the
     /// corresponding frame ID.
     fn evict(&self) -> Option<BufferFrameIdT>;

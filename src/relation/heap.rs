@@ -25,7 +25,6 @@ impl Heap {
             Some(ref page) => page.get_id(),
             None => panic!("Head page latch contained None"),
         };
-        buffer_manager.unpin_page(head_page_id).unwrap();
         Ok(Self { head_page_id })
     }
 

@@ -3,14 +3,13 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::buffer::eviction_policies::PolicyVariant;
 use jin::buffer::manager::BufferManager;
+use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::concurrency::transaction_manager::TransactionManager;
 use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::attribute::{Attribute, DataType};
 use jin::relation::schema::Schema;
-
 
 mod common;
 
@@ -23,7 +22,7 @@ fn setup() -> TestContext {
     let buffer_manager = BufferManager::new(
         common::TEST_BUFFER_SIZE,
         DiskManager::new(common::TEST_DB_FILENAME),
-        PolicyVariant::Clock,
+        ReplacerAlgorithm::Clock,
     );
     TestContext {
         system_catalog: SystemCatalog::new(buffer_manager),
