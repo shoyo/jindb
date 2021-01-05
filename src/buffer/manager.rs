@@ -17,16 +17,17 @@ use crate::page::PageVariant::Relation;
 use crate::page::{Page, PageVariant};
 use std::sync::{Arc, Mutex};
 
-/// The buffer manager is responsible for fetching/flushing pages that are managed in memory.
-/// Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
+/// The buffer manager is responsible for managing database pages that are cached in memory.
+/// Higher layers of the database system make requests to the buffer manager to create and fetch
+/// pages. Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
 /// Multiple threads may make requests to the buffer manager in parallel, so its implementation
 /// must be thread-safe.
 ///
 /// The buffer manager manages three components to accomplish its tasks: Buffer, DiskManager,
 /// and EvictionPolicy. The Buffer is an abstraction over several data structures that are each
 /// guarded by a Mutex or Rwlock. The EvictionPolicy is also an abstraction over guarded data
-/// structures. The disk manager is not explicitly guarded by any locks, but its API is (should
-/// be) atomic and thread-safe.
+/// structures. The disk manager is not explicitly guarded by any locks, but its API is atomic
+/// and thread-safe.
 pub struct BufferManager {
     buffer: Buffer,
     disk_manager: DiskManager,
@@ -68,9 +69,9 @@ impl BufferManager {
         }
     }
 
-    /// Initialize a relation page, pin it, and return its page latch.
-    pub fn create_relation_page(&self) -> Result<PageLatch, NoBufFrameErr> {
-        self._create_page(PageVariant::Relation)
+    /// Initialize a classifier page, pin it, and return its page latch.
+    pub fn create_classifier_page(&self) -> Result<PageLatch, NoBufFrameErr> {
+        self._create_page(PageVariant::Classifier)
     }
 
     /// Initialize a dictionary page, pin it, and return its page latch.
@@ -78,12 +79,17 @@ impl BufferManager {
         self._create_page(PageVariant::Dictionary)
     }
 
+    /// Initialize a relation page, pin it, and return its page latch.
+    pub fn create_relation_page(&self) -> Result<PageLatch, NoBufFrameErr> {
+        self._create_page(PageVariant::Relation)
+    }
+
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
     fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, NoBufFrameErr> {
         match self.evict_policy.evict() {
             Some(frame_id) => {
-                // Acquire latches to specified page and page table.
+                // Acquire latch for victim page.
                 let page_latch = self._get_page_latch(frame_id);
                 let mut frame = page_latch.write().unwrap();
 
@@ -100,10 +106,15 @@ impl BufferManager {
                     PageVariant::Relation => Box::new(RelationPage::new(page_id)),
                 };
 
+                // Update the type chart for the new page.
+                let mut type_chart = self.buffer.type_chart.write().unwrap();
+                type_chart.insert(page_id, variant);
+
                 // Update the page table and pin the new page to the buffer.
                 let mut page_table = self.buffer.page_table.write().unwrap();
                 page_table.insert(new_page.get_id(), frame_id);
                 new_page.incr_pin_count();
+                self.evict_policy.pin(frame_id);
                 *frame = Some(new_page);
 
                 // Return a reference to the page latch.

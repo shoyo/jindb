@@ -22,7 +22,6 @@ pub enum PolicyVariant {
 ///
 /// As a general rule, pages that are pinned to the buffer are never evicted. This means that
 /// there are cases where no pages can be removed, and the eviction operation fails.
-
 pub trait EvictionPolicy {
     /// Evict a page from the buffer according to the eviction policy and return the
     /// corresponding frame ID.
