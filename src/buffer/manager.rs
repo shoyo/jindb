@@ -8,7 +8,7 @@ use crate::buffer::eviction_policies::lru::LRUPolicy;
 use crate::buffer::eviction_policies::slow::SlowPolicy;
 use crate::buffer::eviction_policies::{EvictionPolicy, PolicyVariant};
 use crate::buffer::{Buffer, PageLatch};
-use crate::common::{BufferFrameIdT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
+use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::dictionary_page::DictionaryPage;
@@ -35,27 +35,37 @@ pub struct BufferManager {
 
 impl BufferManager {
     /// Construct a new buffer manager.
+    /// Fetch necessary pages from disk to initialize in-memory data structures for page metadata.
     pub fn new(
         buffer_size: BufferFrameIdT,
         disk_manager: DiskManager,
         policy_variant: PolicyVariant,
     ) -> Self {
+        // Initialize buffer data structures and eviction policy.
+        let buffer = Buffer::new(buffer_size);
         let evict_policy: Box<dyn EvictionPolicy + Send + Sync> = match policy_variant {
             PolicyVariant::Clock => Box::new(ClockPolicy::new(buffer_size)),
             PolicyVariant::LRU => Box::new(LRUPolicy::new(buffer_size)),
             PolicyVariant::Slow => Box::new(SlowPolicy::new(buffer_size)),
         };
 
+        // Fetch classifier page from disk to initialize the type chart.
+        // If the classifier page is empty, nothing gets inserted into the type chart.
+        let mut classifier = ClassifierPage::new();
+        disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.get_data_mut());
+
+        let rwlock = buffer.type_chart.clone();
+        let mut type_chart = rwlock.write().unwrap();
+
+        for (page_id, page_type) in classifier {
+            type_chart.insert(page_id, page_type);
+        }
+
         Self {
-            buffer: Buffer::new(buffer_size),
+            buffer,
             disk_manager,
             evict_policy,
         }
-    }
-
-    /// Fetch necessary pages from disk to initialize in-memory data structures for page metadata.
-    pub fn initialize(&self) {
-        todo!()
     }
 
     /// Initialize a relation page, pin it, and return its page latch.
