@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::{BufFrameErr, BufferManager};
+use crate::buffer::manager::{BufferManager, NoBufFrameErr};
 use crate::common::RelationIdT;
 use crate::relation::heap::Heap;
 use crate::relation::relation::{Relation, RelationGuard};
@@ -42,7 +42,7 @@ impl SystemCatalog {
         &mut self,
         name: &str,
         schema: Schema,
-    ) -> Result<RelationGuard, BufFrameErr> {
+    ) -> Result<RelationGuard, NoBufFrameErr> {
         let heap = Heap::new(self.buffer_manager.clone())?;
         let relation_id = self.get_next_relation_id();
         let relation = Relation::new(relation_id, name.to_string(), schema, heap);
