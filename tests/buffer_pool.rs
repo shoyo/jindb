@@ -7,7 +7,8 @@ use jin::buffer::eviction_policies::PolicyVariant;
 use jin::buffer::manager::BufferManager;
 use jin::disk::manager::DiskManager;
 use jin::page::Page;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
+use std::thread;
 
 mod common;
 
@@ -43,15 +44,33 @@ fn test_create_buffer_page() {
     assert!(manager.create_relation_page().is_err());
 }
 
-#[ignore]
 #[test]
 fn test_fetch_buffer_page() {
-    let _ctx = setup();
+    let manager = setup();
+    let managerc = manager.clone();
+    let (tx, rx) = mpsc::channel();
 
     // Create a page in the buffer manager.
+    thread::spawn(move || {
+        let page_latch = manager.create_relation_page().unwrap();
+        let frame = page_latch.read().unwrap();
+        let page = frame.as_ref().unwrap();
+        assert_eq!(page.get_id(), 1);
+        tx.send(page.get_id());
+    });
 
     // Fetch the same page in another thread.
-    // Assert that the operation is successful and correct.
+    thread::spawn(move || {
+        let page_id = rx.recv().unwrap();
+        let page_latch = managerc.fetch_page(page_id).unwrap();
+        let frame = page_latch.read().unwrap();
+        assert!(frame.is_some());
+        let page = frame.as_ref().unwrap();
+        assert_eq!(page.get_id(), 1);
+
+        let result = managerc.fetch_page(2);
+        assert!(result.is_err());
+    });
 }
 
 #[ignore]
