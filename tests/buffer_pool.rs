@@ -78,11 +78,14 @@ fn test_delete_buffer_page() {
 
     // Create a page in the buffer manager.
     let frame_latch = manager.create_relation_page().unwrap();
-    let frame = frame_latch.write().unwrap();
+    let mut frame = frame_latch.write().unwrap();
 
     // Assert that the page cannot be deleted while pinned.
     let result = manager.delete_page(frame.get_id());
     assert!(result.is_err());
 
     // Assert that the page can be deleted when its pin count is zero.
+    frame.unpin();
+    let result = manager.delete_page(frame.get_id());
+    assert!(result.is_ok());
 }
