@@ -4,7 +4,7 @@
  */
 
 use crate::common::{BufferFrameIdT, PageIdT};
-use crate::page::Page;
+use crate::page::{Page, PageVariant};
 use std::collections::{HashMap, LinkedList};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -19,16 +19,20 @@ pub type PageLatch = Arc<RwLock<Option<Box<dyn Page + Send + Sync>>>>;
 /// prevent deadlocks.
 pub struct Buffer {
     pool: Vec<PageLatch>,
-    page_table: RwLock<HashMap<PageIdT, BufferFrameIdT>>,
+    page_table: Arc<RwLock<HashMap<PageIdT, BufferFrameIdT>>>,
+    type_chart: Arc<RwLock<HashMap<PageIdT, PageVariant>>>,
 }
 
 impl Buffer {
     pub fn new(size: BufferFrameIdT) -> Self {
         let mut pool = Vec::with_capacity(size as usize);
-        let page_table = RwLock::new(HashMap::new());
         for _ in 0..size {
             pool.push(Arc::new(RwLock::new(None)));
         }
-        Self { pool, page_table }
+        Self {
+            pool,
+            page_table: Arc::new(RwLock::new(HashMap::new())),
+            type_chart: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 }
