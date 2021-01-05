@@ -25,12 +25,12 @@ fn test_create_buffer_page() {
     let manager = setup();
 
     // Create a page in the buffer manager.
-    let page_latch = manager.create_relation_page().unwrap();
-    let frame = page_latch.read().unwrap();
+    let frame_latch = manager.create_relation_page().unwrap();
+    let frame = frame_latch.read().unwrap();
 
     // Assert that the created page is initialized as expected.
-    assert!(frame.is_some());
-    let page = frame.as_ref().unwrap();
+    assert!(frame.page.is_some());
+    let page = frame.page.as_ref().unwrap();
     assert_eq!(page.get_id(), 1);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
@@ -50,9 +50,9 @@ fn test_fetch_buffer_page() {
 
     // Create a page in the buffer manager.
     thread::spawn(move || {
-        let page_latch = manager.create_relation_page().unwrap();
-        let frame = page_latch.read().unwrap();
-        let page = frame.as_ref().unwrap();
+        let frame_latch = manager.create_relation_page().unwrap();
+        let frame = frame_latch.read().unwrap();
+        let page = frame.page.as_ref().unwrap();
         assert_eq!(page.get_id(), 1);
         tx.send(page.get_id());
     });
@@ -60,10 +60,10 @@ fn test_fetch_buffer_page() {
     // Fetch the same page in another thread.
     thread::spawn(move || {
         let page_id = rx.recv().unwrap();
-        let page_latch = managerc.fetch_page(page_id).unwrap();
-        let frame = page_latch.read().unwrap();
-        assert!(frame.is_some());
-        let page = frame.as_ref().unwrap();
+        let frame_latch = managerc.fetch_page(page_id).unwrap();
+        let frame = frame_latch.read().unwrap();
+        assert!(frame.page.is_some());
+        let page = frame.page.as_ref().unwrap();
         assert_eq!(page.get_id(), 1);
 
         let result = managerc.fetch_page(2);

@@ -7,7 +7,7 @@ use crate::buffer::replacement::clock::ClockReplacer;
 use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
-use crate::buffer::{Buffer, PageLatch};
+use crate::buffer::{Buffer, BufferFrame, FrameLatch};
 use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
@@ -75,31 +75,31 @@ impl BufferManager {
     }
 
     /// Initialize a classifier page, pin it, and return its page latch.
-    pub fn create_classifier_page(&self) -> Result<PageLatch, NoBufFrameErr> {
+    pub fn create_classifier_page(&self) -> Result<FrameLatch, NoBufFrameErr> {
         self._create_page(PageVariant::Classifier)
     }
 
     /// Initialize a dictionary page, pin it, and return its page latch.
-    pub fn create_dictionary_page(&self) -> Result<PageLatch, NoBufFrameErr> {
+    pub fn create_dictionary_page(&self) -> Result<FrameLatch, NoBufFrameErr> {
         self._create_page(PageVariant::Dictionary)
     }
 
     /// Initialize a relation page, pin it, and return its page latch.
-    pub fn create_relation_page(&self) -> Result<PageLatch, NoBufFrameErr> {
+    pub fn create_relation_page(&self) -> Result<FrameLatch, NoBufFrameErr> {
         self._create_page(PageVariant::Relation)
     }
 
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
-    fn _create_page(&self, variant: PageVariant) -> Result<PageLatch, NoBufFrameErr> {
+    fn _create_page(&self, variant: PageVariant) -> Result<FrameLatch, NoBufFrameErr> {
         match self.replacer.evict() {
             Some(frame_id) => {
                 // Acquire latch for victim page.
-                let page_latch = self._get_page_latch(frame_id);
-                let mut frame = page_latch.write().unwrap();
+                let frame_latch = self._get_frame_latch(frame_id);
+                let mut frame = frame_latch.write().unwrap();
 
                 // Flush the existing page out to disk if necessary.
-                if let Some(page) = frame.as_ref() {
+                if let Some(ref page) = frame.page {
                     self._flush_page(page);
                 }
 
@@ -119,10 +119,10 @@ impl BufferManager {
                 let mut page_table = self.page_table.write().unwrap();
                 page_table.insert(new_page.get_id(), frame_id);
                 self.replacer.pin(frame_id);
-                *frame = Some(new_page);
+                frame.page = Some(new_page);
 
                 // Return a reference to the page latch.
-                Ok(page_latch.clone())
+                Ok(frame_latch.clone())
             }
             None => Err(NoBufFrameErr::new()),
         }
@@ -131,11 +131,11 @@ impl BufferManager {
     /// Fetch the specified page, pin it, and return its page latch.
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
-    pub fn fetch_page(&self, page_id: PageIdT) -> Result<PageLatch, NoBufFrameErr> {
+    pub fn fetch_page(&self, page_id: PageIdT) -> Result<FrameLatch, NoBufFrameErr> {
         match self._page_table_lookup(page_id) {
             // If the page is already in the buffer, pin it and return its latch.
             Some(frame_id) => {
-                let page_latch = self._get_page_latch(frame_id);
+                let page_latch = self._get_frame_latch(frame_id);
                 self.replacer.pin(frame_id);
                 Ok(page_latch.clone())
             }
@@ -143,10 +143,10 @@ impl BufferManager {
             // buffer. If there aren't any pages that can be evicted, give up and return an error.
             None => match self.replacer.evict() {
                 Some(frame_id) => {
-                    let page_latch = self._get_page_latch(frame_id);
+                    let page_latch = self._get_frame_latch(frame_id);
                     let frame = page_latch.write().unwrap();
 
-                    if let Some(page) = frame.as_ref() {
+                    if let Some(ref page) = frame.page {
                         self._flush_page(page);
                     }
 
@@ -183,8 +183,8 @@ impl BufferManager {
         Err(())
     }
 
-    /// Index the buffer pool and return the specified page latch.
-    fn _get_page_latch(&self, frame_id: BufferFrameIdT) -> PageLatch {
+    /// Index the buffer pool and return the specified frame latch.
+    fn _get_frame_latch(&self, frame_id: BufferFrameIdT) -> FrameLatch {
         self.buffer.pool[frame_id as usize].clone()
     }
 
