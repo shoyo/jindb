@@ -13,7 +13,7 @@ pub mod replacement;
 
 /// The database buffer pool to be managed by the buffer manager.
 pub struct Buffer {
-    pool: Vec<Arc<RwLock<BufferFrame>>>,
+    pool: Vec<FrameLatch>,
 }
 
 impl Buffer {

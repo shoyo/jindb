@@ -141,10 +141,12 @@ impl BufferManager {
     pub fn fetch_page(&self, page_id: PageIdT) -> Result<FrameLatch, NoBufFrameErr> {
         match self._page_table_lookup(page_id) {
             // If the page is already in the buffer, pin it and return its latch.
-            Some(frame_id) => {
-                let page_latch = self.buffer.get(frame_id);
-                self.replacer.pin(frame_id);
-                Ok(page_latch.clone())
+            Some(frame_latch) => {
+                let mut frame = frame_latch.write().unwrap();
+                frame.pin();
+                self.replacer
+                    .pin(frame.get_page().as_ref().unwrap().get_id());
+                Ok(frame_latch.clone())
             }
             // Otherwise, the page must be read from disk and replace an existing page in the
             // buffer. If there aren't any pages that can be evicted, give up and return an error.
@@ -174,8 +176,7 @@ impl BufferManager {
     /// Delete the specified page. If the page is pinned, then return an error.
     pub fn delete_page(&self, page_id: PageIdT) -> Result<(), PinCountErr> {
         match self._page_table_lookup(page_id) {
-            Some(frame_id) => {
-                let frame_latch = self.buffer.get(frame_id);
+            Some(frame_latch) => {
                 let mut frame = frame_latch.write().unwrap();
 
                 match frame.pin_count {
@@ -200,9 +201,15 @@ impl BufferManager {
         }
     }
 
-    /// Flush the specified page to disk.
-    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), ()> {
-        Err(())
+    /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
+    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), PageDneErr> {
+        match self._page_table_lookup(page_id) {
+            Some(frame_latch) => {
+                let frame = frame_latch.read().unwrap();
+                todo!()
+            }
+            None => Err(PageDneErr),
+        }
     }
 
     /// Flush all pages to disk.
@@ -212,11 +219,27 @@ impl BufferManager {
 
     /// Find the specified page in the page table, and return its frame ID.
     /// If the page does not exist in the page table, then return None.
-    /// Panic if the frame ID is out-of-bounds.
-    fn _page_table_lookup(&self, page_id: PageIdT) -> Option<BufferFrameIdT> {
+    /// Panic if a frame that the page table points to is empty or contains the wrong page.
+    fn _page_table_lookup(&self, page_id: PageIdT) -> Option<FrameLatch> {
         let page_table = self.page_table.read().unwrap();
         match page_table.get(&page_id) {
-            Some(frame_id) => Some(*frame_id),
+            Some(frame_id) => {
+                let frame_latch = self.buffer.get(*frame_id);
+                let frame = frame_latch.read().unwrap();
+                match frame.get_page() {
+                    Some(ref page) => {
+                        if page.get_id() != page_id {
+                            panic!(
+                                "Broken page table: expected page {}, got page {}",
+                                page_id,
+                                page.get_id()
+                            )
+                        }
+                        Some(frame_latch.clone())
+                    }
+                    None => panic!("Broken page table: frame ID {} is empty"),
+                }
+            }
             None => None,
         }
     }
@@ -238,3 +261,6 @@ pub struct NoBufFrameErr;
 
 #[derive(Debug)]
 pub struct PinCountErr;
+
+#[derive(Debug)]
+pub struct PageDneErr;
