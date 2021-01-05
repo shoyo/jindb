@@ -133,6 +133,50 @@ impl DictionaryPage {
     }
 }
 
+impl IntoIterator for DictionaryPage {
+    type Item = (String, PageIdT);
+    type IntoIter = DictionaryPageIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DictionaryPageIterator::new(self)
+    }
+}
+
+/// A supplementary struct for iterating through key/value pairs in the dictionary page.
+pub struct DictionaryPageIterator {
+    idx: u32,
+    count: u32,
+    page: DictionaryPage,
+}
+
+impl DictionaryPageIterator {
+    fn new(page: DictionaryPage) -> Self {
+        Self {
+            idx: 0,
+            count: page.get_count(),
+            page,
+        }
+    }
+}
+
+impl Iterator for DictionaryPageIterator {
+    type Item = (String, PageIdT);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let name_offset = COUNT_OFFSET + COUNT_LENGTH + self.idx * (NAME_LENGTH + ROOT_LENGTH);
+        let root_offset = name_offset + NAME_LENGTH;
+        let name = read_str256(self.page.get_data(), name_offset).unwrap();
+        let root = read_u32(self.page.get_data(), root_offset).unwrap();
+
+        self.idx += 1;
+        if self.idx > self.count {
+            return None;
+        }
+
+        Some((name, root))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,5 +261,17 @@ mod tests {
 
         // Should panic due to overflow.
         page.set("districts", 2222);
+    }
+
+    #[test]
+    fn test_iterator() {
+        let mut page = setup();
+        let entries = get_entries();
+        let mut cnt = 0;
+        for (name, root) in page {
+            cnt += 1;
+            assert_eq!(entries.get(name.as_str()).unwrap(), &root);
+        }
+        assert_eq!(cnt, entries.len());
     }
 }
