@@ -55,7 +55,7 @@ fn test_fetch_buffer_page() {
 
         // Create a page and notify other threads to try to fetch the new page (should pass).
         let _ = manager_1.create_relation_page().unwrap();
-        tx.send(());
+        tx.send(()).unwrap();
     });
 
     thread::spawn(move || {
@@ -77,11 +77,11 @@ fn test_delete_buffer_page() {
         let frame = frame_latch.write().unwrap();
 
         // Notify second thread to try to delete newly created page (should fail).
-        tx.send(());
+        tx.send(()).unwrap();
 
         // Notify second thread to try again after unpinning created page (should pass).
         manager_1.unpin_and_drop(frame);
-        tx.send(());
+        tx.send(()).unwrap();
     });
 
     // Second thread
