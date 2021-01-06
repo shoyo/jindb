@@ -14,8 +14,7 @@ use crate::page::classifier_page::ClassifierPage;
 
 use crate::page::{init_page_variant, Page, PageVariant};
 use std::collections::HashMap;
-
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
 /// Higher layers of the database system make requests to the buffer manager to create and fetch
