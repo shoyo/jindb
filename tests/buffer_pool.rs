@@ -42,6 +42,7 @@ fn test_create_buffer_page() {
     assert!(manager.create_relation_page().is_err());
 }
 
+#[ignore]
 #[test]
 fn test_fetch_buffer_page() {
     let mgr = setup();
@@ -88,6 +89,7 @@ fn test_fetch_buffer_page() {
     assert!(mgr.fetch_page(common::TEST_BUFFER_SIZE + 1).is_err());
 }
 
+#[ignore]
 #[test]
 fn test_delete_buffer_page() {
     let manager = setup();
