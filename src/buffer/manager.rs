@@ -17,7 +17,7 @@ use crate::page::PageVariant::Relation;
 use crate::page::{init_page_variant, Page, PageVariant};
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
 /// Higher layers of the database system make requests to the buffer manager to create and fetch
@@ -219,15 +219,19 @@ impl BufferManager {
         }
     }
 
-    /// Unpin the specified page. Return an error if the page does not exist in the buffer.
-    pub fn unpin_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
-        match self._page_table_lookup(page_id) {
-            Some(frame_latch) => {
-                let mut frame = frame_latch.write().unwrap();
+    /// Unpin the page contained in the specified frame.
+    ///
+    /// This method is intended to be used by the same thread that has already gained exclusive
+    /// access to a frame after invoking .write() on a frame latch received through a fetch or
+    /// create request. Instead of dropping its WriteGuard and needing to reacquire it to
+    /// perform an unpin, it uses this method instead to reduce overhead.
+    pub fn unpin_page(&self, mut frame: RwLockWriteGuard<BufferFrame>) {
+        match frame.get_page() {
+            Some(_) => {
                 frame.unpin();
-                Ok(())
+                self.replacer.unpin(frame.id);
             }
-            None => Err(BufferError::PageBufDNE),
+            None => panic!("Attempted to unpin an empty buffer frame"),
         }
     }
 
