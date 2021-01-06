@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_iteration() {
-        let mut page = setup();
+        let page = setup();
         let entries = get_entries();
         let mut cnt = 0;
         for (page_id, page_type) in page {

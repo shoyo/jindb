@@ -3,10 +3,10 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{BufferFrameIdT, PageIdT};
-use crate::page::{Page, PageVariant};
-use std::collections::{HashMap, LinkedList};
-use std::sync::{Arc, Mutex, RwLock};
+use crate::common::{BufferFrameIdT};
+use crate::page::{Page};
+
+use std::sync::{Arc, RwLock};
 
 pub mod manager;
 pub mod replacement;

@@ -8,15 +8,15 @@ use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
 use crate::buffer::{Buffer, BufferFrame, FrameLatch};
-use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
+use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
-use crate::page::dictionary_page::DictionaryPage;
-use crate::page::relation_page::RelationPage;
-use crate::page::PageVariant::Relation;
+
+
+
 use crate::page::{init_page_variant, Page, PageVariant};
 use std::collections::HashMap;
-use std::pin::Pin;
+
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
@@ -109,7 +109,7 @@ impl BufferManager {
 
                 // Allocate space on disk and initialize the new page.
                 let page_id = self.disk_manager.allocate_page();
-                let mut new_page = init_page_variant(page_id, variant);
+                let new_page = init_page_variant(page_id, variant);
 
                 // Acquire locks for page table and type chart (in this order).
                 let mut page_table = self.page_table.write().unwrap();
@@ -164,7 +164,7 @@ impl BufferManager {
 
                     // Acquire locks for page table and type chart (in this order).
                     let mut page_table = self.page_table.write().unwrap();
-                    let mut type_chart = self.type_chart.read().unwrap();
+                    let type_chart = self.type_chart.read().unwrap();
 
                     // Fetch the requested page into memory from disk.
                     let mut new_page: Box<dyn Page + Send + Sync> = match type_chart.get(&page_id) {

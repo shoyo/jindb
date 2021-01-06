@@ -74,7 +74,7 @@ fn test_delete_buffer_page() {
     // First thread
     thread::spawn(move || {
         let frame_latch = manager_1.create_relation_page().unwrap();
-        let mut frame = frame_latch.write().unwrap();
+        let frame = frame_latch.write().unwrap();
 
         // Notify second thread to try to delete newly created page (should fail).
         tx.send(());
