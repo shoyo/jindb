@@ -208,13 +208,42 @@ mod tests {
     }
 
     #[test]
-    fn test_concurrent_disk_access() {
+    /// Assert that multiple threads can read the same page from disk simultaneously.
+    fn test_concurrent_read_access() {
         let ctx = Arc::new(setup(6));
-        let num_threads: u32 = 10;
+        let num_threads = 10;
+
+        // Write data to a page on disk.
+        let expected = [213; PAGE_SIZE as usize];
+        ctx.disk_manager.write_page(CLASSIFIER_PAGE_ID, &expected);
+
+        // Spin up multiple threads, and make each thread independently read the same page into
+        // memory. Assert that each thread obtains the correct data.
+        for i in 0..num_threads {
+            let ctx_c = ctx.clone();
+            thread::spawn(move || {
+                let mut actual = [0; PAGE_SIZE as usize];
+                ctx_c
+                    .disk_manager
+                    .read_page(CLASSIFIER_PAGE_ID, &mut actual);
+
+                for i in 0..PAGE_SIZE as usize {
+                    assert_eq!(actual[i], expected[i]);
+                }
+            });
+        }
+    }
+
+    #[test]
+    /// Assert that multiple threads can allocate and write to different pages on disk
+    /// simultaneously.
+    fn test_concurrent_write_access() {
+        let ctx = Arc::new(setup(7));
+        let num_threads = 10;
 
         // Spin up multiple threads, and make each thread allocate a new page on disk.
         // Have each thread write some unique data to their corresponding page.
-        let mut handles = Vec::with_capacity(num_threads as usize);
+        let mut handles = Vec::with_capacity(num_threads);
 
         for i in 0..num_threads {
             let ctx_c = ctx.clone();
@@ -235,14 +264,14 @@ mod tests {
         // Assert that allocations were successful.
         assert!(ctx
             .disk_manager
-            .is_allocated(CLASSIFIER_PAGE_ID + num_threads));
+            .is_allocated(CLASSIFIER_PAGE_ID + num_threads as u32));
 
         // Spin up a new set of threads, and make all threads access a different disk page
         // simultaneously. Assert that each page contains the correct data.
-        let mut handles = Vec::with_capacity(num_threads as usize);
-        let barrier = Arc::new(Barrier::new(num_threads as usize));
+        let mut handles = Vec::with_capacity(num_threads);
+        let barrier = Arc::new(Barrier::new(num_threads));
 
-        for i in 1..num_threads + 1 {
+        for i in 1..(num_threads + 1) as u32 {
             let ctx_c = ctx.clone();
             let bar = barrier.clone();
             handles.push(thread::spawn(move || {
