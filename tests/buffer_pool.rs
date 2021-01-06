@@ -42,80 +42,58 @@ fn test_create_buffer_page() {
     assert!(manager.create_relation_page().is_err());
 }
 
-#[ignore]
 #[test]
 fn test_fetch_buffer_page() {
-    let mgr = setup();
-    let mgr_1 = mgr.clone();
-    let mgr_2 = mgr.clone();
+    let manager_1 = setup();
+    let manager_2 = manager_1.clone();
     let (tx, rx) = mpsc::channel();
 
-    // Create a page in the buffer manager.
     thread::spawn(move || {
-        let frame_latch = mgr_1.create_relation_page().unwrap();
-        let frame = frame_latch.read().unwrap();
-        let page = frame.get_page().as_ref().unwrap();
-        assert_eq!(page.get_id(), common::FIRST_RELATION_PAGE_ID);
-        tx.send(page.get_id());
-    })
-    .join()
-    .unwrap();
+        // Assert that fetching a nonexistent page fails.
+        let result = manager_1.fetch_page(common::FIRST_RELATION_PAGE_ID);
+        assert!(result.is_err());
 
-    // Fetch the same page in another thread.
+        // Create a page and notify other threads to try to fetch the new page (should pass).
+        let _ = manager_1.create_relation_page().unwrap();
+        tx.send(());
+    });
+
     thread::spawn(move || {
-        let page_id = rx.recv().unwrap();
-        let frame_latch = mgr_2.fetch_page(page_id).unwrap();
-        let frame = frame_latch.read().unwrap();
-        assert!(frame.get_page().is_some());
-        let page = frame.get_page().as_ref().unwrap();
-        assert_eq!(page.get_id(), common::FIRST_RELATION_PAGE_ID);
-    })
-    .join()
-    .unwrap();
-
-    // Buffer now contains a single page with ID = 1.
-    // Create TEST_BUFFER_SIZE more pages, which evicts page with ID = 1 with the Slow page
-    // replacer.
-    for _ in 0..common::TEST_BUFFER_SIZE {
-        mgr.create_relation_page().unwrap();
-    }
-
-    for i in 0..common::TEST_BUFFER_SIZE + 1 {
-        assert!(mgr.fetch_page(i).is_ok());
-    }
-    assert!(mgr.fetch_page(common::TEST_BUFFER_SIZE + 1).is_err());
+        let _ = rx.recv().unwrap();
+        let result = manager_2.fetch_page(common::FIRST_RELATION_PAGE_ID);
+        assert!(result.is_ok());
+    });
 }
 
 #[test]
 fn test_delete_buffer_page() {
-    let mgr = setup();
-    let mgr_2 = mgr.clone();
+    let manager_1 = setup();
+    let manager_2 = manager_1.clone();
     let (tx, rx) = mpsc::channel();
 
     // First thread
     thread::spawn(move || {
-        let frame_latch = mgr.create_relation_page().unwrap();
+        let frame_latch = manager_1.create_relation_page().unwrap();
         let mut frame = frame_latch.write().unwrap();
-        let page_id = frame.get_page().as_ref().unwrap().get_id();
 
         // Notify second thread to try to delete newly created page (should fail).
-        tx.send(page_id);
+        tx.send(());
 
         // Notify second thread to try again after unpinning created page (should pass).
-        mgr.unpin_and_drop(frame);
-        tx.send(page_id);
+        manager_1.unpin_and_drop(frame);
+        tx.send(());
     });
 
     // Second thread
     thread::spawn(move || {
         // Receive notification from first thread to delete newly created page (should fail).
-        let page_id = rx.recv().unwrap();
-        let first_attempt = mgr_2.delete_page(page_id);
+        let _ = rx.recv().unwrap();
+        let first_attempt = manager_2.delete_page(common::FIRST_RELATION_PAGE_ID);
         assert!(first_attempt.is_err());
 
         // Receive notification from first thread to delete page again (should pass).
         let _ = rx.recv().unwrap();
-        let second_attempt = mgr_2.delete_page(page_id);
+        let second_attempt = manager_2.delete_page(common::FIRST_RELATION_PAGE_ID);
         assert!(second_attempt.is_ok());
     });
 }
