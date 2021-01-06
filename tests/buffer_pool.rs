@@ -69,9 +69,6 @@ fn test_fetch_buffer_page() {
         assert!(frame.get_page().is_some());
         let page = frame.get_page().as_ref().unwrap();
         assert_eq!(page.get_id(), common::FIRST_RELATION_PAGE_ID);
-
-        let result = mgr_2.fetch_page(common::FIRST_RELATION_PAGE_ID);
-        assert!(result.is_err());
     })
     .join()
     .unwrap();
@@ -89,29 +86,44 @@ fn test_fetch_buffer_page() {
     assert!(mgr.fetch_page(common::TEST_BUFFER_SIZE + 1).is_err());
 }
 
+#[test]
+fn test_create_then_delete() {
+    let mgr = setup();
+    let frame_latch = mgr.create_relation_page().unwrap();
+    let frame = frame_latch.write().unwrap();
+    let page_id = frame.get_page().as_ref().unwrap().get_id();
+    mgr.unpin_and_drop(frame);
+
+    let result = mgr.delete_page(page_id);
+    assert!(result.is_ok());
+}
+
 #[ignore]
 #[test]
 fn test_delete_buffer_page() {
-    let manager = setup();
-    let manager_2 = manager.clone();
+    let mgr = setup();
+    let mgr_2 = mgr.clone();
 
     // Create a page in the buffer manager.
-    let frame_latch = manager.create_relation_page().unwrap();
+    let frame_latch = mgr.create_relation_page().unwrap();
     let mut frame = frame_latch.write().unwrap();
     let page_id = frame.get_page().as_ref().unwrap().get_id();
 
     // Assert that the page cannot be deleted while pinned.
     thread::spawn(move || {
-        let result = manager_2.delete_page(page_id);
+        let result = mgr_2.delete_page(page_id);
         assert!(result.is_err());
     })
     .join()
     .unwrap();
 
     // Assert that the page can be deleted when its pin count is zero.
-    frame.unpin();
-    drop(frame);
+    mgr.unpin_and_drop(frame);
 
-    let result = manager.delete_page(page_id);
-    assert!(result.is_ok());
+    thread::spawn(move || {
+        let result = mgr.delete_page(page_id);
+        assert!(result.is_ok());
+    })
+    .join()
+    .unwrap();
 }

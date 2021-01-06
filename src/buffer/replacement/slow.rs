@@ -62,16 +62,19 @@ impl PageReplacer for SlowReplacer {
         let mut queue = self.queue.lock().unwrap();
         let count = queue
             .iter()
-            .map(|id| id == &frame_id)
-            .collect::<Vec<bool>>()
+            .filter(|id| **id == frame_id)
+            .collect::<Vec<&u32>>()
             .len();
-        if count > 0 {
+        if count > 1 {
             panic!(
-                "Found {} instances of frame ID {} in queue, expected 0",
+                "Found {} instance(s) of frame ID {} in queue, expected 0",
                 count, frame_id
             );
         }
-        queue.push_back(frame_id);
+        if count == 0 {
+            queue.push_back(frame_id);
+        }
+        // If the page has already been unpinned, count will equal 1 and we do nothing.
     }
 }
 

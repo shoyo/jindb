@@ -197,7 +197,7 @@ impl BufferManager {
             Some(frame_latch) => {
                 let mut frame = frame_latch.write().unwrap();
 
-                match frame.pin_count {
+                match frame.get_pin_count() {
                     0 => {
                         let mut page_table = self.page_table.write().unwrap();
                         let mut type_chart = self.type_chart.write().unwrap();
@@ -205,7 +205,7 @@ impl BufferManager {
                         type_chart.remove(&page_id).unwrap();
 
                         self.disk_manager.deallocate_page(page_id);
-                        self.replacer.unpin(page_id);
+                        self.replacer.unpin(frame.get_id());
                         frame.reset();
                         Ok(())
                     }
@@ -219,20 +219,23 @@ impl BufferManager {
         }
     }
 
-    /// Unpin the page contained in the specified frame.
+    /// Unpin the page contained in the specified frame and drop the write guard.
     ///
     /// This method is intended to be used by the same thread that has already gained exclusive
     /// access to a frame after invoking .write() on a frame latch received through a fetch or
     /// create request. Instead of dropping its WriteGuard and needing to reacquire it to
     /// perform an unpin, it uses this method instead to reduce overhead.
-    pub fn unpin_page(&self, mut frame: RwLockWriteGuard<BufferFrame>) {
+    pub fn unpin_and_drop(&self, mut frame: RwLockWriteGuard<BufferFrame>) {
         match frame.get_page() {
             Some(_) => {
                 frame.unpin();
-                self.replacer.unpin(frame.id);
+                if frame.get_pin_count() == 0 {
+                    self.replacer.unpin(frame.get_id());
+                }
             }
             None => panic!("Attempted to unpin an empty buffer frame"),
         }
+        drop(frame); // Not actually needed, but makes operation explicit.
     }
 
     /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
