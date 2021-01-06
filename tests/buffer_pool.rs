@@ -87,43 +87,35 @@ fn test_fetch_buffer_page() {
 }
 
 #[test]
-fn test_create_then_delete() {
-    let mgr = setup();
-    let frame_latch = mgr.create_relation_page().unwrap();
-    let frame = frame_latch.write().unwrap();
-    let page_id = frame.get_page().as_ref().unwrap().get_id();
-    mgr.unpin_and_drop(frame);
-
-    let result = mgr.delete_page(page_id);
-    assert!(result.is_ok());
-}
-
-#[ignore]
-#[test]
 fn test_delete_buffer_page() {
     let mgr = setup();
     let mgr_2 = mgr.clone();
+    let (tx, rx) = mpsc::channel();
 
-    // Create a page in the buffer manager.
-    let frame_latch = mgr.create_relation_page().unwrap();
-    let mut frame = frame_latch.write().unwrap();
-    let page_id = frame.get_page().as_ref().unwrap().get_id();
-
-    // Assert that the page cannot be deleted while pinned.
+    // First thread
     thread::spawn(move || {
-        let result = mgr_2.delete_page(page_id);
-        assert!(result.is_err());
-    })
-    .join()
-    .unwrap();
+        let frame_latch = mgr.create_relation_page().unwrap();
+        let mut frame = frame_latch.write().unwrap();
+        let page_id = frame.get_page().as_ref().unwrap().get_id();
 
-    // Assert that the page can be deleted when its pin count is zero.
-    mgr.unpin_and_drop(frame);
+        // Notify second thread to try to delete newly created page (should fail).
+        tx.send(page_id);
 
+        // Notify second thread to try again after unpinning created page (should pass).
+        mgr.unpin_and_drop(frame);
+        tx.send(page_id);
+    });
+
+    // Second thread
     thread::spawn(move || {
-        let result = mgr.delete_page(page_id);
-        assert!(result.is_ok());
-    })
-    .join()
-    .unwrap();
+        // Receive notification from first thread to delete newly created page (should fail).
+        let page_id = rx.recv().unwrap();
+        let first_attempt = mgr_2.delete_page(page_id);
+        assert!(first_attempt.is_err());
+
+        // Receive notification from first thread to delete page again (should pass).
+        let _ = rx.recv().unwrap();
+        let second_attempt = mgr_2.delete_page(page_id);
+        assert!(second_attempt.is_ok());
+    });
 }
