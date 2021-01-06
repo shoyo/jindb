@@ -59,7 +59,7 @@ impl BufferManager {
 
         // Fetch classifier page from disk to initialize the type chart.
         // If the classifier page is empty, nothing gets inserted into the type chart.
-        let mut classifier = ClassifierPage::new();
+        let mut classifier = ClassifierPage::new(CLASSIFIER_PAGE_ID);
         disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.get_data_mut());
         let mut type_chart = HashMap::new();
         for (page_id, page_type) in classifier {
@@ -102,27 +102,28 @@ impl BufferManager {
                 // Assert that selected page is a valid victim page.
                 frame.assert_no_pins();
 
-                // Write the existing page out to disk if necessary.
+                // Write the existing page out to disk and reset the buffer frame.
                 self._flush_frame(&*frame);
+                frame.reset();
 
                 // Allocate space on disk and initialize the new page.
                 let page_id = self.disk_manager.allocate_page();
                 let mut new_page: Box<dyn Page + Send + Sync> = match variant {
-                    PageVariant::Classifier => Box::new(ClassifierPage::new()),
-                    PageVariant::Dictionary => Box::new(DictionaryPage::new()),
+                    PageVariant::Classifier => Box::new(ClassifierPage::new(page_id)),
+                    PageVariant::Dictionary => Box::new(DictionaryPage::new(page_id)),
                     PageVariant::Relation => Box::new(RelationPage::new(page_id)),
                 };
 
-                // Update the type chart for the new page.
+                // Update the page table and type chart.
+                let mut page_table = self.page_table.write().unwrap();
                 let mut type_chart = self.type_chart.write().unwrap();
+                page_table.insert(new_page.get_id(), frame_id);
                 type_chart.insert(page_id, variant);
 
-                // Update the page table and pin the new page to the buffer.
-                let mut page_table = self.page_table.write().unwrap();
-                page_table.insert(new_page.get_id(), frame_id);
-                self.replacer.pin(frame_id);
+                // Place the new page in the buffer frame and pin it.
+                frame.overwrite(Some(new_page));
                 frame.pin();
-                frame.page = Some(new_page);
+                self.replacer.pin(frame_id);
 
                 // Return a reference to the page latch.
                 Ok(frame_latch.clone())
@@ -140,8 +141,7 @@ impl BufferManager {
             Some(frame_latch) => {
                 let mut frame = frame_latch.write().unwrap();
                 frame.pin();
-                self.replacer
-                    .pin(frame.get_page().as_ref().unwrap().get_id());
+                self.replacer.pin(frame.id);
                 Ok(frame_latch.clone())
             }
             // Otherwise, the page must be read from disk and replace an existing page in the
@@ -192,6 +192,18 @@ impl BufferManager {
         }
     }
 
+    /// Unpin the specified page. Return an error if the page does not exist in the buffer.
+    pub fn unpin_page(&self, page_id: PageIdT) -> Result<(), PageDneErr> {
+        match self._page_table_lookup(page_id) {
+            Some(frame_latch) => {
+                let mut frame = frame_latch.write().unwrap();
+                frame.unpin();
+                Ok(())
+            }
+            None => Err(PageDneErr),
+        }
+    }
+
     /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
     pub fn flush_page(&self, page_id: PageIdT) -> Result<(), PageDneErr> {
         match self._page_table_lookup(page_id) {
@@ -213,7 +225,8 @@ impl BufferManager {
         }
     }
 
-    /// Flush the page contained in the specified frame latch to disk.
+    /// Flush the page contained in the specified frame latch to disk. Do nothing if the page has
+    /// not been modified.
     fn _flush_frame(&self, frame: &BufferFrame) {
         if frame.is_dirty() {
             // Unwrapping is okay here because a dirty frame implies that a page is contained in
@@ -260,8 +273,10 @@ impl BufferManager {
 #[derive(Debug)]
 pub struct NoBufFrameErr;
 
+/// Error to be thrown when an unexpected number of pins on a page is encountered.
 #[derive(Debug)]
 pub struct PinCountErr;
 
+/// Error to be thrown when the specified page does not exist in the buffer.
 #[derive(Debug)]
 pub struct PageDneErr;

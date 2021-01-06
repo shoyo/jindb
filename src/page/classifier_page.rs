@@ -72,7 +72,7 @@ impl Page for ClassifierPage {
 
 impl ClassifierPage {
     /// Construct a new classifier page.
-    pub fn new() -> Self {
+    pub fn new(_page_id: PageIdT) -> Self {
         Self {
             id: CLASSIFIER_PAGE_ID,
             data: [0; PAGE_SIZE as usize],

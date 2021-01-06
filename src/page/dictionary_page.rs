@@ -60,7 +60,7 @@ impl Page for DictionaryPage {
 
 impl DictionaryPage {
     /// Construct a new dictionary page.
-    pub fn new() -> Self {
+    pub fn new(_page_id: PageIdT) -> Self {
         Self {
             id: DICTIONARY_PAGE_ID,
             data: [0; PAGE_SIZE as usize],
