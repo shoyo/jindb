@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::{BufferManager, NoBufFrameErr};
+use crate::buffer::manager::{BufferError, BufferManager};
 use crate::common::{PageIdT, RecordIdT};
 use crate::page::Page;
 use crate::relation::record::Record;
@@ -19,7 +19,7 @@ pub struct Heap {
 
 impl Heap {
     /// Create a new heap for a database relation.
-    pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, NoBufFrameErr> {
+    pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, BufferError> {
         let frame_latch = buffer_manager.create_relation_page()?;
         let frame = frame_latch.read().unwrap();
         let head_page_id = match frame.get_page() {

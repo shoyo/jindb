@@ -67,7 +67,7 @@ impl Page for RelationPage {
         &self.data
     }
 
-    fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
         &mut self.data
     }
 

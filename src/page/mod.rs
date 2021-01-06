@@ -4,6 +4,9 @@
  */
 
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
+use crate::page::classifier_page::ClassifierPage;
+use crate::page::dictionary_page::DictionaryPage;
+use crate::page::relation_page::RelationPage;
 
 pub mod classifier_page;
 pub mod dictionary_page;
@@ -18,7 +21,7 @@ pub trait Page {
 
     fn get_data(&self) -> &[u8; PAGE_SIZE as usize];
 
-    fn get_data_mut(&mut self) -> &mut [u8; PAGE_SIZE as usize];
+    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize];
 
     fn get_lsn(&self) -> LsnT;
 
@@ -28,11 +31,20 @@ pub trait Page {
 }
 
 /// Page variants
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PageVariant {
     Classifier,
     Dictionary,
     Relation,
+}
+
+/// Initialize a boxed page instance for the given variant.
+pub fn init_page_variant(page_id: PageIdT, variant: PageVariant) -> Box<dyn Page + Send + Sync> {
+    match variant {
+        PageVariant::Classifier => Box::new(ClassifierPage::new(page_id)),
+        PageVariant::Dictionary => Box::new(DictionaryPage::new(page_id)),
+        PageVariant::Relation => Box::new(RelationPage::new(page_id)),
+    }
 }
 
 /// Utility functions for reading and writing byte arrays.
