@@ -192,18 +192,6 @@ impl BufferManager {
         }
     }
 
-    /// Flush the page contained in the specified frame latch to disk.
-    fn _flush_frame(&self, frame: &BufferFrame) {
-        if frame.is_dirty() {
-            // Unwrapping is okay here because a dirty frame implies that a page is contained in
-            // the frame.
-            let page = frame.get_page().as_ref().unwrap();
-            self.disk_manager
-                .write_page(page.get_id(), page.get_data())
-                .unwrap();
-        }
-    }
-
     /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
     pub fn flush_page(&self, page_id: PageIdT) -> Result<(), PageDneErr> {
         match self._page_table_lookup(page_id) {
@@ -222,6 +210,18 @@ impl BufferManager {
             let frame_latch = self.buffer.get(frame_id);
             let frame = frame_latch.read().unwrap();
             self._flush_frame(&*frame);
+        }
+    }
+
+    /// Flush the page contained in the specified frame latch to disk.
+    fn _flush_frame(&self, frame: &BufferFrame) {
+        if frame.is_dirty() {
+            // Unwrapping is okay here because a dirty frame implies that a page is contained in
+            // the frame.
+            let page = frame.get_page().as_ref().unwrap();
+            self.disk_manager
+                .write_page(page.get_id(), page.get_data())
+                .unwrap();
         }
     }
 
