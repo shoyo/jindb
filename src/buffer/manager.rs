@@ -103,11 +103,7 @@ impl BufferManager {
                 frame.assert_no_pins();
 
                 // Write the existing page out to disk if necessary.
-                if let Some(ref page) = frame.page {
-                    if frame.is_dirty {
-                        self._write_to_disk(page);
-                    }
-                }
+                self._flush_frame(&*frame);
 
                 // Allocate space on disk and initialize the new page.
                 let page_id = self.disk_manager.allocate_page();
@@ -125,7 +121,7 @@ impl BufferManager {
                 let mut page_table = self.page_table.write().unwrap();
                 page_table.insert(new_page.get_id(), frame_id);
                 self.replacer.pin(frame_id);
-                frame.pin_count += 1;
+                frame.pin();
                 frame.page = Some(new_page);
 
                 // Return a reference to the page latch.
@@ -152,14 +148,9 @@ impl BufferManager {
             // buffer. If there aren't any pages that can be evicted, give up and return an error.
             None => match self.replacer.evict() {
                 Some(frame_id) => {
-                    let page_latch = self.buffer.get(frame_id);
-                    let frame = page_latch.write().unwrap();
-
-                    if let Some(ref page) = frame.page {
-                        if frame.is_dirty {
-                            self._write_to_disk(page);
-                        }
-                    }
+                    let frame_latch = self.buffer.get(frame_id);
+                    let frame = frame_latch.write().unwrap();
+                    self._flush_frame(&*frame);
 
                     let mut page_data = [0; PAGE_SIZE as usize];
                     self.disk_manager.read_page(page_id, &mut page_data);
@@ -201,20 +192,37 @@ impl BufferManager {
         }
     }
 
+    /// Flush the page contained in the specified frame latch to disk.
+    fn _flush_frame(&self, frame: &BufferFrame) {
+        if frame.is_dirty() {
+            // Unwrapping is okay here because a dirty frame implies that a page is contained in
+            // the frame.
+            let page = frame.get_page().as_ref().unwrap();
+            self.disk_manager
+                .write_page(page.get_id(), page.get_data())
+                .unwrap();
+        }
+    }
+
     /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
     pub fn flush_page(&self, page_id: PageIdT) -> Result<(), PageDneErr> {
         match self._page_table_lookup(page_id) {
             Some(frame_latch) => {
                 let frame = frame_latch.read().unwrap();
-                todo!()
+                self._flush_frame(&*frame);
+                Ok(())
             }
             None => Err(PageDneErr),
         }
     }
 
     /// Flush all pages to disk.
-    pub fn flush_all_pages(&self) -> Result<(), ()> {
-        Err(())
+    pub fn flush_all_pages(&self) {
+        for frame_id in 0..self.buffer.size() {
+            let frame_latch = self.buffer.get(frame_id);
+            let frame = frame_latch.read().unwrap();
+            self._flush_frame(&*frame);
+        }
     }
 
     /// Find the specified page in the page table, and return its frame ID.
@@ -242,13 +250,6 @@ impl BufferManager {
             }
             None => None,
         }
-    }
-
-    /// Write the specified page to disk.
-    fn _write_to_disk(&self, page: &Box<dyn Page + Send + Sync>) {
-        self.disk_manager
-            .write_page(page.get_id(), page.get_data())
-            .unwrap();
     }
 }
 

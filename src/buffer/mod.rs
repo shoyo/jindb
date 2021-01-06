@@ -28,6 +28,10 @@ impl Buffer {
     pub fn get(&self, id: BufferFrameIdT) -> FrameLatch {
         self.pool[id as usize].clone()
     }
+
+    pub fn size(&self) -> BufferFrameIdT {
+        self.pool.len() as BufferFrameIdT
+    }
 }
 
 /// A single buffer frame contained in a buffer pool.
@@ -41,7 +45,7 @@ pub struct BufferFrame {
     page: Option<Box<dyn Page + Send + Sync>>,
 
     /// True if the contained page has been modified since being read from disk
-    is_dirty: bool,
+    dirty_flag: bool,
 
     /// Number of active references to the contained page
     pin_count: u32,
@@ -56,7 +60,7 @@ impl BufferFrame {
         Self {
             id,
             page: None,
-            is_dirty: false,
+            dirty_flag: false,
             pin_count: 0,
             usage_count: 0,
         }
@@ -79,12 +83,12 @@ impl BufferFrame {
 
     /// Return the dirty flag of this buffer frame.
     pub fn is_dirty(&self) -> bool {
-        self.is_dirty
+        self.dirty_flag
     }
 
     /// Set the dirty flag of this buffer frame.
     pub fn set_dirty_flag(&mut self, flag: bool) {
-        self.is_dirty = flag;
+        self.dirty_flag = flag;
     }
 
     /// Return the pin count of this buffer frame.
@@ -110,7 +114,7 @@ impl BufferFrame {
     /// This method is typically called when a database page is removed from this buffer frame.
     pub fn reset(&mut self) {
         self.page = None;
-        self.is_dirty = false;
+        self.dirty_flag = false;
         self.pin_count = 0;
         self.usage_count = 0;
     }
