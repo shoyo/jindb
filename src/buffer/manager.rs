@@ -12,8 +12,6 @@ use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 
-
-
 use crate::page::{init_page_variant, Page, PageVariant};
 use std::collections::HashMap;
 
@@ -172,8 +170,7 @@ impl BufferManager {
                         None => panic!("Page ID {} does not have a type chart entry", page_id),
                     };
                     self.disk_manager
-                        .read_page(page_id, new_page.get_mut_data())
-                        .unwrap();
+                        .read_page(page_id, new_page.get_mut_data());
 
                     // Update the page table.
                     page_table.insert(page_id, frame_id).unwrap();
@@ -266,9 +263,7 @@ impl BufferManager {
             // Unwrapping is okay here because a dirty frame implies that a page is contained in
             // the frame.
             let page = frame.get_page().as_ref().unwrap();
-            self.disk_manager
-                .write_page(page.get_id(), page.get_data())
-                .unwrap();
+            self.disk_manager.write_page(page.get_id(), page.get_data())
         }
     }
 

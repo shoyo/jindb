@@ -27,37 +27,26 @@ impl DiskManager {
     }
 
     /// Write the specified byte array out to disk.
-    pub fn write_page(
-        &self,
-        page_id: PageIdT,
-        page_data: &[u8; PAGE_SIZE as usize],
-    ) -> std::io::Result<()> {
+    pub fn write_page(&self, page_id: PageIdT, page_data: &[u8; PAGE_SIZE as usize]) {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
-            .open(&self.db_filename)?;
+            .open(&self.db_filename)
+            .unwrap();
 
         let offset = page_id * PAGE_SIZE;
-        file.seek(SeekFrom::Start(offset as u64))?;
-        file.write_all(page_data)?;
-        file.flush()?;
-
-        Ok(())
+        file.seek(SeekFrom::Start(offset as u64)).unwrap();
+        file.write_all(page_data).unwrap();
+        file.flush().unwrap();
     }
 
     /// Read a single page's data into the specified byte array.
-    pub fn read_page(
-        &self,
-        page_id: PageIdT,
-        page_data: &mut [u8; PAGE_SIZE as usize],
-    ) -> std::io::Result<()> {
-        let mut file = File::open(&self.db_filename)?;
+    pub fn read_page(&self, page_id: PageIdT, page_data: &mut [u8; PAGE_SIZE as usize]) {
+        let mut file = File::open(&self.db_filename).unwrap();
 
         let offset = page_id * PAGE_SIZE;
-        file.seek(SeekFrom::Start(offset as u64))?;
-        file.read_exact(&mut *page_data)?;
-
-        Ok(())
+        file.seek(SeekFrom::Start(offset as u64)).unwrap();
+        file.read_exact(&mut *page_data).unwrap();
     }
 
     /// Allocate a page on disk and return the id of the allocated page.
@@ -69,9 +58,7 @@ impl DiskManager {
     }
 
     /// Deallocate the specified page on disk.
-    pub fn deallocate_page(&self, _page_id: PageIdT) -> Result<(), ()> {
-        Ok(())
-    }
+    pub fn deallocate_page(&self, _page_id: PageIdT) {}
 
     /// Return whether the specified page is currently allocated on disk.
     pub fn is_allocated(&self, page_id: PageIdT) -> bool {
