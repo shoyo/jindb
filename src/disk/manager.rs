@@ -98,6 +98,7 @@ mod tests {
     use crate::common::{CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
     use crate::disk::manager::DiskManager;
     use crate::disk::open_write_file;
+    use std::convert::TryInto;
     use std::fs::File;
     use std::io::{Read, Seek, SeekFrom, Write};
     use std::sync::{Arc, Barrier};
@@ -206,19 +207,62 @@ mod tests {
         ctx.disk_manager.write_page(2, &[0; PAGE_SIZE as usize]);
     }
 
-    #[ignore]
     #[test]
     fn test_concurrent_disk_access() {
-        let ctx = setup(6);
+        let ctx = Arc::new(setup(6));
+        let num_threads: u32 = 10;
 
-        let num_threads = 10;
-        let mut handles = Vec::with_capacity(num_threads);
-        let barrier = Arc::new(Barrier::new(num_threads));
-        for _ in 0..num_threads {
+        // Spin up multiple threads, and make each thread allocate a new page on disk.
+        // Have each thread write some unique data to their corresponding page.
+        let mut handles = Vec::with_capacity(num_threads as usize);
+
+        for i in 0..num_threads {
+            let ctx_c = ctx.clone();
+            handles.push(thread::spawn(move || {
+                let page_id = ctx_c.disk_manager.allocate_page();
+
+                // Write the page's ID to each byte of the newly allocated page.
+                ctx_c
+                    .disk_manager
+                    .write_page(page_id, &[page_id.try_into().unwrap(); PAGE_SIZE as usize]);
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Assert that allocations were successful.
+        assert!(ctx
+            .disk_manager
+            .is_allocated(CLASSIFIER_PAGE_ID + num_threads));
+
+        // Spin up a new set of threads, and make all threads access a different disk page
+        // simultaneously. Assert that each page contains the correct data.
+        let mut handles = Vec::with_capacity(num_threads as usize);
+        let barrier = Arc::new(Barrier::new(num_threads as usize));
+
+        for i in 1..num_threads + 1 {
+            let ctx_c = ctx.clone();
             let bar = barrier.clone();
             handles.push(thread::spawn(move || {
-                bar.wait();
+                let mut data = [0; PAGE_SIZE as usize];
+
+                bar.wait(); // Sync all threads
+
+                // Assert that each byte of the page is the page's ID.
+                ctx_c
+                    .disk_manager
+                    .read_page(CLASSIFIER_PAGE_ID + i, &mut data);
+
+                for j in 0..PAGE_SIZE as usize {
+                    assert_eq!(data[j], (CLASSIFIER_PAGE_ID + i) as u8);
+                }
             }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
         }
     }
 }
