@@ -77,7 +77,7 @@ impl BufferFrame {
     }
 
     /// Overwrite the existing page.
-    pub fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
+    fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
         self.page = page;
     }
 
@@ -92,7 +92,7 @@ impl BufferFrame {
     }
 
     /// Set the dirty flag of this buffer frame.
-    pub fn set_dirty_flag(&mut self, flag: bool) {
+    fn set_dirty_flag(&mut self, flag: bool) {
         self.dirty_flag = flag;
     }
 
@@ -102,13 +102,13 @@ impl BufferFrame {
     }
 
     /// Increase the pin count of this buffer frame by 1.
-    pub fn pin(&mut self) {
+    fn pin(&mut self) {
         self.pin_count += 1;
     }
 
     /// Decrease the pin count of this buffer frame by 1.
     /// Panics if the pin count is 0.
-    pub fn unpin(&mut self) {
+    fn unpin(&mut self) {
         if self.pin_count == 0 {
             panic!("Cannot unpin a page with pin count equal to 0");
         }
@@ -117,7 +117,7 @@ impl BufferFrame {
 
     /// Reset this buffer frame to an initial, empty state.
     /// This method is typically called when a database page is removed from this buffer frame.
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.page = None;
         self.dirty_flag = false;
         self.pin_count = 0;
