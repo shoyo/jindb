@@ -10,6 +10,7 @@ use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::attribute::{Attribute, DataType};
 use jin::relation::schema::Schema;
+use std::sync::Arc;
 
 mod common;
 
@@ -22,15 +23,14 @@ fn setup() -> TestContext {
     let buffer_manager = BufferManager::new(
         common::TEST_BUFFER_SIZE,
         DiskManager::new(common::TEST_DB_FILENAME),
-        ReplacerAlgorithm::Clock,
+        ReplacerAlgorithm::Slow,
     );
     TestContext {
-        system_catalog: SystemCatalog::new(buffer_manager),
+        system_catalog: SystemCatalog::new(Arc::new(buffer_manager)),
         txn_manager: TransactionManager::new(),
     }
 }
 
-#[ignore]
 #[test]
 fn test_create_table() {
     let mut context = setup();
