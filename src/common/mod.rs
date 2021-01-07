@@ -12,7 +12,7 @@ pub mod collections;
 /// Type aliases
 pub type PageIdT = u32;
 pub type RelationIdT = u32;
-pub type RecordIdT = u32;
+pub type RecordSlotIdT = u32;
 pub type BufferFrameIdT = u32;
 pub type TransactionIdT = u32;
 pub type LsnT = u32;

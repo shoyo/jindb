@@ -3,10 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::PageIdT;
+use crate::common::{PageIdT, RecordSlotIdT};
 
 use crate::relation::schema::Schema;
-
 
 /// A database record with variable-length attributes.
 ///
@@ -29,23 +28,27 @@ use crate::relation::schema::Schema;
 /// database page.
 
 pub struct Record {
-    pub id: RecordId,
-    pub data: Vec<u8>,
+    id: RecordId,
+    data: Vec<u8>,
 }
 
 impl Record {
-    pub fn new(page_id: PageIdT, slot_index: u32, tmp: Vec<u8>) -> Self {
+    pub fn new(page_id: PageIdT, slot_index: u32) -> Self {
         Self {
             id: RecordId {
                 page_id,
                 slot_index,
             },
-            data: tmp,
+            data: Vec::new(),
         }
     }
 
-    pub fn len(&self) -> u32 {
-        self.data.len() as u32
+    pub fn get_id(&self) -> &RecordId {
+        &self.id
+    }
+
+    pub fn get_data(&self) -> &Vec<u8> {
+        &self.data
     }
 
     pub fn get_column_value(&self, _idx: u32, _schema: &Schema) -> &[u8] {
@@ -57,5 +60,5 @@ impl Record {
 /// the record is located at.
 pub struct RecordId {
     pub page_id: PageIdT,
-    pub slot_index: u32,
+    pub slot_index: RecordSlotIdT,
 }

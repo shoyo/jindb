@@ -4,8 +4,8 @@
  */
 
 use crate::buffer::manager::{BufferError, BufferManager};
-use crate::common::{PageIdT, RecordIdT};
-use crate::relation::record::Record;
+use crate::common::PageIdT;
+use crate::relation::record::{Record, RecordId};
 use std::sync::Arc;
 
 /// A heap is a collection of pages on disk which corresponds to a given relation.
@@ -33,19 +33,24 @@ impl Heap {
         Err(())
     }
 
+    /// Update a record in this relation.
+    pub fn update(&mut self, _record: Record) -> Result<(), ()> {
+        Err(())
+    }
+
     /// Flag the specified record as deleted.
     /// The record is not actually deleted until .apply_delete() is called.
-    pub fn flag_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
+    pub fn flag_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 
     /// Commit a delete operation for the specified record.
-    pub fn commit_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
+    pub fn commit_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 
     /// Rollback a delete operation for the specified record.
-    pub fn rollback_delete(&mut self, _record_id: RecordIdT) -> Result<(), ()> {
+    pub fn rollback_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 }

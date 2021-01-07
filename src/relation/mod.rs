@@ -9,9 +9,9 @@ pub mod iterator;
 pub mod record;
 pub mod schema;
 
-use crate::common::{RecordIdT, RelationIdT};
+use crate::common::RelationIdT;
 use crate::relation::heap::Heap;
-use crate::relation::record::Record;
+use crate::relation::record::{Record, RecordId};
 use crate::relation::schema::Schema;
 
 /// Database relation (i.e. table) represented on disk.
@@ -60,18 +60,23 @@ impl Relation {
         self.heap.insert(record)
     }
 
+    /// Update a record in this relation.
+    pub fn update_record(&mut self, record: Record) -> Result<(), ()> {
+        self.heap.update(record)
+    }
+
     /// Flag a record in this relation for deletion.
-    pub fn flag_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn flag_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
         self.heap.flag_delete(record_id)
     }
 
     /// Commit a delete operation for a record in this relation.
-    pub fn commit_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn commit_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
         self.heap.commit_delete(record_id)
     }
 
     /// Rollback a delete operation for a record in this relation.
-    pub fn rollback_delete_record(&mut self, record_id: RecordIdT) -> Result<(), ()> {
+    pub fn rollback_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
         self.heap.rollback_delete(record_id)
     }
 }

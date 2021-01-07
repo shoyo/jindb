@@ -155,7 +155,7 @@ impl RelationPage {
     }
 
     /// Insert a record in the page and update the header.
-    pub fn insert_record(&mut self, record: Record) -> Result<(), String> {
+    pub fn insert_record(&mut self, record_data: &Vec<u8>) -> Result<(), String> {
         // Calculate header addresses for new length/offset entry
         let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
@@ -163,7 +163,7 @@ impl RelationPage {
 
         // Bounds-check for record insertion
         let free_ptr = self.get_free_space_pointer();
-        let new_free_ptr = free_ptr - record.len();
+        let new_free_ptr = free_ptr - record_data.len() as u32;
         if new_free_ptr < length_addr + 3 {
             return Err(format!(
                 "Overflow: Record does not fit in page (ID={})",
@@ -175,14 +175,14 @@ impl RelationPage {
         let start = (new_free_ptr + 1) as usize;
         let end = (free_ptr + 1) as usize;
         for i in start..end {
-            self.data[i] = record.data[i - start];
+            self.data[i] = record_data[i - start];
         }
 
         // Update header
         self.set_free_space_pointer(new_free_ptr);
         self.set_num_records(num_records + 1);
         write_u32(&mut self.data, new_free_ptr + 1, offset_addr);
-        write_u32(&mut self.data, record.len(), length_addr);
+        write_u32(&mut self.data, record_data.len() as u32, length_addr);
 
         Ok(())
     }
