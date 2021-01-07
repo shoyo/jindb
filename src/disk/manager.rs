@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_disk_allocation() {
         let mut ctx = setup(0);
-        let mut manager = &mut ctx.disk_manager;
+        let manager = &mut ctx.disk_manager;
 
         assert_eq!(manager.is_allocated(DICTIONARY_PAGE_ID), true);
         assert_eq!(manager.is_allocated(CLASSIFIER_PAGE_ID), true);
@@ -148,10 +148,10 @@ mod tests {
 
     #[test]
     fn test_disk_write() {
-        let mut ctx = setup(1);
+        let ctx = setup(1);
 
         // Write expected data to disk with disk manager.
-        let mut expected = [123; PAGE_SIZE as usize];
+        let expected = [123; PAGE_SIZE as usize];
         let page_id = ctx.disk_manager.allocate_page();
         ctx.disk_manager.write_page(page_id, &expected);
 
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_disk_read() {
-        let mut ctx = setup(3);
+        let ctx = setup(3);
 
         // Manually write page data to disk.
         let mut file = open_write_file(&ctx.filename);
@@ -219,7 +219,7 @@ mod tests {
 
         // Spin up multiple threads, and make each thread independently read the same page into
         // memory. Assert that each thread obtains the correct data.
-        for i in 0..num_threads {
+        for _ in 0..num_threads {
             let ctx_c = ctx.clone();
             thread::spawn(move || {
                 let mut actual = [0; PAGE_SIZE as usize];
@@ -245,7 +245,7 @@ mod tests {
         // Have each thread write some unique data to their corresponding page.
         let mut handles = Vec::with_capacity(num_threads);
 
-        for i in 0..num_threads {
+        for _ in 0..num_threads {
             let ctx_c = ctx.clone();
             handles.push(thread::spawn(move || {
                 let page_id = ctx_c.disk_manager.allocate_page();
