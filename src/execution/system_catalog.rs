@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex, RwLock};
 /// The system catalog maintains metadata about relations in the database.
 pub struct SystemCatalog {
     /// Mapping of relation IDs to relations
-    relations: Arc<RwLock<HashMap<RelationIdT, Arc<Mutex<Relation>>>>>,
+    relations: Arc<RwLock<HashMap<RelationIdT, Arc<Relation>>>>,
 
     /// Mapping of relation names to relation IDs
     relation_ids: Arc<RwLock<HashMap<String, RelationIdT>>>,
@@ -40,21 +40,16 @@ impl SystemCatalog {
 
     /// Initialize a new relation and return a protected reference.
     pub fn create_relation(
-        &mut self,
+        &self,
         name: &str,
         schema: Schema,
-    ) -> Result<Arc<Mutex<Relation>>, BufferError> {
+    ) -> Result<Arc<Relation>, BufferError> {
         // Initialize a new database heap.
         let heap = Heap::new(self.buffer_manager.clone())?;
 
         // Create a new relation with the given name, schema, and newly initialized heap.
         let relation_id = self.get_next_relation_id();
-        let relation = Arc::new(Mutex::new(Relation::new(
-            relation_id,
-            name.to_string(),
-            schema,
-            heap,
-        )));
+        let relation = Arc::new(Relation::new(relation_id, name.to_string(), schema, heap));
 
         // Lock and update the relation_ids and relations table.
         let mut relation_ids = self.relation_ids.write().unwrap();
@@ -68,7 +63,7 @@ impl SystemCatalog {
 
     /// Lookup a relation by its ID and return a protected reference.
     /// Return None if a relation does not exist in the database with the given ID.
-    pub fn get_relation_by_id(&self, id: RelationIdT) -> Option<Arc<Mutex<Relation>>> {
+    pub fn get_relation_by_id(&self, id: RelationIdT) -> Option<Arc<Relation>> {
         let relations = self.relations.read().unwrap();
         match relations.get(&id) {
             Some(relation) => Some(relation.clone()),
@@ -78,16 +73,16 @@ impl SystemCatalog {
 
     /// Lookup a relation by its name and return a protected reference.
     /// Return None if a relation does exist in the database with the given name.
-    pub fn get_relation_by_name(&self, name: String) -> Option<Arc<Mutex<Relation>>> {
+    pub fn get_relation_by_name(&self, name: &str) -> Option<Arc<Relation>> {
         let relation_ids = self.relation_ids.read().unwrap();
-        match relation_ids.get(&name) {
+        match relation_ids.get(name) {
             Some(&id) => self.get_relation_by_id(id),
             None => None,
         }
     }
 
     /// Return the next relation ID and atomically increment the counter.
-    fn get_next_relation_id(&mut self) -> u32 {
+    fn get_next_relation_id(&self) -> u32 {
         // Note: .fetch_add() increments the value and returns the PREVIOUS value
         self.next_relation_id.fetch_add(1, Ordering::SeqCst)
     }

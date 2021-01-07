@@ -11,12 +11,13 @@ use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::attribute::{Attribute, DataType};
 use jin::relation::schema::Schema;
 use std::sync::Arc;
+use std::thread;
 
 mod common;
 
 struct TestContext {
     txn_manager: TransactionManager,
-    system_catalog: SystemCatalog,
+    system_catalog: Arc<SystemCatalog>,
 }
 
 fn setup() -> TestContext {
@@ -26,45 +27,75 @@ fn setup() -> TestContext {
         ReplacerAlgorithm::Slow,
     );
     TestContext {
-        system_catalog: SystemCatalog::new(Arc::new(buffer_manager)),
+        system_catalog: Arc::new(SystemCatalog::new(Arc::new(buffer_manager))),
         txn_manager: TransactionManager::new(),
     }
 }
 
 #[test]
-fn test_create_table() {
+fn test_create_relation() {
     let mut context = setup();
 
-    let relation_latch = context
+    let relation = context
         .system_catalog
         .create_relation(
             "Students",
             Schema::new(vec![
-                Attribute::new("id", DataType::Varchar, true, true, false),
+                Attribute::new("id", DataType::Int, true, true, false),
                 Attribute::new("name", DataType::Varchar, false, false, false),
-                Attribute::new("school", DataType::Varchar, false, false, false),
-                Attribute::new("grade", DataType::TinyInt, false, false, false),
             ]),
         )
         .unwrap();
-    let relation = relation_latch.lock().unwrap();
-    assert_eq!(relation.id, 0);
-    drop(relation);
+    assert_eq!(relation.get_id(), 0);
 
-    let relation_latch = context
+    let relation = context
         .system_catalog
         .create_relation(
-            "Restaurant",
+            "Restaurants",
             Schema::new(vec![
-                Attribute::new("id", DataType::Varchar, true, true, false),
+                Attribute::new("id", DataType::Int, true, true, false),
                 Attribute::new("name", DataType::Varchar, false, false, false),
-                Attribute::new("address", DataType::Varchar, false, false, false),
-                Attribute::new("phone_number", DataType::Varchar, false, false, false),
             ]),
         )
         .unwrap();
-    let relation = relation_latch.lock().unwrap();
-    assert_eq!(relation.id, 1);
+    assert_eq!(relation.get_id(), 1);
+}
+
+#[test]
+fn test_get_relation() {
+    let mut context = setup();
+    let catalog1 = context.system_catalog.clone();
+    let catalog2 = context.system_catalog.clone();
+
+    // Create new relation.
+    let relation = context
+        .system_catalog
+        .create_relation("foo", Schema::new(vec![]))
+        .unwrap();
+
+    let id = relation.get_id();
+    let name = relation.get_name().to_string();
+    let name_c = name.clone();
+
+    // Fetch relation by id and assert that fetched relation is correct.
+    thread::spawn(move || {
+        let result = catalog1.get_relation_by_id(id);
+        assert!(result.is_some());
+
+        let relation = result.unwrap();
+        assert_eq!(relation.get_id(), id);
+        assert_eq!(relation.get_name(), &name);
+    });
+
+    // Fetch relation by name and assert that fetched relation is correct.
+    thread::spawn(move || {
+        let result = catalog2.get_relation_by_name(&name_c);
+        assert!(result.is_some());
+
+        let relation = result.unwrap();
+        assert_eq!(relation.get_id(), id);
+        assert_eq!(relation.get_name(), &name_c);
+    });
 }
 
 #[ignore]

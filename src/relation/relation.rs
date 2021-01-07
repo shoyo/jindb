@@ -11,19 +11,20 @@ use crate::relation::record::Record;
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {
     /// Unique ID for this relation
-    pub id: RelationIdT,
+    id: RelationIdT,
 
     /// User-defined name for this relation
-    pub name: String,
+    name: String,
 
     /// Schema for the attributes of this relation
-    pub schema: Schema,
+    schema: Schema,
 
     /// Collection of pages on disk which contain records
-    pub heap: Heap,
+    heap: Heap,
 }
 
 impl Relation {
+    /// Initialize a new in-memory representation of a relation.
     pub fn new(id: RelationIdT, name: String, schema: Schema, heap: Heap) -> Self {
         Self {
             id,
@@ -31,6 +32,21 @@ impl Relation {
             schema,
             heap,
         }
+    }
+
+    /// Return the relation ID.
+    pub fn get_id(&self) -> RelationIdT {
+        self.id
+    }
+
+    /// Return the name of this relation.
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    /// Return an immutable reference to this relation's schema.
+    pub fn get_schema(&self) -> &Schema {
+        &self.schema
     }
 
     pub fn insert_record(&mut self, record: Record) -> Result<(), ()> {
