@@ -1,4 +1,4 @@
-# <img src="images/logo.png" alt="Jin DB" width="500"/>
+# <img src="images/logo.png" alt="Jin DB" width="450"/>
 ![Build Status](https://github.com/shoyo/jin/workflows/build/badge.svg)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/shoyo/jin/blob/main/LICENSE)
 
