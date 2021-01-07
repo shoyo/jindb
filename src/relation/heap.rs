@@ -5,7 +5,6 @@
 
 use crate::buffer::manager::{BufferError, BufferManager};
 use crate::common::{PageIdT, RecordIdT};
-use crate::page::Page;
 use crate::relation::record::Record;
 use std::sync::Arc;
 
@@ -50,3 +49,5 @@ impl Heap {
         Err(())
     }
 }
+
+struct HeapIterator {}

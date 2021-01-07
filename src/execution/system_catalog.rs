@@ -6,11 +6,11 @@
 use crate::buffer::manager::{BufferError, BufferManager};
 use crate::common::RelationIdT;
 use crate::relation::heap::Heap;
-use crate::relation::relation::Relation;
 use crate::relation::schema::Schema;
+use crate::relation::Relation;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 /// The system catalog maintains metadata about relations in the database.
 pub struct SystemCatalog {

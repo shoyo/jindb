@@ -6,7 +6,7 @@
 use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
-use crate::relation::relation::Relation;
+use crate::relation::Relation;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
