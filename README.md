@@ -1,5 +1,6 @@
 # <img src="images/logo.png" alt="Jin DB" width="500"/>
-![build](https://github.com/shoyo/jin/workflows/build/badge.svg)
+![Build Status](https://github.com/shoyo/jin/workflows/build/badge.svg)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/shoyo/jin/blob/main/LICENSE)
 
 ## About
 A disk-oriented, relational database written in Rust from scratch.
