@@ -1,4 +1,4 @@
-# ![Jin DB](https://github.com/shoyo/jin/blob/main/images/logo.svg)
+# ![Jin DB](https://github.com/shoyo/jin/blob/main/images/logo.png)
 ![build](https://github.com/shoyo/jin/workflows/build/badge.svg)
 
 ## About
