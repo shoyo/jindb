@@ -34,7 +34,8 @@ fn setup() -> TestContext {
 #[test]
 fn test_create_table() {
     let mut context = setup();
-    let result = context
+
+    let relation_latch = context
         .system_catalog
         .create_relation(
             "Students",
@@ -46,7 +47,23 @@ fn test_create_table() {
             ]),
         )
         .unwrap();
-    let relation = result.lock().unwrap();
+    let relation = relation_latch.lock().unwrap();
+    assert_eq!(relation.id, 0);
+    drop(relation);
+
+    let relation_latch = context
+        .system_catalog
+        .create_relation(
+            "Restaurant",
+            Schema::new(vec![
+                Attribute::new("id", DataType::Varchar, true, true, false),
+                Attribute::new("name", DataType::Varchar, false, false, false),
+                Attribute::new("address", DataType::Varchar, false, false, false),
+                Attribute::new("phone_number", DataType::Varchar, false, false, false),
+            ]),
+        )
+        .unwrap();
+    let relation = relation_latch.lock().unwrap();
     assert_eq!(relation.id, 1);
 }
 
