@@ -39,7 +39,10 @@ impl DiskManager {
     /// Write the specified byte array out to disk.
     pub fn write_page(&self, page_id: PageIdT, page_data: &[u8; PAGE_SIZE as usize]) {
         if !self.is_allocated(page_id) {
-            panic!("Cannot write page (ID: {}) which has not been allocated");
+            panic!(
+                "Cannot write page (ID: {}) which has not been allocated",
+                page_id
+            );
         }
 
         let mut file = open_write_file(&self.db_filename);
@@ -52,7 +55,10 @@ impl DiskManager {
     /// Read a single page's data into the specified byte array.
     pub fn read_page(&self, page_id: PageIdT, page_data: &mut [u8; PAGE_SIZE as usize]) {
         if !self.is_allocated(page_id) {
-            panic!("Cannot read page (ID: {}) which has not been allocated");
+            panic!(
+                "Cannot read page (ID: {}) which has not been allocated",
+                page_id
+            );
         }
 
         let mut file = File::open(&self.db_filename).unwrap();
