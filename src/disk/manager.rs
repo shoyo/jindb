@@ -21,9 +21,8 @@ pub struct DiskManager {
 impl DiskManager {
     /// Create a new disk manager.
     ///
-    /// The first two pages (with ID = 0 and 1) are currently designated to the dictionary page
-    /// and classifier page, respectively. These two pages are allocated when the disk manager is
-    /// initialized.
+    /// The first pages of both the dictionary page and classifier page are allocated when the
+    /// disk manager is initialized. (Pages with ID = 0 and ID = 2)
     pub fn new(filename: &str) -> Self {
         // Create database file.
         let mut file = open_write_file(filename);

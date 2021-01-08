@@ -36,6 +36,7 @@ const TYPE_LENGTH: u32 = 4;
 /// +-----------------+---------------+-----------------+---------------+-----------------+-----+
 /// | ENTRY COUNT (4) | PAGE 1 ID (4) | PAGE 1 TYPE (4) | PAGE 2 ID (4) | PAGE 2 TYPE (4) | ... |
 /// +-----------------+---------------+-----------------+---------------+-----------------+-----+
+
 pub struct ClassifierPage {
     /// A unique identifier for the page
     id: PageIdT,

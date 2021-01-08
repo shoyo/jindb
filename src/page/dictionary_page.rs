@@ -16,14 +16,14 @@ const ROOT_LENGTH: PageIdT = 4;
 /// Specifically, it stores key-value pairs of relation/index names and their corresponding root
 /// page ID. It also stores the total number of entries in the page.
 ///
-/// Whenever a relation or index is needed, the corresponding root page ID is looked up in this
-/// dictionary page. The dictionary page is always pinned to the buffer pool while the
-/// database is running.
+/// Whenever a relation or index is needed, the corresponding root page ID is looked up in the
+/// dictionary page.
 ///
 /// Data format (number denotes size in bytes):
 /// +-----------------+-------------------+--------------------------+-----+
 /// | ENTRY COUNT (4) | ENTRY 1 NAME (64) | ENTRY 1 ROOT PAGE ID (4) | ... |
 /// +-----------------+-------------------+--------------------------+-----+
+
 pub struct DictionaryPage {
     /// A unique identifier for the page
     id: PageIdT,
