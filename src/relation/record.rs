@@ -6,6 +6,7 @@
 use crate::common::{PageIdT, RecordSlotIdT};
 
 use crate::relation::schema::Schema;
+use crate::relation::types::Value;
 
 /// A database record with variable-length attributes.
 ///
@@ -33,7 +34,12 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn new(page_id: PageIdT, slot_index: u32, values: Vec<Value>, schema: &Schema) -> Self {
+    pub fn new(
+        page_id: PageIdT,
+        slot_index: u32,
+        values: Vec<Box<dyn Value>>,
+        schema: &Schema,
+    ) -> Self {
         Self {
             id: RecordId {
                 page_id,
