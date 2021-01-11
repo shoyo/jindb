@@ -8,6 +8,7 @@ pub mod heap;
 pub mod iterator;
 pub mod record;
 pub mod schema;
+pub mod types;
 
 use crate::common::RelationIdT;
 use crate::relation::heap::Heap;

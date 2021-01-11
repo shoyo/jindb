@@ -20,9 +20,9 @@ use crate::relation::schema::Schema;
 /// fixed-length section and null bitmap.
 ///
 /// Data format:
-/// ------------------------------------------------------------
-///  NULL BITMAP | FIXED-LENGTH VALUES | VARIABLE-LENGTH VALUES
-/// ------------------------------------------------------------
+/// +-------------+---------------------+------------------------+
+/// | NULL BITMAP | FIXED-LENGTH VALUES | VARIABLE-LENGTH VALUES |
+/// +-------------+---------------------+------------------------+
 ///
 /// Metadata regarding a record is stored in a system catalog in a separate
 /// database page.
@@ -33,7 +33,7 @@ pub struct Record {
 }
 
 impl Record {
-    pub fn new(page_id: PageIdT, slot_index: u32) -> Self {
+    pub fn new(page_id: PageIdT, slot_index: u32, values: Vec<Value>, schema: &Schema) -> Self {
         Self {
             id: RecordId {
                 page_id,

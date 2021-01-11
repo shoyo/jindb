@@ -3,10 +3,20 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::relation::attribute::{size_of, Attribute};
+use crate::relation::attribute::Attribute;
+use crate::relation::types::size_of;
 use std::convert::TryInto;
 
-/// A schema which defines a collection of attributes for a relation.
+/// A schema defines the structure of a single relation in the database.
+/// A schema is comprised of attributes, which each define details about a single column in the
+/// relation.
+///
+/// Example:
+/// Suppose we define a relation for students at a university.
+/// Attributes may include "full_name", "year_enrolled", "field_of_study", each with different
+/// metadata such as the data type, or whether the field is nullable.
+/// The schema is defined as the collection of each defined attribute.
+
 #[derive(Debug)]
 pub struct Schema {
     pub attributes: Vec<Attribute>,

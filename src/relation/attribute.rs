@@ -3,7 +3,11 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-/// A single attribute in a relation. (i.e. "columns" in a table)
+use crate::relation::types::DataType;
+
+/// An attribute describes details about a single column in a record, such as its name, data
+/// type, and whether it can be null.
+
 #[derive(Debug)]
 pub struct Attribute {
     pub name: String,
@@ -28,30 +32,5 @@ impl Attribute {
             serial,
             nullable,
         }
-    }
-}
-
-/// Data types for values in the database.
-#[derive(Copy, Clone, Debug)]
-pub enum DataType {
-    Boolean,
-    TinyInt,
-    SmallInt,
-    Int,
-    BigInt,
-    Decimal,
-    Varchar,
-}
-
-/// Return the size of a data type in bytes.
-pub fn size_of(data_type: DataType) -> u8 {
-    match data_type {
-        DataType::Boolean => 1,
-        DataType::TinyInt => 1,
-        DataType::SmallInt => 2,
-        DataType::Int => 4,
-        DataType::BigInt => 8,
-        DataType::Decimal => 8,
-        DataType::Varchar => 8,
     }
 }
