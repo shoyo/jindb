@@ -8,8 +8,12 @@ use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::concurrency::transaction_manager::TransactionManager;
 use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
-use jin::relation::attribute::{Attribute, DataType};
+use jin::relation::attribute::Attribute;
+use jin::relation::record::Record;
 use jin::relation::schema::Schema;
+use jin::relation::types::DataType;
+use jin::relation::Relation;
+use std::alloc::System;
 use std::sync::Arc;
 use std::thread;
 
@@ -32,9 +36,28 @@ fn setup() -> TestContext {
     }
 }
 
+/// Create a sample relation.
+fn create_sample_relation(catalog: &SystemCatalog) -> Arc<Relation> {
+    catalog
+        .create_relation(
+            "foobar",
+            Schema::new(vec![
+                Attribute::new("foo", DataType::Int, true, true, false),
+                Attribute::new("bar", DataType::Boolean, false, false, false),
+                Attribute::new("baz", DataType::Varchar, false, false, false),
+            ]),
+        )
+        .unwrap()
+}
+
+/// Create a sample record that can be inserted in the sample relation.
+fn create_valid_sample_record() -> Record {
+    todo!()
+}
+
 #[test]
 fn test_create_relation() {
-    let mut context = setup();
+    let context = setup();
 
     let relation = context
         .system_catalog
@@ -63,15 +86,12 @@ fn test_create_relation() {
 
 #[test]
 fn test_get_relation() {
-    let mut context = setup();
+    let context = setup();
     let catalog1 = context.system_catalog.clone();
     let catalog2 = context.system_catalog.clone();
 
     // Create new relation.
-    let relation = context
-        .system_catalog
-        .create_relation("foo", Schema::new(vec![]))
-        .unwrap();
+    let relation = create_sample_relation(&context.system_catalog);
 
     let id = relation.get_id();
     let name = relation.get_name().to_string();
@@ -100,8 +120,13 @@ fn test_get_relation() {
 
 #[ignore]
 #[test]
-fn test_insert_update_delete_tuple() {
-    assert!(false);
+fn test_insert_record() {
+    let context = setup();
+
+    // Create new relation.
+    let relation = create_sample_relation(&context.system_catalog);
+
+    // relation.insert_record()
 }
 
 #[ignore]
