@@ -266,7 +266,7 @@ impl BufferManager {
         }
     }
 
-    /// Find the specified page in the page table, and return its frame ID.
+    /// Find the specified page in the page table, and return its frame latch.
     /// If the page does not exist in the page table, then return None.
     /// Panic if a frame that the page table points to is empty or contains the wrong page.
     fn _page_table_lookup(&self, page_id: PageIdT) -> Option<FrameLatch> {
