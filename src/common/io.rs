@@ -197,10 +197,7 @@ pub fn write_f32(array: &mut [u8], offset: u32, value: f32) -> Result<(), IoErro
 pub fn read_string(array: &[u8], offset: u32, length: u32) -> Result<String, IoError> {
     let offset = offset as usize;
     let length = length as usize;
-
-    if offset + length > array.len() {
-        return Err(IoError::Overflow);
-    }
+    check_overflow(array.len(), offset, length)?;
 
     // Scan array from right and find where null bytes end.
     let mut trim_idx = offset + length;
@@ -225,10 +222,7 @@ pub fn read_string(array: &[u8], offset: u32, length: u32) -> Result<String, IoE
 #[inline]
 pub fn write_string(array: &mut [u8], offset: u32, string: &str) -> Result<(), IoError> {
     let offset = offset as usize;
-
-    if offset + string.len() > array.len() {
-        return Err(IoError::Overflow);
-    }
+    check_overflow(array.len(), offset, string.len())?;
 
     let bytes = string.as_bytes();
     for i in 0..bytes.len() {
