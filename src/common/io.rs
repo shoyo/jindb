@@ -3,21 +3,28 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{PageIdT, PAGE_SIZE};
-use crate::page::classifier_page::ClassifierPage;
-use crate::page::dictionary_page::DictionaryPage;
-use crate::page::relation_page::RelationPage;
-use crate::page::Page;
-
 /// Utility functions for reading and writing byte arrays.
+
+/// Read a boolean at the specified location in the byte array.
+#[inline]
+pub fn read_bool(array: &[u8], addr: u32) -> Result<bool, IoError> {
+    todo!()
+}
+
+/// Write a boolean at the specified location in the byte array.
+#[inline]
+pub fn write_bool(array: &mut [u8], addr: u32, value: bool) -> Result<(), IoError> {
+    todo!()
+}
 
 /// Read an unsigned 32-bit integer at the specified location in the byte array.
 #[inline]
-pub fn read_u32(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<u32, String> {
-    if addr + 4 > PAGE_SIZE {
-        return Err(overflow_error());
-    }
+pub fn read_u32(array: &[u8], addr: u32) -> Result<u32, IoError> {
     let addr = addr as usize;
+    if addr + 4 > array.len() {
+        return Err(IoError::Overflow);
+    }
+
     let mut bytes = [0; 4];
     for i in 0..4 {
         bytes[i] = array[addr + i];
@@ -29,15 +36,12 @@ pub fn read_u32(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<u32, Stri
 /// Write an unsigned 32-bit integer at the specified location in the byte array. Any existing
 /// value is overwritten.
 #[inline]
-pub fn write_u32(
-    array: &mut [u8; PAGE_SIZE as usize],
-    addr: u32,
-    value: u32,
-) -> Result<(), String> {
-    if addr + 4 > PAGE_SIZE {
-        return Err(overflow_error());
-    }
+pub fn write_u32(array: &mut [u8], addr: u32, value: u32) -> Result<(), IoError> {
     let addr = addr as usize;
+    if addr + 4 > array.len() {
+        return Err(IoError::Overflow);
+    }
+
     array[addr] = (value & 0xff) as u8;
     array[addr + 1] = ((value >> 8) & 0xff) as u8;
     array[addr + 2] = ((value >> 16) & 0xff) as u8;
@@ -45,18 +49,77 @@ pub fn write_u32(
     Ok(())
 }
 
-/// Read a 32-byte string at the specified location in the byte array. It is assumed that the
-/// string is encoded as valid UTF-8.
+/// Read a signed 8-bit integer at the specified location in the byte array.
 #[inline]
-pub fn read_str256(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<String, String> {
-    if addr + 32 > PAGE_SIZE {
-        return Err(overflow_error());
+pub fn read_i8(array: &[u8], addr: u32) -> Result<i8, IoError> {
+    todo!()
+}
+
+/// Write a signed 8-bit integer at the specified location in the byte array.
+#[inline]
+pub fn write_i8(array: &mut [u8], addr: u32, value: i8) -> Result<(), IoError> {
+    todo!()
+}
+
+/// Read a signed 16-bit integer at the specified location in the byte array.
+#[inline]
+pub fn read_i16(array: &[u8], addr: u32) -> Result<i16, IoError> {
+    todo!()
+}
+
+/// Write a signed 16-bit integer at the specified location in the byte array.
+#[inline]
+pub fn write_i16(array: &mut [u8], addr: u32, value: i16) -> Result<(), IoError> {
+    todo!()
+}
+
+/// Read a signed 32-bit integer at the specified location in the byte array.
+#[inline]
+pub fn read_i32(array: &[u8], addr: u32) -> Result<i32, IoError> {
+    todo!()
+}
+/// Write a signed 32-bit integer at the specified location in the byte array.
+#[inline]
+pub fn write_i32(array: &mut [u8], addr: u32, value: i32) -> Result<(), IoError> {
+    todo!()
+}
+
+/// Read a signed 64-bit integer at the specified location in the byte array.
+#[inline]
+pub fn read_i64(array: &[u8], addr: u32) -> Result<i64, IoError> {
+    todo!()
+}
+
+/// Write a signed 64-bit integer at the specified location in the byte array.
+#[inline]
+pub fn write_i64(array: &mut [u8], addr: u32, value: i64) -> Result<(), IoError> {
+    todo!()
+}
+
+/// Read a signed 32-bit float at the specified location in the byte array.
+#[inline]
+pub fn read_f32(array: &[u8], addr: u32) -> Result<f32, IoError> {
+    todo!()
+}
+/// Write a signed 32-bit float at the specified location in the byte array.
+#[inline]
+pub fn write_f32(array: &mut [u8], addr: u32, value: f32) -> Result<(), IoError> {
+    todo!()
+}
+
+/// Read a variable-length string with a specified offset/length in the byte array.
+#[inline]
+pub fn read_string(array: &[u8], offset: u32, length: u32) -> Result<String, IoError> {
+    let offset = offset as usize;
+    let length = length as usize;
+
+    if offset + length > array.len() {
+        return Err(IoError::Overflow);
     }
-    let addr = addr as usize;
 
     // Scan array from right and find where null bytes end.
-    let mut trim_idx = addr + 32;
-    for i in (addr..addr + 32).rev() {
+    let mut trim_idx = offset + length;
+    for i in (offset..offset + length).rev() {
         if array[i] != 0 {
             trim_idx = i + 1;
             break;
@@ -64,43 +127,61 @@ pub fn read_str256(array: &[u8; PAGE_SIZE as usize], addr: u32) -> Result<String
     }
 
     // Parse byte array without trailing null bytes into String.
-    match String::from_utf8(Vec::from(&array[addr..trim_idx])) {
+    match String::from_utf8(Vec::from(&array[offset..trim_idx])) {
         Ok(s) => Ok(s),
-        Err(_) => return Err(format!("String stored in byte array is not valid UTF-8")),
+        Err(_) => {
+            return Err(IoError::Custom(format!(
+                "String stored in byte array is not valid UTF-8"
+            )))
+        }
     }
+}
+/// Write a variable-length string with a specified offset/length in the byte array.
+#[inline]
+pub fn write_string(array: &mut [u8], offset: u32, string: &str) -> Result<(), IoError> {
+    let offset = offset as usize;
+
+    if offset + string.len() > array.len() {
+        return Err(IoError::Overflow);
+    }
+
+    let bytes = string.as_bytes();
+    for i in 0..bytes.len() {
+        array[offset + i] = bytes[i];
+    }
+    Ok(())
+}
+
+/// Read a 32-byte string at the specified location in the byte array. It is assumed that the
+/// string is encoded as valid UTF-8.
+#[inline]
+pub fn read_str256(array: &[u8], addr: u32) -> Result<String, IoError> {
+    read_string(array, addr, 32)
 }
 
 /// Write a 32-byte string at the specified location in the byte array. Any existing value is
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
 #[inline]
-pub fn write_str256(
-    array: &mut [u8; PAGE_SIZE as usize],
-    addr: u32,
-    string: &str,
-) -> Result<(), String> {
-    if addr + 32 > PAGE_SIZE {
-        return Err(overflow_error());
+pub fn write_str256(array: &mut [u8], addr: u32, string: &str) -> Result<(), IoError> {
+    if string.as_bytes().len() > 32 {
+        return Err(IoError::Custom(format!(
+            "Length of string cannot exceed 32 bytes"
+        )));
     }
-    let addr = addr as usize;
-    let bytes = string.as_bytes();
-    if bytes.len() > 32 {
-        return Err(format!("Length of string cannot exceed 32 bytes"));
-    }
-    for i in 0..bytes.len() {
-        array[addr + i] = bytes[i];
-    }
-    Ok(())
+    write_string(array, addr, string)
 }
 
-/// Return an overflow error message.
-#[inline(always)]
-fn overflow_error() -> String {
-    format!("Cannot access value from byte array address (overflow)")
+/// Custom IO-related errors.
+#[derive(Debug)]
+pub enum IoError {
+    Overflow,
+    Custom(String),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::PAGE_SIZE;
 
     #[test]
     fn test_read_u32() {
