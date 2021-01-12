@@ -5,105 +5,105 @@
 
 /// Utility functions for reading and writing byte arrays.
 
-/// Read a boolean at the specified location in the byte array.
+/// Read a boolean at the specified offset in the byte array.
 #[inline]
-pub fn read_bool(array: &[u8], addr: u32) -> Result<bool, IoError> {
+pub fn read_bool(array: &[u8], offset: u32) -> Result<bool, IoError> {
     todo!()
 }
 
-/// Write a boolean at the specified location in the byte array.
+/// Write a boolean at the specified offset in the byte array.
 #[inline]
-pub fn write_bool(array: &mut [u8], addr: u32, value: bool) -> Result<(), IoError> {
+pub fn write_bool(array: &mut [u8], offset: u32, value: bool) -> Result<(), IoError> {
     todo!()
 }
 
-/// Read an unsigned 32-bit integer at the specified location in the byte array.
+/// Read an unsigned 32-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn read_u32(array: &[u8], addr: u32) -> Result<u32, IoError> {
-    let addr = addr as usize;
-    if addr + 4 > array.len() {
+pub fn read_u32(array: &[u8], offset: u32) -> Result<u32, IoError> {
+    let offset = offset as usize;
+    if offset + 4 > array.len() {
         return Err(IoError::Overflow);
     }
 
     let mut bytes = [0; 4];
     for i in 0..4 {
-        bytes[i] = array[addr + i];
+        bytes[i] = array[offset + i];
     }
     let value = u32::from_le_bytes(bytes);
     Ok(value)
 }
 
-/// Write an unsigned 32-bit integer at the specified location in the byte array. Any existing
+/// Write an unsigned 32-bit integer at the specified offset in the byte array. Any existing
 /// value is overwritten.
 #[inline]
-pub fn write_u32(array: &mut [u8], addr: u32, value: u32) -> Result<(), IoError> {
-    let addr = addr as usize;
-    if addr + 4 > array.len() {
+pub fn write_u32(array: &mut [u8], offset: u32, value: u32) -> Result<(), IoError> {
+    let offset = offset as usize;
+    if offset + 4 > array.len() {
         return Err(IoError::Overflow);
     }
 
-    array[addr] = (value & 0xff) as u8;
-    array[addr + 1] = ((value >> 8) & 0xff) as u8;
-    array[addr + 2] = ((value >> 16) & 0xff) as u8;
-    array[addr + 3] = ((value >> 24) & 0xff) as u8;
+    array[offset] = (value & 0xff) as u8;
+    array[offset + 1] = ((value >> 8) & 0xff) as u8;
+    array[offset + 2] = ((value >> 16) & 0xff) as u8;
+    array[offset + 3] = ((value >> 24) & 0xff) as u8;
     Ok(())
 }
 
-/// Read a signed 8-bit integer at the specified location in the byte array.
+/// Read a signed 8-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn read_i8(array: &[u8], addr: u32) -> Result<i8, IoError> {
+pub fn read_i8(array: &[u8], offset: u32) -> Result<i8, IoError> {
     todo!()
 }
 
-/// Write a signed 8-bit integer at the specified location in the byte array.
+/// Write a signed 8-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn write_i8(array: &mut [u8], addr: u32, value: i8) -> Result<(), IoError> {
+pub fn write_i8(array: &mut [u8], offset: u32, value: i8) -> Result<(), IoError> {
     todo!()
 }
 
-/// Read a signed 16-bit integer at the specified location in the byte array.
+/// Read a signed 16-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn read_i16(array: &[u8], addr: u32) -> Result<i16, IoError> {
+pub fn read_i16(array: &[u8], offset: u32) -> Result<i16, IoError> {
     todo!()
 }
 
-/// Write a signed 16-bit integer at the specified location in the byte array.
+/// Write a signed 16-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn write_i16(array: &mut [u8], addr: u32, value: i16) -> Result<(), IoError> {
+pub fn write_i16(array: &mut [u8], offset: u32, value: i16) -> Result<(), IoError> {
     todo!()
 }
 
-/// Read a signed 32-bit integer at the specified location in the byte array.
+/// Read a signed 32-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn read_i32(array: &[u8], addr: u32) -> Result<i32, IoError> {
+pub fn read_i32(array: &[u8], offset: u32) -> Result<i32, IoError> {
     todo!()
 }
-/// Write a signed 32-bit integer at the specified location in the byte array.
+/// Write a signed 32-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn write_i32(array: &mut [u8], addr: u32, value: i32) -> Result<(), IoError> {
-    todo!()
-}
-
-/// Read a signed 64-bit integer at the specified location in the byte array.
-#[inline]
-pub fn read_i64(array: &[u8], addr: u32) -> Result<i64, IoError> {
+pub fn write_i32(array: &mut [u8], offset: u32, value: i32) -> Result<(), IoError> {
     todo!()
 }
 
-/// Write a signed 64-bit integer at the specified location in the byte array.
+/// Read a signed 64-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn write_i64(array: &mut [u8], addr: u32, value: i64) -> Result<(), IoError> {
+pub fn read_i64(array: &[u8], offset: u32) -> Result<i64, IoError> {
     todo!()
 }
 
-/// Read a signed 32-bit float at the specified location in the byte array.
+/// Write a signed 64-bit integer at the specified offset in the byte array.
 #[inline]
-pub fn read_f32(array: &[u8], addr: u32) -> Result<f32, IoError> {
+pub fn write_i64(array: &mut [u8], offset: u32, value: i64) -> Result<(), IoError> {
     todo!()
 }
-/// Write a signed 32-bit float at the specified location in the byte array.
+
+/// Read a signed 32-bit float at the specified offset in the byte array.
 #[inline]
-pub fn write_f32(array: &mut [u8], addr: u32, value: f32) -> Result<(), IoError> {
+pub fn read_f32(array: &[u8], offset: u32) -> Result<f32, IoError> {
+    todo!()
+}
+/// Write a signed 32-bit float at the specified offset in the byte array.
+#[inline]
+pub fn write_f32(array: &mut [u8], offset: u32, value: f32) -> Result<(), IoError> {
     todo!()
 }
 
@@ -152,23 +152,23 @@ pub fn write_string(array: &mut [u8], offset: u32, string: &str) -> Result<(), I
     Ok(())
 }
 
-/// Read a 32-byte string at the specified location in the byte array. It is assumed that the
+/// Read a 32-byte string at the specified offset in the byte array. It is assumed that the
 /// string is encoded as valid UTF-8.
 #[inline]
-pub fn read_str256(array: &[u8], addr: u32) -> Result<String, IoError> {
-    read_string(array, addr, 32)
+pub fn read_str256(array: &[u8], offset: u32) -> Result<String, IoError> {
+    read_string(array, offset, 32)
 }
 
-/// Write a 32-byte string at the specified location in the byte array. Any existing value is
+/// Write a 32-byte string at the specified offset in the byte array. Any existing value is
 /// overwritten. If is assumed that the string is encoded as valid UTF-8.
 #[inline]
-pub fn write_str256(array: &mut [u8], addr: u32, string: &str) -> Result<(), IoError> {
+pub fn write_str256(array: &mut [u8], offset: u32, string: &str) -> Result<(), IoError> {
     if string.as_bytes().len() > 32 {
         return Err(IoError::Custom(format!(
             "Length of string cannot exceed 32 bytes"
         )));
     }
-    write_string(array, addr, string)
+    write_string(array, offset, string)
 }
 
 /// Custom IO-related errors.
