@@ -301,4 +301,102 @@ mod tests {
         let result = write_str256(&mut array, offset as u32, too_long);
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_read_write_string() {
+        let mut array = vec![0; 100];
+        let offset = 25;
+        let value = "hello, world! foo bar baz.";
+
+        let result = write_string(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_string(array.as_slice(), offset, value.len() as u32);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value.to_string());
+    }
+
+    #[test]
+    fn test_read_write_bool() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = true;
+
+        let result = write_bool(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_bool(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
+
+    #[test]
+    fn test_read_write_i8() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = -100;
+
+        let result = write_i8(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_i8(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
+
+    #[test]
+    fn test_read_write_i16() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = -300;
+
+        let result = write_i16(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_i16(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
+
+    #[test]
+    fn test_read_write_i32() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = -70_000;
+
+        let result = write_i32(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_i32(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
+
+    #[test]
+    fn test_read_write_i64() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = -5_000_000_000;
+
+        let result = write_i64(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_i64(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
+
+    #[test]
+    fn test_read_write_f32() {
+        let mut array = vec![0; 100];
+        let offset = 43;
+        let value = -76_543.21;
+
+        let result = write_f32(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_f32(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
+    }
 }
