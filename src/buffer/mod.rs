@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{BufferFrameIdT};
-use crate::page::{Page};
+use crate::common::BufferFrameIdT;
+use crate::page::Page;
 
 use std::sync::{Arc, RwLock};
 
@@ -71,9 +71,9 @@ impl BufferFrame {
         self.id
     }
 
-    /// Return an immutable reference to the contained page.
-    pub fn get_page(&self) -> &Option<Box<dyn Page + Send + Sync>> {
-        &self.page
+    /// Return an immutable reference to the contained page wrapped in an Option.
+    pub fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>> {
+        self.page.as_ref()
     }
 
     /// Overwrite the existing page.

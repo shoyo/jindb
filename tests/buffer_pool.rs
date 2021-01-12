@@ -30,7 +30,7 @@ fn test_create_buffer_page() {
 
     // Assert that the created page is initialized as expected.
     assert!(frame.get_page().is_some());
-    let page = frame.get_page().as_ref().unwrap();
+    let page = frame.get_page().unwrap();
     assert_eq!(page.get_id(), common::FIRST_RELATION_PAGE_ID);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
