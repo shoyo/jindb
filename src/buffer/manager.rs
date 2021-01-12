@@ -262,7 +262,7 @@ impl BufferManager {
             // Unwrapping is okay here because a dirty frame implies that a page is contained in
             // the frame.
             let page = frame.get_page().unwrap();
-            self.disk_manager.write_page(page.get_id(), page.get_data())
+            self.disk_manager.write_page(page.get_id(), page.as_bytes())
         }
     }
 

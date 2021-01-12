@@ -38,7 +38,7 @@ impl Page for DictionaryPage {
         self.id
     }
 
-    fn get_data(&self) -> &[u8; PAGE_SIZE as usize] {
+    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
         &self.data
     }
 
@@ -139,8 +139,8 @@ impl Iterator for DictionaryPageIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let name_offset = COUNT_OFFSET + COUNT_LENGTH + self.idx * (NAME_LENGTH + ROOT_LENGTH);
         let root_offset = name_offset + NAME_LENGTH;
-        let name = read_str256(self.page.get_data(), name_offset).unwrap();
-        let root = read_u32(self.page.get_data(), root_offset).unwrap();
+        let name = read_str256(self.page.as_bytes(), name_offset).unwrap();
+        let root = read_u32(self.page.as_bytes(), root_offset).unwrap();
 
         self.idx += 1;
         if self.idx > self.count {

@@ -51,7 +51,7 @@ impl Page for ClassifierPage {
         self.id
     }
 
-    fn get_data(&self) -> &[u8; PAGE_SIZE as usize] {
+    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
         &self.data
     }
 
@@ -123,8 +123,8 @@ impl Iterator for ClassifierPageIterator {
     fn next(&mut self) -> Option<Self::Item> {
         let id_offset = COUNT_OFFSET + COUNT_LENGTH + self.idx * (ID_LENGTH + TYPE_LENGTH);
         let type_offset = id_offset + ID_LENGTH;
-        let page_id = read_u32(self.page.get_data(), id_offset).unwrap();
-        let page_type = match read_u32(self.page.get_data(), type_offset).unwrap() {
+        let page_id = read_u32(self.page.as_bytes(), id_offset).unwrap();
+        let page_type = match read_u32(self.page.as_bytes(), type_offset).unwrap() {
             CLASSIFIER_TYPE => PageVariant::Classifier,
             DICTIONARY_TYPE => PageVariant::Dictionary,
             RELATION_TYPE => PageVariant::Relation,

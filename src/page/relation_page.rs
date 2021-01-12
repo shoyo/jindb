@@ -64,7 +64,7 @@ impl Page for RelationPage {
         self.id
     }
 
-    fn get_data(&self) -> &[u8; PAGE_SIZE as usize] {
+    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
         &self.data
     }
 
