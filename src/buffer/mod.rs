@@ -81,11 +81,6 @@ impl BufferFrame {
         self.page = page;
     }
 
-    /// Return a mutable reference to the contained page.
-    pub fn get_mut_page(&mut self) -> &mut Option<Box<dyn Page + Send + Sync>> {
-        &mut self.page
-    }
-
     /// Return the dirty flag of this buffer frame.
     pub fn is_dirty(&self) -> bool {
         self.dirty_flag
