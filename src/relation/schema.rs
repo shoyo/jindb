@@ -5,7 +5,6 @@
 
 use crate::relation::attribute::Attribute;
 use crate::relation::types::size_of;
-use std::convert::TryInto;
 
 /// A schema defines the structure of a single relation in the database.
 /// A schema is comprised of attributes, which each define details about a single column in the
@@ -23,14 +22,14 @@ pub struct Schema {
 }
 
 impl Schema {
-    /// Initialize a new schema with a vector of attributes, parsed from left-to-right.
+    /// Create a new schema with a vector of attributes, parsed from left-to-right.
     pub fn new(attributes: Vec<Attribute>) -> Self {
         Self { attributes }
     }
 
     /// Return the number of the attributes in this schema.
     pub fn attr_len(&self) -> u32 {
-        self.attributes.len().try_into().unwrap()
+        self.attributes.len() as u32
     }
 
     /// Return the number of bytes of the fixed-length values of a record defined by this schema.
@@ -41,7 +40,7 @@ impl Schema {
         while let Some(attr) = attrs.next() {
             len += size_of(attr.data_type);
         }
-        len.try_into().unwrap()
+        len as u32
     }
 
     /// Return the index of the column which corresponds to the given attribute.
@@ -49,7 +48,7 @@ impl Schema {
     pub fn get_column_index(&self, attr_name: &str) -> Option<u32> {
         for (i, attr) in self.attributes.iter().enumerate() {
             if &attr.name == attr_name {
-                return Some(i.try_into().unwrap());
+                return Some(i as u32);
             }
         }
         None

@@ -29,8 +29,11 @@ impl Heap {
     }
 
     /// Insert a record into the relation.
-    pub fn insert(&mut self, _record: Record) -> Result<(), ()> {
-        Err(())
+    pub fn insert(&mut self, record: Record) -> Result<RecordId, HeapError> {
+        if record.is_allocated() {
+            return Err(HeapError::AlreadyAllocRecErr);
+        }
+        todo!()
     }
 
     /// Update a record in this relation.
@@ -56,3 +59,12 @@ impl Heap {
 }
 
 struct HeapIterator {}
+
+/// Custom error types to be used by the heap.
+
+#[derive(Debug)]
+pub enum HeapError {
+    /// Error to be thrown when a record to be used for insertion or replacement is already
+    /// allocated elsewhere on disk.
+    AlreadyAllocRecErr,
+}

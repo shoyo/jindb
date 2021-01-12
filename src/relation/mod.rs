@@ -11,9 +11,10 @@ pub mod schema;
 pub mod types;
 
 use crate::common::RelationIdT;
-use crate::relation::heap::Heap;
+use crate::relation::heap::{Heap, HeapError};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::schema::Schema;
+use crate::relation::types::Value;
 
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {
@@ -56,8 +57,8 @@ impl Relation {
         &self.schema
     }
 
-    /// Insert a record into this relation.
-    pub fn insert_record(&mut self, record: Record) -> Result<(), ()> {
+    /// Insert a record into this relation. Return the record ID of the inserted record.
+    pub fn insert_record(&mut self, record: Record) -> Result<RecordId, HeapError> {
         self.heap.insert(record)
     }
 
