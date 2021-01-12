@@ -8,29 +8,46 @@
 /// Read a boolean at the specified offset in the byte array.
 #[inline]
 pub fn read_bool(array: &[u8], offset: u32) -> Result<bool, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 1)?;
+
+    let byte = array[offset];
+    match array[offset] {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(IoError::Custom(format!(
+            "Expected either 0 or 1 for underlying bool representation, found: {}",
+            byte
+        ))),
+    }
 }
 
 /// Write a boolean at the specified offset in the byte array.
 #[inline]
 pub fn write_bool(array: &mut [u8], offset: u32, value: bool) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 1)?;
+
+    match value {
+        true => array[offset] = 1u8,
+        false => array[offset] = 0u8,
+    }
+
+    Ok(())
 }
 
 /// Read an unsigned 32-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_u32(array: &[u8], offset: u32) -> Result<u32, IoError> {
     let offset = offset as usize;
-    if offset + 4 > array.len() {
-        return Err(IoError::Overflow);
-    }
+    check_overflow(array.len(), offset, 4)?;
 
     let mut bytes = [0; 4];
     for i in 0..4 {
         bytes[i] = array[offset + i];
     }
-    let value = u32::from_le_bytes(bytes);
-    Ok(value)
+
+    Ok(u32::from_le_bytes(bytes))
 }
 
 /// Write an unsigned 32-bit integer at the specified offset in the byte array. Any existing
@@ -38,73 +55,141 @@ pub fn read_u32(array: &[u8], offset: u32) -> Result<u32, IoError> {
 #[inline]
 pub fn write_u32(array: &mut [u8], offset: u32, value: u32) -> Result<(), IoError> {
     let offset = offset as usize;
-    if offset + 4 > array.len() {
-        return Err(IoError::Overflow);
+    check_overflow(array.len(), offset, 4)?;
+
+    for i in 0..4 {
+        array[offset + i] = ((value >> (i * 8)) & 0xff) as u8;
     }
 
-    array[offset] = (value & 0xff) as u8;
-    array[offset + 1] = ((value >> 8) & 0xff) as u8;
-    array[offset + 2] = ((value >> 16) & 0xff) as u8;
-    array[offset + 3] = ((value >> 24) & 0xff) as u8;
     Ok(())
 }
 
 /// Read a signed 8-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_i8(array: &[u8], offset: u32) -> Result<i8, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 1)?;
+
+    Ok(i8::from_le_bytes([array[offset]]))
 }
 
 /// Write a signed 8-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn write_i8(array: &mut [u8], offset: u32, value: i8) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 1)?;
+
+    array[offset] = value as u8;
+
+    Ok(())
 }
 
 /// Read a signed 16-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_i16(array: &[u8], offset: u32) -> Result<i16, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 2)?;
+
+    let mut bytes = [0; 2];
+    bytes[0] = array[offset];
+    bytes[1] = array[offset + 1];
+
+    Ok(i16::from_le_bytes(bytes))
 }
 
 /// Write a signed 16-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn write_i16(array: &mut [u8], offset: u32, value: i16) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 2)?;
+
+    array[offset] = (value & 0xff) as u8;
+    array[offset + 1] = ((value >> 8) & 0xff) as u8;
+
+    Ok(())
 }
 
 /// Read a signed 32-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_i32(array: &[u8], offset: u32) -> Result<i32, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 4)?;
+
+    let mut bytes = [0; 4];
+    for i in 0..4 {
+        bytes[i] = array[offset + i];
+    }
+
+    Ok(i32::from_le_bytes(bytes))
 }
+
 /// Write a signed 32-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn write_i32(array: &mut [u8], offset: u32, value: i32) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 4)?;
+
+    for i in 0..4 {
+        array[offset + i] = ((value >> (i * 8)) & 0xff) as u8;
+    }
+
+    Ok(())
 }
 
 /// Read a signed 64-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_i64(array: &[u8], offset: u32) -> Result<i64, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 8)?;
+
+    let mut bytes = [0; 8];
+    for i in 0..8 {
+        bytes[i] = array[offset + i];
+    }
+
+    Ok(i64::from_le_bytes(bytes))
 }
 
 /// Write a signed 64-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn write_i64(array: &mut [u8], offset: u32, value: i64) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 8)?;
+
+    for i in 0..8 {
+        array[offset + i] = ((value >> (i * 8)) & 0xff) as u8;
+    }
+
+    Ok(())
 }
 
 /// Read a signed 32-bit float at the specified offset in the byte array.
 #[inline]
 pub fn read_f32(array: &[u8], offset: u32) -> Result<f32, IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 4)?;
+
+    let mut bytes = [0; 4];
+    for i in 0..4 {
+        bytes[i] = array[offset + i];
+    }
+
+    Ok(f32::from_le_bytes(bytes))
 }
+
 /// Write a signed 32-bit float at the specified offset in the byte array.
 #[inline]
 pub fn write_f32(array: &mut [u8], offset: u32, value: f32) -> Result<(), IoError> {
-    todo!()
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 4)?;
+
+    let bytes = f32::to_le_bytes(value);
+
+    for i in 0..4 {
+        array[offset + i] = bytes[i];
+    }
+
+    Ok(())
 }
 
 /// Read a variable-length string with a specified offset/length in the byte array.
@@ -169,6 +254,16 @@ pub fn write_str256(array: &mut [u8], offset: u32, string: &str) -> Result<(), I
         )));
     }
     write_string(array, offset, string)
+}
+
+/// Return an Error if inserting data of specified offset/length into an array of a given
+/// array_len would cause an overflow.
+#[inline(always)]
+fn check_overflow(array_len: usize, offset: usize, length: usize) -> Result<(), IoError> {
+    if offset + length > array_len {
+        return Err(IoError::Overflow);
+    }
+    Ok(())
 }
 
 /// Custom IO-related errors.
