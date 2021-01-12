@@ -182,8 +182,8 @@ impl RelationPage {
         // Update header
         self.set_free_space_pointer(new_free_ptr);
         self.set_num_records(num_records + 1);
-        write_u32(&mut self.data, new_free_ptr + 1, offset_addr);
-        write_u32(&mut self.data, record_data.len() as u32, length_addr);
+        write_u32(&mut self.data, new_free_ptr + 1, offset_addr).unwrap();
+        write_u32(&mut self.data, record_data.len() as u32, length_addr).unwrap();
 
         Ok(())
     }
