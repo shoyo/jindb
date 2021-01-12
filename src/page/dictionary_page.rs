@@ -3,8 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use crate::common::io::{read_str256, read_u32, write_str256, write_u32};
 use crate::common::{LsnT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
-use crate::page::{read_str256, read_u32, write_str256, write_u32, Page, PageVariant};
+use crate::page::{Page, PageVariant};
 
 const COUNT_OFFSET: u32 = 0;
 const COUNT_LENGTH: u32 = 4;

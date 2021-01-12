@@ -4,6 +4,7 @@
  */
 
 pub mod collections;
+pub mod io;
 
 /// Note: This file is NOT a configuration file. The type aliases and global constants below are
 /// primarily meant to improve readability throughout the codebase. The values should not be

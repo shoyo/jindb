@@ -3,8 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use crate::common::io::{read_u32, write_u32};
 use crate::common::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
-use crate::page::{read_u32, write_u32, Page, PageVariant};
+use crate::page::{Page, PageVariant};
 
 /// Constants for encoding page variants as an unsigned integer.
 const CLASSIFIER_TYPE: u32 = 0;
