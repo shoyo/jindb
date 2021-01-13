@@ -38,7 +38,7 @@ impl Schema {
         let mut len = 0;
         let mut attrs = self.attributes.iter();
         while let Some(attr) = attrs.next() {
-            len += size_of(attr.data_type);
+            len += size_of(attr.get_data_type());
         }
         len as u32
     }
@@ -47,7 +47,7 @@ impl Schema {
     /// Attributes can be queried by passing in the name as a string slice.
     pub fn get_column_index(&self, attr_name: &str) -> Option<u32> {
         for (i, attr) in self.attributes.iter().enumerate() {
-            if &attr.name == attr_name {
+            if attr.get_name() == attr_name {
                 return Some(i as u32);
             }
         }

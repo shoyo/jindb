@@ -8,7 +8,7 @@ use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::{Page, PageVariant};
 use crate::relation::record::Record;
 
-/// Constants for slotted-page page header
+/// Constants for slotted-page page header.
 const PAGE_ID_OFFSET: u32 = 0;
 const PREV_PAGE_ID_OFFSET: u32 = 4;
 const NEXT_PAGE_ID_OFFSET: u32 = 8;

@@ -3,11 +3,18 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use crate::common::bitmap::{get_nth_bit, set_nth_bit};
+use crate::common::io::{
+    write_bool, write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
+};
 use crate::common::{PageIdT, RecordSlotIdT};
-
 use crate::relation::schema::Schema;
-use crate::relation::types::{DataType, Value};
+use crate::relation::types::{size_of, DataType, InnerValue, Value};
+use std::collections::VecDeque;
 use std::sync::Arc;
+
+/// Constants for record offsets.
+const FIXED_VALUES_OFFSET: u32 = 4;
 
 /// A database record with variable-length attributes.
 ///
@@ -50,29 +57,120 @@ impl Record {
     /// A newly created record is initially unallocated, and thus does not have a record ID. A
     /// record can be allocated by calling .allocate() with the corresponding page ID and slot
     /// index.
-    pub fn new(values: Vec<Box<dyn Value>>, schema: Arc<Schema>) -> Self {
-        // Initialize an empty byte vector.
-        let mut bytes = Vec::new();
+    pub fn new(
+        values: Vec<Option<Box<dyn Value>>>,
+        schema: Arc<Schema>,
+    ) -> Result<Self, RecordErr> {
+        // Assert that values and schema are the same length.
+        if values.len() as u32 != schema.attr_len() {
+            return Err(RecordErr(format!(
+                "Provided values and schema are mismatched lengths"
+            )));
+        }
 
-        // For each value, write the value to the byte vector.
-        for value in values {
-            match value.data_type() {
-                DataType::Boolean => {}
-                DataType::TinyInt => {}
-                DataType::SmallInt => {}
-                DataType::Int => {}
-                DataType::BigInt => {}
-                DataType::Decimal => {}
-                DataType::Varchar => {}
+        // Empty byte vector and bitmap to be owned by new record.
+        let mut bytes: Vec<u8> = Vec::new();
+        let mut bitmap: u32 = 0;
+
+        // Byte array address to begin writing values.
+        let mut addr = FIXED_VALUES_OFFSET;
+
+        // Queue to keep track of offsets for varchars.
+        let mut varchars: Vec<(u32, String)> = Vec::new();
+
+        // 1) Write the fixed-length values into the byte vector.
+        for (i, (val, attr)) in values.iter().zip(schema.attributes.iter()).enumerate() {
+            match val.as_ref() {
+                Some(value) => {
+                    if value.get_data_type() != attr.get_data_type() {
+                        return Err(RecordErr(format!(
+                            "Provided values and schemas contain mismatched data types",
+                        )));
+                    }
+                    match value.get_data_type() {
+                        DataType::Boolean => {
+                            if let InnerValue::Boolean(inner) = value.get_inner() {
+                                write_bool(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 1;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::TinyInt => {
+                            if let InnerValue::TinyInt(inner) = value.get_inner() {
+                                write_i8(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 1;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::SmallInt => {
+                            if let InnerValue::SmallInt(inner) = value.get_inner() {
+                                write_i16(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 2;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::Int => {
+                            if let InnerValue::Int(inner) = value.get_inner() {
+                                write_i32(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 4;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::BigInt => {
+                            if let InnerValue::BigInt(inner) = value.get_inner() {
+                                write_i64(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 8;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::Decimal => {
+                            if let InnerValue::Decimal(inner) = value.get_inner() {
+                                write_f32(bytes.as_mut_slice(), addr, inner).unwrap();
+                                addr += 4;
+                            } else {
+                                panic!("Encountered invalid inner value type");
+                            }
+                        }
+                        DataType::Varchar => {
+                            if let InnerValue::Varchar(inner) = value.get_inner() {
+                                // Allocate space for offset/length and write the length as a fixed-length
+                                // value for now.
+                                // Offset and actual string data will be handled after all fixed-lengths are
+                                // written.
+                                varchars.push((addr, inner.clone()));
+                                write_u32(bytes.as_mut_slice(), addr + 4, inner.len() as u32);
+                                addr += 8; // Increment by length of 2 unsigned 32-bit integers.
+                            } else {
+                                panic!("Encountered invalid inner value");
+                            }
+                        }
+                    }
+                }
+                None => {
+                    set_nth_bit(&mut bitmap, i as u32);
+                    addr += size_of(attr.get_data_type());
+                }
             }
         }
 
-        Self {
+        // 2) Write the variable-length values and offsets into the byte vector.
+        for (offset, varchar) in varchars.iter() {
+            write_str(bytes.as_mut_slice(), addr, varchar).unwrap();
+            write_u32(bytes.as_mut_slice(), *offset, addr);
+            addr += varchar.len() as u32;
+        }
+
+        Ok(Self {
             id: None,
             bytes,
             schema,
-            bitmap: 0,
-        }
+            bitmap,
+        })
     }
 
     /// Return an immutable reference to the record ID.
@@ -128,7 +226,7 @@ impl Record {
         }
 
         // Check whether the specified bit is set to 1.
-        (self.bitmap >> idx) & 1 == 1
+        get_nth_bit(&self.bitmap, idx).unwrap() == 1
     }
 
     /// Index the schema and set the corresponding value contained in the Record to null. panic
@@ -137,9 +235,7 @@ impl Record {
         if idx >= self.schema.attr_len() {
             panic!("Specified index is out-of-bounds");
         }
-
-        // Set specified bit to 1.
-        self.bitmap = (1 << idx) | self.bitmap;
+        set_nth_bit(&mut self.bitmap, idx).unwrap();
     }
 }
 
@@ -150,3 +246,9 @@ pub struct RecordId {
     pub page_id: PageIdT,
     pub slot_index: RecordSlotIdT,
 }
+
+/// Custom error to be used by Record.
+pub struct RecordErr(String);
+
+#[cfg(test)]
+mod tests {}

@@ -194,7 +194,7 @@ pub fn write_f32(array: &mut [u8], offset: u32, value: f32) -> Result<(), IoErro
 
 /// Read a variable-length string with a specified offset/length in the byte array.
 #[inline]
-pub fn read_string(array: &[u8], offset: u32, length: u32) -> Result<String, IoError> {
+pub fn read_str(array: &[u8], offset: u32, length: u32) -> Result<String, IoError> {
     let offset = offset as usize;
     let length = length as usize;
     check_overflow(array.len(), offset, length)?;
@@ -220,7 +220,7 @@ pub fn read_string(array: &[u8], offset: u32, length: u32) -> Result<String, IoE
 }
 /// Write a variable-length string with a specified offset/length in the byte array.
 #[inline]
-pub fn write_string(array: &mut [u8], offset: u32, string: &str) -> Result<(), IoError> {
+pub fn write_str(array: &mut [u8], offset: u32, string: &str) -> Result<(), IoError> {
     let offset = offset as usize;
     check_overflow(array.len(), offset, string.len())?;
 
@@ -235,7 +235,7 @@ pub fn write_string(array: &mut [u8], offset: u32, string: &str) -> Result<(), I
 /// string is encoded as valid UTF-8.
 #[inline]
 pub fn read_str256(array: &[u8], offset: u32) -> Result<String, IoError> {
-    read_string(array, offset, 32)
+    read_str(array, offset, 32)
 }
 
 /// Write a 32-byte string at the specified offset in the byte array. Any existing value is
@@ -247,7 +247,7 @@ pub fn write_str256(array: &mut [u8], offset: u32, string: &str) -> Result<(), I
             "Length of string cannot exceed 32 bytes"
         )));
     }
-    write_string(array, offset, string)
+    write_str(array, offset, string)
 }
 
 /// Return an Error if inserting data of specified offset/length into an array of a given
@@ -397,10 +397,10 @@ mod tests {
         let offset = 25;
         let value = "hello, world! foo bar baz.";
 
-        let result = write_string(array.as_mut_slice(), offset, value);
+        let result = write_str(array.as_mut_slice(), offset, value);
         assert!(result.is_ok());
 
-        let result = read_string(array.as_slice(), offset, value.len() as u32);
+        let result = read_str(array.as_slice(), offset, value.len() as u32);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), value.to_string());
     }

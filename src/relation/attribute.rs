@@ -10,11 +10,11 @@ use crate::relation::types::DataType;
 
 #[derive(Debug)]
 pub struct Attribute {
-    pub name: String,
-    pub data_type: DataType,
-    pub primary: bool,
-    pub serial: bool,
-    pub nullable: bool,
+    name: String,
+    data_type: DataType,
+    primary: bool,
+    serial: bool,
+    nullable: bool,
 }
 
 impl Attribute {
@@ -32,5 +32,13 @@ impl Attribute {
             serial,
             nullable,
         }
+    }
+
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn get_data_type(&self) -> DataType {
+        self.data_type
     }
 }
