@@ -41,4 +41,16 @@ impl Attribute {
     pub fn get_data_type(&self) -> DataType {
         self.data_type
     }
+
+    pub fn is_primary(&self) -> bool {
+        self.primary
+    }
+
+    pub fn is_serial(&self) -> bool {
+        self.serial
+    }
+
+    pub fn is_nullable(&self) -> bool {
+        self.nullable
+    }
 }

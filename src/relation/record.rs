@@ -83,9 +83,7 @@ impl Record {
             match val.as_ref() {
                 Some(value) => {
                     if value.get_data_type() != attr.get_data_type() {
-                        return Err(RecordErr(format!(
-                            "Provided values and schemas contain mismatched data types",
-                        )));
+                        return Err(RecordErr::ValSchemaMismatch);
                     }
                     match value.get_data_type() {
                         DataType::Boolean => {
@@ -152,6 +150,9 @@ impl Record {
                     }
                 }
                 None => {
+                    if !attr.is_nullable() {
+                        return Err(RecordErr::NotNullable);
+                    }
                     set_nth_bit(&mut bitmap, i as u32);
                     addr += size_of(attr.get_data_type());
                 }
@@ -248,7 +249,21 @@ pub struct RecordId {
 }
 
 /// Custom error to be used by Record.
-pub struct RecordErr(String);
+pub enum RecordErr {
+    ValSchemaMismatch,
+    NotNullable,
+}
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::relation::attribute::Attribute;
+    use crate::relation::schema::Schema;
+    use crate::relation::types::DataType;
+
+    #[test]
+    fn test_create_record() {
+        let schema = Schema::new(vec![
+            Attribute::new("foo", DataType::Int, false, false, false);
+        ]);
+    }
+}
