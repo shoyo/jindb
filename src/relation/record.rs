@@ -63,9 +63,7 @@ impl Record {
     ) -> Result<Self, RecordErr> {
         // Assert that values and schema are the same length.
         if values.len() as u32 != schema.attr_len() {
-            return Err(RecordErr(format!(
-                "Provided values and schema are mismatched lengths"
-            )));
+            return Err(RecordErr::ValSchemaMismatch);
         }
 
         // Empty byte vector and bitmap to be owned by new record.
