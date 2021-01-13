@@ -3,6 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+pub mod bitmap;
 pub mod collections;
 pub mod io;
 
