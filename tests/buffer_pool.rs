@@ -65,6 +65,7 @@ fn test_fetch_buffer_page() {
     });
 }
 
+#[ignore]
 #[test]
 fn test_delete_buffer_page() {
     let manager_1 = setup();
