@@ -3,6 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
+use std::fmt::Formatter;
+
 /// Mapping between internal and built-in data types.
 pub type BOOLEAN = bool;
 pub type TINYINT = i8;
@@ -20,7 +22,7 @@ pub fn size_of(data_type: DataType) -> u32 {
         DataType::SmallInt => 2,
         DataType::Int => 4,
         DataType::BigInt => 8,
-        DataType::Decimal => 8,
+        DataType::Decimal => 4,
         DataType::Varchar => 8,
     }
 }
@@ -38,6 +40,7 @@ pub enum DataType {
 }
 
 /// An enum for contained values in a Value trait.
+#[derive(Debug, PartialEq)]
 pub enum InnerValue {
     Boolean(BOOLEAN),
     TinyInt(TINYINT),
@@ -48,6 +51,20 @@ pub enum InnerValue {
     Varchar(VARCHAR),
 }
 
+impl std::fmt::Display for InnerValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InnerValue::Boolean(val) => write!(f, "{}", val),
+            InnerValue::TinyInt(val) => write!(f, "{}", val),
+            InnerValue::SmallInt(val) => write!(f, "{}", val),
+            InnerValue::Int(val) => write!(f, "{}", val),
+            InnerValue::BigInt(val) => write!(f, "{}", val),
+            InnerValue::Decimal(val) => write!(f, "{}", val),
+            InnerValue::Varchar(val) => write!(f, "{}", val),
+        }
+    }
+}
+
 /// Shared interface for custom data types.
 pub trait Value {
     /// Return the contained value.
@@ -55,6 +72,12 @@ pub trait Value {
 
     /// Return the data type of the contained value.
     fn get_data_type(&self) -> DataType;
+}
+
+impl core::fmt::Debug for dyn Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.get_inner())
+    }
 }
 
 /// INTERNAL DATA TYPES

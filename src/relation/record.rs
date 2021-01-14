@@ -5,16 +5,17 @@
 
 use crate::common::bitmap::{get_nth_bit, set_nth_bit};
 use crate::common::io::{
-    write_bool, write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
+    read_bool, read_f32, read_i16, read_i32, read_i64, read_i8, read_str, read_u32, write_bool,
+    write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
 };
 use crate::common::{PageIdT, RecordSlotIdT};
 use crate::relation::schema::Schema;
 use crate::relation::types::{size_of, DataType, InnerValue, Value};
-use std::collections::VecDeque;
 use std::sync::Arc;
 
 /// Constants for record offsets.
-const FIXED_VALUES_OFFSET: u32 = 4;
+const NULL_BITMAP_LENGTH: u32 = 4;
+const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_LENGTH;
 
 /// A database record with variable-length attributes.
 ///
@@ -66,15 +67,16 @@ impl Record {
             return Err(RecordErr::ValSchemaMismatch);
         }
 
-        // Empty byte vector and bitmap to be owned by new record.
-        let mut bytes: Vec<u8> = Vec::new();
+        // Initialize empty byte vector and bitmap to be owned by new record.
+        let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_LENGTH + schema.byte_len) as usize];
         let mut bitmap: u32 = 0;
 
         // Byte array address to begin writing values.
         let mut addr = FIXED_VALUES_OFFSET;
 
-        // Queue to keep track of offsets for varchars.
+        // Keep track of metadata to write to variable-length section.
         let mut varchars: Vec<(u32, String)> = Vec::new();
+        let mut var_len = 0;
 
         // 1) Write the fixed-length values into the byte vector.
         for (i, (val, attr)) in values.iter().zip(schema.attributes.iter()).enumerate() {
@@ -89,7 +91,7 @@ impl Record {
                                 write_bool(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 1;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!();
                             }
                         }
                         DataType::TinyInt => {
@@ -97,7 +99,7 @@ impl Record {
                                 write_i8(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 1;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!();
                             }
                         }
                         DataType::SmallInt => {
@@ -105,7 +107,7 @@ impl Record {
                                 write_i16(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 2;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!();
                             }
                         }
                         DataType::Int => {
@@ -113,7 +115,7 @@ impl Record {
                                 write_i32(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 4;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!();
                             }
                         }
                         DataType::BigInt => {
@@ -121,7 +123,7 @@ impl Record {
                                 write_i64(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 8;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!()
                             }
                         }
                         DataType::Decimal => {
@@ -129,7 +131,7 @@ impl Record {
                                 write_f32(bytes.as_mut_slice(), addr, inner).unwrap();
                                 addr += 4;
                             } else {
-                                panic!("Encountered invalid inner value type");
+                                unreachable!()
                             }
                         }
                         DataType::Varchar => {
@@ -139,10 +141,12 @@ impl Record {
                                 // Offset and actual string data will be handled after all fixed-lengths are
                                 // written.
                                 varchars.push((addr, inner.clone()));
-                                write_u32(bytes.as_mut_slice(), addr + 4, inner.len() as u32);
+                                write_u32(bytes.as_mut_slice(), addr + 4, inner.len() as u32)
+                                    .unwrap();
                                 addr += 8; // Increment by length of 2 unsigned 32-bit integers.
+                                var_len += inner.len(); // Increase space needed for variable-length section.
                             } else {
-                                panic!("Encountered invalid inner value");
+                                unreachable!()
                             }
                         }
                     }
@@ -151,16 +155,18 @@ impl Record {
                     if !attr.is_nullable() {
                         return Err(RecordErr::NotNullable);
                     }
-                    set_nth_bit(&mut bitmap, i as u32);
+                    set_nth_bit(&mut bitmap, i as u32).unwrap();
                     addr += size_of(attr.get_data_type());
                 }
             }
         }
 
         // 2) Write the variable-length values and offsets into the byte vector.
+        bytes.extend(vec![0; var_len].iter()); // Make space for variable-length values.
+
         for (offset, varchar) in varchars.iter() {
             write_str(bytes.as_mut_slice(), addr, varchar).unwrap();
-            write_u32(bytes.as_mut_slice(), *offset, addr);
+            write_u32(bytes.as_mut_slice(), *offset, addr).unwrap();
             addr += varchar.len() as u32;
         }
 
@@ -201,11 +207,44 @@ impl Record {
     /// idx = 1 returns the value for "Bar".
     /// idx = 2 returns the value for "Baz".
     /// idx > 2 would panic.
-    pub fn get_value(&self, idx: u32) -> Option<Box<dyn Value>> {
+    pub fn get_value(&self, idx: u32) -> Result<Option<Box<dyn Value>>, RecordErr> {
         if idx >= self.schema.attr_len() {
-            panic!("Specified index is out-of-bounds");
+            return Err(RecordErr::IndexOutOfBounds);
         }
-        todo!()
+
+        if self.is_null(idx).unwrap() {
+            return Ok(None);
+        }
+
+        let mut addr = FIXED_VALUES_OFFSET;
+        for (i, attr) in self.schema.attributes.iter().enumerate() {
+            if i == idx as usize {
+                let value: Box<dyn Value> = match attr.get_data_type() {
+                    DataType::Boolean => Box::new(read_bool(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::TinyInt => Box::new(read_i8(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::SmallInt => Box::new(read_i16(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::Int => Box::new(read_i32(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::BigInt => Box::new(read_i64(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::Decimal => Box::new(read_f32(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::Varchar => Box::new({
+                        let offset = read_u32(self.bytes.as_slice(), addr).unwrap();
+                        let length = read_u32(self.bytes.as_slice(), addr + 4).unwrap();
+                        read_str(self.bytes.as_slice(), offset, length).unwrap()
+                    }),
+                };
+                return Ok(Some(value));
+            }
+            match attr.get_data_type() {
+                DataType::Boolean => addr += 1,
+                DataType::TinyInt => addr += 1,
+                DataType::SmallInt => addr += 2,
+                DataType::Int => addr += 4,
+                DataType::BigInt => addr += 8,
+                DataType::Decimal => addr += 4,
+                DataType::Varchar => addr += 8,
+            }
+        }
+        unreachable!()
     }
 
     /// Index the schema and return whether the corresponding value contained in the Record is
@@ -219,22 +258,26 @@ impl Record {
     /// idx = 1 returns whether the value for "Bar" is null.
     /// idx = 2 returns whether the value for "Baz" is null.
     /// idx > 2 would panic.
-    pub fn is_null(&self, idx: u32) -> bool {
+    pub fn is_null(&self, idx: u32) -> Result<bool, RecordErr> {
         if idx >= self.schema.attr_len() {
-            panic!("Specified index is out-of-bounds");
+            return Err(RecordErr::IndexOutOfBounds);
         }
 
-        // Check whether the specified bit is set to 1.
-        get_nth_bit(&self.bitmap, idx).unwrap() == 1
+        let is_null = get_nth_bit(&self.bitmap, idx).unwrap() == 1;
+
+        Ok(is_null)
     }
 
     /// Index the schema and set the corresponding value contained in the Record to null. panic
     /// if the specified index is out-of-bounds.
-    pub fn set_null(&mut self, idx: u32) {
+    pub fn set_null(&mut self, idx: u32) -> Result<(), RecordErr> {
         if idx >= self.schema.attr_len() {
-            panic!("Specified index is out-of-bounds");
+            return Err(RecordErr::IndexOutOfBounds);
         }
+
         set_nth_bit(&mut self.bitmap, idx).unwrap();
+
+        Ok(())
     }
 }
 
@@ -247,21 +290,66 @@ pub struct RecordId {
 }
 
 /// Custom error to be used by Record.
+#[derive(Debug)]
 pub enum RecordErr {
     ValSchemaMismatch,
     NotNullable,
+    IndexOutOfBounds,
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::relation::attribute::Attribute;
     use crate::relation::schema::Schema;
-    use crate::relation::types::DataType;
+    use crate::relation::types::{DataType, BIGINT, DECIMAL, INT, SMALLINT, TINYINT};
 
     #[test]
     fn test_create_record() {
-        let schema = Schema::new(vec![
-            Attribute::new("foo", DataType::Int, false, false, false);
-        ]);
+        let schema = Arc::new(Schema::new(vec![
+            Attribute::new("foo", DataType::Boolean, false, false, false),
+            Attribute::new("bar", DataType::TinyInt, false, false, false),
+            Attribute::new("baz", DataType::SmallInt, false, false, true),
+            Attribute::new("foobar", DataType::Int, false, false, false),
+            Attribute::new("barbaz", DataType::BigInt, false, false, true),
+            Attribute::new("bazfoo", DataType::Decimal, false, false, true),
+            Attribute::new("foobarbaz", DataType::Varchar, false, false, true),
+        ]));
+        let values: Vec<Option<Box<dyn Value>>> = vec![
+            Some(Box::new(true)),
+            Some(Box::new(12_i8)),
+            None,
+            Some(Box::new(7_654_321_i32)),
+            Some(Box::new(-9_876_543_210_i64)),
+            None,
+            Some(Box::new("Hello, World!".to_string())),
+        ];
+
+        // Check that record was successfully created.
+        let mut record = Record::new(values, schema.clone()).unwrap();
+        assert_eq!(record.is_allocated(), false);
+        assert!(record.get_id().is_none());
+
+        // Check that each value contains the expected value.
+        let value = record.get_value(0).unwrap();
+        assert!(value.is_some());
+        assert_eq!(value.unwrap().get_inner(), InnerValue::Boolean(true));
+
+        let value = record.get_value(2).unwrap();
+        assert!(value.is_none());
+
+        let value = record.get_value(6).unwrap();
+        assert_eq!(
+            value.unwrap().get_inner(),
+            InnerValue::Varchar("Hello, World!".to_string())
+        );
+
+        let value = record.get_value(7);
+        assert!(value.is_err());
+
+        // Check that allocation behaves as expected.
+        assert!(!record.is_allocated());
+        record.allocate(0, 0);
+        assert!(record.is_allocated());
     }
 }

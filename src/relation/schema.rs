@@ -19,12 +19,22 @@ use crate::relation::types::size_of;
 #[derive(Debug)]
 pub struct Schema {
     pub attributes: Vec<Attribute>,
+    pub byte_len: u32,
 }
 
 impl Schema {
     /// Create a new schema with a vector of attributes, parsed from left-to-right.
     pub fn new(attributes: Vec<Attribute>) -> Self {
-        Self { attributes }
+        let mut byte_len = 0;
+        let mut attrs = attributes.iter();
+        while let Some(attr) = attrs.next() {
+            byte_len += size_of(attr.get_data_type());
+        }
+
+        Self {
+            attributes,
+            byte_len,
+        }
     }
 
     /// Return the number of the attributes in this schema.
@@ -32,9 +42,11 @@ impl Schema {
         self.attributes.len() as u32
     }
 
+    /// Note: Potentially deprecated method.
+    ///
     /// Return the number of bytes of the fixed-length values of a record defined by this schema.
     /// Variable-length values such as varchar are encoded as a fixed-length offset/length pair.
-    pub fn byte_len(&self) -> u32 {
+    fn byte_len(&self) -> u32 {
         let mut len = 0;
         let mut attrs = self.attributes.iter();
         while let Some(attr) = attrs.next() {
