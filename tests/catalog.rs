@@ -21,6 +21,8 @@ mod common;
 
 struct TestContext {
     txn_manager: TransactionManager,
+    schema_1: Arc<Schema>,
+    schema_2: Arc<Schema>,
     system_catalog: Arc<SystemCatalog>,
 }
 
@@ -30,29 +32,24 @@ fn setup() -> TestContext {
         DiskManager::new(common::TEST_DB_FILENAME),
         ReplacerAlgorithm::Slow,
     );
+
+    let schema_1 = Arc::new(Schema::new(vec![
+        Attribute::new("foo", DataType::Int, true, true, false),
+        Attribute::new("bar", DataType::Boolean, false, false, false),
+        Attribute::new("baz", DataType::Varchar, false, false, false),
+    ]));
+
+    let schema_2 = Arc::new(Schema::new(vec![
+        Attribute::new("foobar", DataType::Int, true, true, false),
+        Attribute::new("barbaz", DataType::Boolean, false, false, false),
+    ]));
+
     TestContext {
         system_catalog: Arc::new(SystemCatalog::new(Arc::new(buffer_manager))),
+        schema_1,
+        schema_2,
         txn_manager: TransactionManager::new(),
     }
-}
-
-/// Create a sample relation.
-fn create_sample_relation(catalog: &SystemCatalog) -> Arc<Relation> {
-    catalog
-        .create_relation(
-            "foobar",
-            Schema::new(vec![
-                Attribute::new("foo", DataType::Int, true, true, false),
-                Attribute::new("bar", DataType::Boolean, false, false, false),
-                Attribute::new("baz", DataType::Varchar, false, false, false),
-            ]),
-        )
-        .unwrap()
-}
-
-/// Create a sample record that can be inserted in the sample relation.
-fn create_valid_sample_record() -> Record {
-    todo!()
 }
 
 #[test]
@@ -61,25 +58,13 @@ fn test_create_relation() {
 
     let relation = context
         .system_catalog
-        .create_relation(
-            "Students",
-            Schema::new(vec![
-                Attribute::new("id", DataType::Int, true, true, false),
-                Attribute::new("name", DataType::Varchar, false, false, false),
-            ]),
-        )
+        .create_relation("relation_1", context.schema_1.clone())
         .unwrap();
     assert_eq!(relation.get_id(), 0);
 
     let relation = context
         .system_catalog
-        .create_relation(
-            "Restaurants",
-            Schema::new(vec![
-                Attribute::new("id", DataType::Int, true, true, false),
-                Attribute::new("name", DataType::Varchar, false, false, false),
-            ]),
-        )
+        .create_relation("relation_2", context.schema_2.clone())
         .unwrap();
     assert_eq!(relation.get_id(), 1);
 }
@@ -91,7 +76,9 @@ fn test_get_relation() {
     let catalog2 = context.system_catalog.clone();
 
     // Create new relation.
-    let relation = create_sample_relation(&context.system_catalog);
+    let relation = catalog1
+        .create_relation("foo", context.schema_1.clone())
+        .unwrap();
 
     let id = relation.get_id();
     let name = relation.get_name().to_string();
@@ -124,9 +111,7 @@ fn test_insert_record() {
     let context = setup();
 
     // Create new relation.
-    let relation = create_sample_relation(&context.system_catalog);
-
-    // relation.insert_record()
+    todo!()
 }
 
 #[ignore]

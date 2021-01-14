@@ -42,7 +42,7 @@ impl SystemCatalog {
     pub fn create_relation(
         &self,
         name: &str,
-        schema: Schema,
+        schema: Arc<Schema>,
     ) -> Result<Arc<Relation>, BufferError> {
         // Initialize a new database heap.
         let heap = Heap::new(self.buffer_manager.clone())?;

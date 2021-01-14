@@ -15,6 +15,7 @@ use crate::relation::heap::{Heap, HeapError};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::schema::Schema;
 use crate::relation::types::Value;
+use std::sync::Arc;
 
 /// Database relation (i.e. table) represented on disk.
 pub struct Relation {
@@ -25,7 +26,7 @@ pub struct Relation {
     name: String,
 
     /// Schema for the attributes of this relation
-    schema: Schema,
+    schema: Arc<Schema>,
 
     /// Collection of pages on disk which contain records
     heap: Heap,
@@ -33,7 +34,7 @@ pub struct Relation {
 
 impl Relation {
     /// Initialize a new in-memory representation of a relation.
-    pub fn new(id: RelationIdT, name: String, schema: Schema, heap: Heap) -> Self {
+    pub fn new(id: RelationIdT, name: String, schema: Arc<Schema>, heap: Heap) -> Self {
         Self {
             id,
             name,
@@ -53,8 +54,8 @@ impl Relation {
     }
 
     /// Return an immutable reference to this relation's schema.
-    pub fn get_schema(&self) -> &Schema {
-        &self.schema
+    pub fn get_schema(&self) -> Arc<Schema> {
+        self.schema.clone()
     }
 
     /// Insert a record into this relation. Return the record ID of the inserted record.
