@@ -16,7 +16,7 @@ Install the Rust toolchain [here](https://www.rust-lang.org/tools/install) or ru
 
 To build the project during development, run:
 ```
-% cargo run
+% cargo build
 ```
 Add `--release` to the end to create an optimized build.
 
@@ -24,7 +24,6 @@ To run all tests, run:
 ```
 % cargo test
 ```
-
 
 ## Author
 Shoyo Inokuchi (contact@shoyo.dev)
