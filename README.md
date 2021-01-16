@@ -6,7 +6,7 @@
 ## About
 Jin is a small relational database engine written in [Rust](https://www.rust-lang.org) with the standard library and no external dependencies. It is currently being developed for 64-bit Linux and macOS operating systems.
 
-Although Jin is a small prototype, it implements features of a fully-fledged database such as a disk I/O for data persistence, a thread-safe buffer for in-memory caching, and (soon) logging mechanisms for crash recovery. It aspires to be a small, fast, relational database engine with ACID guarantees. 
+Although Jin is a prototype, it implements features of a fully-fledged database such as a disk I/O for data persistence, a thread-safe buffer for in-memory caching, and (soon) logging mechanisms for crash recovery. It aspires to be a small, fast, relational database engine with ACID guarantees. 
 
 ## Development
 Install the Rust toolchain [here](https://www.rust-lang.org/tools/install) or run:
