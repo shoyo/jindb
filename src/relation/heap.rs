@@ -23,8 +23,9 @@ impl Heap {
         let frame = frame_latch.read().unwrap();
         let head_page_id = match frame.get_page() {
             Some(ref page) => page.get_id(),
-            None => panic!("Head page latch contained None"),
+            None => panic!("Head frame latch contained no page"),
         };
+
         Ok(Self { head_page_id })
     }
 
