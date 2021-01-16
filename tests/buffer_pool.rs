@@ -7,7 +7,7 @@ use jin::buffer::manager::BufferManager;
 use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::disk::manager::DiskManager;
 use jin::page::Page;
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 
 mod common;
@@ -65,12 +65,13 @@ fn test_fetch_buffer_page() {
     });
 }
 
-#[ignore]
 #[test]
 fn test_delete_buffer_page() {
     let manager_1 = setup();
     let manager_2 = manager_1.clone();
     let (tx, rx) = mpsc::channel();
+    let barrier_1 = Arc::new(Barrier::new(2));
+    let barrier_2 = barrier_1.clone();
 
     // First thread
     thread::spawn(move || {
@@ -79,6 +80,7 @@ fn test_delete_buffer_page() {
 
         // Notify second thread to try to delete newly created page (should fail).
         tx.send(()).unwrap();
+        barrier_1.wait();
 
         // Notify second thread to try again after unpinning created page (should pass).
         manager_1.unpin_and_drop(frame);
@@ -91,6 +93,7 @@ fn test_delete_buffer_page() {
         let _ = rx.recv().unwrap();
         let first_attempt = manager_2.delete_page(common::FIRST_RELATION_PAGE_ID);
         assert!(first_attempt.is_err());
+        barrier_2.wait();
 
         // Receive notification from first thread to delete page again (should pass).
         let _ = rx.recv().unwrap();
