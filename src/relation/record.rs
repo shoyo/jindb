@@ -38,6 +38,7 @@ const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_LENGTH;
 /// database page. While a record exists in-memory, it maintains a reference to the schema which
 /// defines its structure.
 
+#[derive(Debug)]
 pub struct Record {
     /// Unique descriptor for this record. None if record is unallocated.
     id: Option<RecordId>,
@@ -290,7 +291,7 @@ pub struct RecordId {
 }
 
 /// Custom error to be used by Record.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum RecordErr {
     ValSchemaMismatch,
     NotNullable,
@@ -306,6 +307,7 @@ mod tests {
 
     #[test]
     fn test_create_record() {
+        // Declare a relation schema.
         let schema = Arc::new(Schema::new(vec![
             Attribute::new("foo", DataType::Boolean, false, false, false),
             Attribute::new("bar", DataType::TinyInt, false, false, false),
@@ -315,7 +317,9 @@ mod tests {
             Attribute::new("bazfoo", DataType::Decimal, false, false, true),
             Attribute::new("foobarbaz", DataType::Varchar, false, false, true),
         ]));
-        let values: Vec<Option<Box<dyn Value>>> = vec![
+
+        // Create a series of values that are a valid instance of the schema.
+        let valid_values: Vec<Option<Box<dyn Value>>> = vec![
             Some(Box::new(true)),
             Some(Box::new(12_i8)),
             None,
@@ -324,11 +328,23 @@ mod tests {
             None,
             Some(Box::new("Hello, World!".to_string())),
         ];
+        // Create a series of values that are NOT a valid instance of the schema.
+        let invalid_values: Vec<Option<Box<dyn Value>>> = vec![
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+            Some(Box::new(true)),
+        ];
 
-        // Check that record was successfully created.
-        let mut record = Record::new(values, schema.clone()).unwrap();
-        assert_eq!(record.is_allocated(), false);
-        assert!(record.get_id().is_none());
+        // Check that a record can NOT be created with invalid values.
+        let result = Record::new(invalid_values, schema.clone());
+        assert_eq!(result.unwrap_err(), RecordErr::ValSchemaMismatch);
+
+        // Check that a record can be created with valid values.
+        let mut record = Record::new(valid_values, schema.clone()).unwrap();
 
         // Check that each value contains the expected value.
         let value = record.get_value(0).unwrap();
@@ -348,6 +364,7 @@ mod tests {
         assert!(value.is_err());
 
         // Check that allocation behaves as expected.
+        assert!(record.get_id().is_none());
         assert!(!record.is_allocated());
         record.allocate(0, 0);
         assert!(record.is_allocated());
