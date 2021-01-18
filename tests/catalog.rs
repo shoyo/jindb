@@ -54,30 +54,30 @@ fn setup() -> TestContext {
 
 #[test]
 fn test_create_relation() {
-    let context = setup();
+    let ctx = setup();
 
-    let relation = context
+    let relation = ctx
         .system_catalog
-        .create_relation("relation_1", context.schema_1.clone())
+        .create_relation("relation_1", ctx.schema_1.clone())
         .unwrap();
     assert_eq!(relation.get_id(), 0);
 
-    let relation = context
+    let relation = ctx
         .system_catalog
-        .create_relation("relation_2", context.schema_2.clone())
+        .create_relation("relation_2", ctx.schema_2.clone())
         .unwrap();
     assert_eq!(relation.get_id(), 1);
 }
 
 #[test]
 fn test_get_relation() {
-    let context = setup();
-    let catalog1 = context.system_catalog.clone();
-    let catalog2 = context.system_catalog.clone();
+    let ctx = setup();
+    let catalog1 = ctx.system_catalog.clone();
+    let catalog2 = ctx.system_catalog.clone();
 
     // Create new relation.
     let relation = catalog1
-        .create_relation("foo", context.schema_1.clone())
+        .create_relation("foo", ctx.schema_1.clone())
         .unwrap();
 
     let id = relation.get_id();
@@ -108,10 +108,28 @@ fn test_get_relation() {
 #[ignore]
 #[test]
 fn test_insert_record() {
-    let context = setup();
+    let ctx = setup();
 
     // Create new relation.
-    todo!()
+    let relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+
+    // Create a valid record for the newly created relation.
+    let record = Record::new(
+        vec![
+            Some(Box::new(5)),
+            Some(Box::new(false)),
+            Some(Box::new("Hello!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+
+    // Assert that the invalid record can't be inserted into the relation.
+    let result = relation.insert_record(record);
+    assert!(result.is_err());
 }
 
 #[ignore]
