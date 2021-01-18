@@ -45,7 +45,7 @@ impl SystemCatalog {
         schema: Arc<Schema>,
     ) -> Result<Arc<Relation>, BufferError> {
         // Initialize a new database heap.
-        let heap = Heap::new(self.buffer_manager.clone())?;
+        let heap = Arc::new(Heap::new(self.buffer_manager.clone())?);
 
         // Create a new relation with the given name, schema, and newly initialized heap.
         let relation_id = self.get_next_relation_id();

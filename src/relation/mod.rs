@@ -29,12 +29,12 @@ pub struct Relation {
     schema: Arc<Schema>,
 
     /// Collection of pages on disk which contain records
-    heap: Heap,
+    heap: Arc<Heap>,
 }
 
 impl Relation {
     /// Initialize a new in-memory representation of a relation.
-    pub fn new(id: RelationIdT, name: String, schema: Arc<Schema>, heap: Heap) -> Self {
+    pub fn new(id: RelationIdT, name: String, schema: Arc<Schema>, heap: Arc<Heap>) -> Self {
         Self {
             id,
             name,
@@ -59,22 +59,22 @@ impl Relation {
     }
 
     /// Insert a record into this relation. Return the record ID of the inserted record.
-    pub fn insert_record(&mut self, record: Record) -> Result<RecordId, HeapError> {
+    pub fn insert_record(&self, record: Record) -> Result<RecordId, HeapError> {
         self.heap.insert(record)
     }
 
     /// Update a record in this relation.
-    pub fn update_record(&mut self, record: Record) -> Result<(), ()> {
+    pub fn update_record(&self, record: Record) -> Result<(), ()> {
         self.heap.update(record)
     }
 
     /// Flag a record in this relation for deletion.
-    pub fn flag_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
+    pub fn flag_delete_record(&self, record_id: RecordId) -> Result<(), ()> {
         self.heap.flag_delete(record_id)
     }
 
     /// Commit a delete operation for a record in this relation.
-    pub fn commit_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
+    pub fn commit_delete_record(&self, record_id: RecordId) -> Result<(), ()> {
         self.heap.commit_delete(record_id)
     }
 

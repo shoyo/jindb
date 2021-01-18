@@ -248,6 +248,11 @@ impl Record {
         unreachable!()
     }
 
+    /// Return the size of this record in bytes.
+    pub fn len(&self) -> u32 {
+        self.bytes.len() as u32
+    }
+
     /// Index the schema and return whether the corresponding value contained in the Record is
     /// null. Panic if the specified index is out-of-bounds.
     ///

@@ -4,7 +4,7 @@
  */
 
 use crate::buffer::manager::{BufferError, BufferManager};
-use crate::common::PageIdT;
+use crate::common::{PageIdT, PAGE_SIZE};
 use crate::relation::record::{Record, RecordId};
 use std::sync::Arc;
 
@@ -30,31 +30,34 @@ impl Heap {
     }
 
     /// Insert a record into the relation.
-    pub fn insert(&mut self, record: Record) -> Result<RecordId, HeapError> {
+    pub fn insert(&self, record: Record) -> Result<RecordId, HeapError> {
+        if record.len() > PAGE_SIZE {
+            return Err(HeapError::RecordTooLarge);
+        }
         if record.is_allocated() {
-            return Err(HeapError::AlreadyAllocRecErr);
+            return Err(HeapError::RecordAlreadyAllocRecErr);
         }
         todo!()
     }
 
     /// Update a record in this relation.
-    pub fn update(&mut self, _record: Record) -> Result<(), ()> {
+    pub fn update(&self, _record: Record) -> Result<(), ()> {
         Err(())
     }
 
     /// Flag the specified record as deleted.
     /// The record is not actually deleted until .apply_delete() is called.
-    pub fn flag_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
+    pub fn flag_delete(&self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 
     /// Commit a delete operation for the specified record.
-    pub fn commit_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
+    pub fn commit_delete(&self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 
     /// Rollback a delete operation for the specified record.
-    pub fn rollback_delete(&mut self, _record_id: RecordId) -> Result<(), ()> {
+    pub fn rollback_delete(&self, _record_id: RecordId) -> Result<(), ()> {
         Err(())
     }
 }
@@ -67,5 +70,10 @@ struct HeapIterator {}
 pub enum HeapError {
     /// Error to be thrown when a record to be used for insertion or replacement is already
     /// allocated elsewhere on disk.
-    AlreadyAllocRecErr,
+    RecordAlreadyAllocRecErr,
+
+    /// Error to be thrown when a record is too large to be inserted into the database.
+    /// This error should eventually become obsolete once records of arbitrary size become
+    /// supported.
+    RecordTooLarge,
 }
