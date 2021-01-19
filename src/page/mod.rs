@@ -7,6 +7,7 @@ use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
+use std::any::Any;
 
 pub mod classifier_page;
 pub mod dictionary_page;
@@ -32,11 +33,15 @@ pub trait Page {
     /// Set the log sequence number.
     fn set_lsn(&mut self, lsn: LsnT);
 
+    /// Return the amount of free space (in bytes) left in the page.
+    fn get_free_space(&self) -> u32;
+
     /// Return the page variant.
     fn get_variant(&self) -> PageVariant;
 
-    /// Return the amount of free space (in bytes) left in the page.
-    fn get_free_space(&self) -> u32;
+    /// Return a mutable reference to this page that implements Any.
+    /// Used when downcasting to a concrete page type.
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 /// Page variants.
@@ -54,4 +59,10 @@ pub fn init_page_variant(page_id: PageIdT, variant: PageVariant) -> Box<dyn Page
         PageVariant::Dictionary => Box::new(DictionaryPage::new(page_id)),
         PageVariant::Relation => Box::new(RelationPage::new(page_id)),
     }
+}
+
+/// Custom errors to be used by pages.
+pub enum PageError {
+    /// Error to be thrown when a page insertion would trigger an overflow.
+    PageOverflow,
 }

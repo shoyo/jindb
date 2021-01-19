@@ -5,8 +5,9 @@
 
 use crate::common::io::{read_u32, write_u32};
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
-use crate::page::{Page, PageVariant};
+use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::Record;
+use std::any::Any;
 
 /// Constants for slotted-page page header.
 const PAGE_ID_OFFSET: u32 = 0;
@@ -52,10 +53,10 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// +------------------------+----------+----------+----------+
 
 pub struct RelationPage {
-    /// A unique identifier for the page
+    /// A unique descriptor for this relation page.
     id: PageIdT,
 
-    /// A copy of the raw byte array stored on disk
+    /// Raw byte array.
     data: [u8; PAGE_SIZE as usize],
 }
 
@@ -88,6 +89,10 @@ impl Page for RelationPage {
         let free_ptr = self.get_free_space_pointer();
         let num_records = self.get_num_records();
         free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -155,7 +160,7 @@ impl RelationPage {
     }
 
     /// Insert a record in the page and update the header.
-    pub fn insert_record(&mut self, record_data: &Vec<u8>) -> Result<(), String> {
+    pub fn insert_record(&mut self, record_data: &[u8]) -> Result<(), PageError> {
         // Calculate header addresses for new length/offset entry
         let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
@@ -165,10 +170,7 @@ impl RelationPage {
         let free_ptr = self.get_free_space_pointer();
         let new_free_ptr = free_ptr - record_data.len() as u32;
         if new_free_ptr < length_addr + 3 {
-            return Err(format!(
-                "Overflow: Record does not fit in page (ID={})",
-                self.get_page_id()
-            ));
+            return Err(PageError::PageOverflow);
         }
 
         // Write record data to allocated space

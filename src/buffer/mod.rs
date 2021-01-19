@@ -76,6 +76,11 @@ impl BufferFrame {
         self.page.as_ref()
     }
 
+    /// Return a mutable reference to the contained page wrapped in an Option.
+    pub fn get_mut_page(&mut self) -> Option<&mut Box<dyn Page + Send + Sync>> {
+        self.page.as_mut()
+    }
+
     /// Overwrite the existing page.
     pub fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
         self.page = page;

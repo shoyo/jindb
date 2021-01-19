@@ -6,6 +6,7 @@
 use crate::common::io::{read_u32, write_u32};
 use crate::common::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
 use crate::page::{Page, PageVariant};
+use std::any::Any;
 
 /// Constants for encoding page variants as an unsigned integer.
 const CLASSIFIER_TYPE: u32 = 0;
@@ -67,12 +68,16 @@ impl Page for ClassifierPage {
         unimplemented!()
     }
 
+    fn get_free_space(&self) -> u32 {
+        unimplemented!()
+    }
+
     fn get_variant(&self) -> PageVariant {
         PageVariant::Classifier
     }
 
-    fn get_free_space(&self) -> u32 {
-        unimplemented!()
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

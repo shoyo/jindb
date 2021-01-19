@@ -6,6 +6,8 @@
 use crate::buffer::manager::{BufferError, BufferManager};
 use crate::buffer::BufferFrame;
 use crate::common::{PageIdT, PAGE_SIZE};
+use crate::page::relation_page::RelationPage;
+use crate::page::Page;
 use crate::relation::record::{Record, RecordId};
 use std::convert::From;
 use std::sync::{Arc, RwLock};
@@ -14,7 +16,7 @@ use std::sync::{Arc, RwLock};
 /// Pages are connected together as a doubly linked list. Each page contains in its
 /// header the IDs of its previous and next pages.
 pub struct Heap {
-    /// ID of the first page in the doubly linked list
+    /// ID of the first page in the doubly linked list.
     head_page_id: PageIdT,
 
     /// Buffer manager to request necessary pages for relation operations.
@@ -47,6 +49,14 @@ impl Heap {
         }
 
         let frame_latch = self.buffer_manager.fetch_page(self.head_page_id)?;
+        let mut frame = frame_latch.write().unwrap();
+
+        while let Some(rpage) = match frame.get_mut_page() {
+            Some(page) => Some(page.as_mut_any().downcast_mut::<RelationPage>().unwrap()),
+            None => None,
+        } {
+            todo!();
+        }
 
         Ok(record.get_id().unwrap())
     }
@@ -75,8 +85,7 @@ impl Heap {
 
 struct HeapIterator {}
 
-/// Custom error types to be used by the heap.
-
+/// Custom errors to be used by the heap.
 #[derive(Debug)]
 pub enum HeapError {
     /// Error to be thrown when a record to be used for insertion or replacement is already

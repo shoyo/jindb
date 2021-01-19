@@ -183,6 +183,11 @@ impl Record {
         })
     }
 
+    /// Return the raw byte array for this record.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.bytes.as_slice()
+    }
+
     /// Return an immutable reference to the record ID.
     pub fn get_id(&self) -> Option<RecordId> {
         self.id

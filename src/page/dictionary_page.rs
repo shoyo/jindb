@@ -6,6 +6,7 @@
 use crate::common::io::{read_str256, read_u32, write_str256, write_u32};
 use crate::common::{LsnT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
 use crate::page::{Page, PageVariant};
+use std::any::Any;
 
 const COUNT_OFFSET: u32 = 0;
 const COUNT_LENGTH: u32 = 4;
@@ -60,6 +61,10 @@ impl Page for DictionaryPage {
 
     fn get_free_space(&self) -> u32 {
         unimplemented!()
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
