@@ -68,7 +68,7 @@ impl Page for RelationPage {
         &self.data
     }
 
-    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
         &mut self.data
     }
 
@@ -82,6 +82,12 @@ impl Page for RelationPage {
 
     fn get_variant(&self) -> PageVariant {
         PageVariant::Relation
+    }
+
+    fn get_free_space(&self) -> u32 {
+        let free_ptr = self.get_free_space_pointer();
+        let num_records = self.get_num_records();
+        free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
     }
 }
 
@@ -146,13 +152,6 @@ impl RelationPage {
     /// Set the number of records contained in the page.
     pub fn set_num_records(&mut self, num: u32) {
         write_u32(&mut self.data, NUM_RECORDS_OFFSET, num).unwrap()
-    }
-
-    /// Calculate the amount of free space (in bytes) left in the page.
-    pub fn get_free_space_remaining(&self) -> u32 {
-        let free_ptr = self.get_free_space_pointer();
-        let num_records = self.get_num_records();
-        free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
     }
 
     /// Insert a record in the page and update the header.

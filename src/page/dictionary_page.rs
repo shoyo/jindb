@@ -42,7 +42,7 @@ impl Page for DictionaryPage {
         &self.data
     }
 
-    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
         &mut self.data
     }
 
@@ -56,6 +56,10 @@ impl Page for DictionaryPage {
 
     fn get_variant(&self) -> PageVariant {
         PageVariant::Dictionary
+    }
+
+    fn get_free_space(&self) -> u32 {
+        unimplemented!()
     }
 }
 

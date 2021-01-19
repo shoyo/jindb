@@ -57,7 +57,7 @@ impl BufferManager {
         // Fetch classifier page from disk to initialize the type chart.
         // If the classifier page is empty, nothing gets inserted into the type chart.
         let mut classifier = ClassifierPage::new(CLASSIFIER_PAGE_ID);
-        disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.get_mut_data());
+        disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.as_mut_bytes());
         let mut type_chart = HashMap::new();
         for (page_id, page_type) in classifier {
             type_chart.insert(page_id, page_type);
@@ -169,7 +169,7 @@ impl BufferManager {
                         None => panic!("Page ID {} does not have a type chart entry", page_id),
                     };
                     self.disk_manager
-                        .read_page(page_id, new_page.get_mut_data());
+                        .read_page(page_id, new_page.as_mut_bytes());
 
                     // Update the page table.
                     page_table.insert(page_id, frame_id).unwrap();

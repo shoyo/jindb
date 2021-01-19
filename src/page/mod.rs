@@ -17,20 +17,29 @@ pub mod relation_page;
 /// Pages can store various things, such as metadata (dictionary page), relation data (relation
 /// pages), index headers (index header pages) and indexes (index pages).
 pub trait Page {
+    /// Return the unique page descriptor.
     fn get_id(&self) -> PageIdT;
 
+    /// Return a reference to the raw byte array.
     fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize];
 
-    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize];
+    /// Return a mutable reference to the raw byte array.
+    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize];
 
+    /// Return the log sequence number.
     fn get_lsn(&self) -> LsnT;
 
+    /// Set the log sequence number.
     fn set_lsn(&mut self, lsn: LsnT);
 
+    /// Return the page variant.
     fn get_variant(&self) -> PageVariant;
+
+    /// Return the amount of free space (in bytes) left in the page.
+    fn get_free_space(&self) -> u32;
 }
 
-/// Page variants
+/// Page variants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PageVariant {
     Classifier,

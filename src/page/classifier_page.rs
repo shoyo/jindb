@@ -55,7 +55,7 @@ impl Page for ClassifierPage {
         &self.data
     }
 
-    fn get_mut_data(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
         &mut self.data
     }
 
@@ -69,6 +69,10 @@ impl Page for ClassifierPage {
 
     fn get_variant(&self) -> PageVariant {
         PageVariant::Classifier
+    }
+
+    fn get_free_space(&self) -> u32 {
+        unimplemented!()
     }
 }
 
