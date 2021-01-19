@@ -116,7 +116,8 @@ fn test_insert_record() {
         .create_relation("foo", ctx.schema_1.clone())
         .unwrap();
 
-    // Create a valid record for the newly created relation.
+    // Create a record for the newly created relation.
+    // (Schema validation is done in Record constructor)
     let record = Record::new(
         vec![
             Some(Box::new(5)),
@@ -126,10 +127,12 @@ fn test_insert_record() {
         ctx.schema_1.clone(),
     )
     .unwrap();
+    assert!(record.get_id().is_none());
 
-    // Assert that the invalid record can't be inserted into the relation.
-    let result = relation.insert_record(record);
-    assert!(result.is_err());
+    // Assert that the record can be inserted into the relation.
+    let record_id = relation.insert_record(record).unwrap();
+    assert_eq!(record_id.page_id, 0);
+    assert_eq!(record_id.slot_index, 0);
 }
 
 #[ignore]

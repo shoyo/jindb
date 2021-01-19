@@ -4,9 +4,11 @@
  */
 
 use crate::buffer::manager::{BufferError, BufferManager};
+use crate::buffer::BufferFrame;
 use crate::common::{PageIdT, PAGE_SIZE};
 use crate::relation::record::{Record, RecordId};
-use std::sync::Arc;
+use std::convert::From;
+use std::sync::{Arc, RwLock};
 
 /// A heap is a collection of pages on disk which corresponds to a given relation.
 /// Pages are connected together as a doubly linked list. Each page contains in its
@@ -14,6 +16,9 @@ use std::sync::Arc;
 pub struct Heap {
     /// ID of the first page in the doubly linked list
     head_page_id: PageIdT,
+
+    /// Buffer manager to request necessary pages for relation operations.
+    buffer_manager: Arc<BufferManager>,
 }
 
 impl Heap {
@@ -26,7 +31,10 @@ impl Heap {
             None => panic!("Head frame latch contained no page"),
         };
 
-        Ok(Self { head_page_id })
+        Ok(Self {
+            head_page_id,
+            buffer_manager,
+        })
     }
 
     /// Insert a record into the relation.
@@ -35,9 +43,12 @@ impl Heap {
             return Err(HeapError::RecordTooLarge);
         }
         if record.is_allocated() {
-            return Err(HeapError::RecordAlreadyAllocRecErr);
+            return Err(HeapError::RecordAlreadyAlloc);
         }
-        todo!()
+
+        let frame_latch = self.buffer_manager.fetch_page(self.head_page_id)?;
+
+        Ok(record.get_id().unwrap())
     }
 
     /// Update a record in this relation.
@@ -70,10 +81,27 @@ struct HeapIterator {}
 pub enum HeapError {
     /// Error to be thrown when a record to be used for insertion or replacement is already
     /// allocated elsewhere on disk.
-    RecordAlreadyAllocRecErr,
+    RecordAlreadyAlloc,
 
     /// Error to be thrown when a record is too large to be inserted into the database.
     /// This error should eventually become obsolete once records of arbitrary size become
     /// supported.
     RecordTooLarge,
+
+    /// Errors to be thrown when the buffer manager encounters a recoverable error.
+    BufMgrNoBufFrame,
+    BufMgrPagePinned,
+    BufMgrPageBufDNE,
+    BufMgrPageDiskDNE,
+}
+
+impl From<BufferError> for HeapError {
+    fn from(e: BufferError) -> Self {
+        match e {
+            BufferError::NoBufFrame => HeapError::BufMgrNoBufFrame,
+            BufferError::PagePinned => HeapError::BufMgrPagePinned,
+            BufferError::PageBufDNE => HeapError::BufMgrPageBufDNE,
+            BufferError::PageDiskDNE => HeapError::BufMgrPageDiskDNE,
+        }
+    }
 }

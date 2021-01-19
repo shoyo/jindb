@@ -205,7 +205,7 @@ impl BufferManager {
                         frame.reset();
                         Ok(())
                     }
-                    _ => Err(BufferError::PinCount),
+                    _ => Err(BufferError::PagePinned),
                 }
             }
             None => {
@@ -302,8 +302,8 @@ pub enum BufferError {
     /// pinned and cannot be evicted.
     NoBufFrame,
 
-    /// Error to be thrown when an unexpected number of pins on a page is encountered.
-    PinCount,
+    /// Error to be thrown when a page that is pinned and an operation cannot proceed.
+    PagePinned,
 
     /// Error to be thrown when the specified page does not exist in the buffer.
     PageBufDNE,

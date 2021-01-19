@@ -69,7 +69,7 @@ impl Record {
         }
 
         // Initialize empty byte vector and bitmap to be owned by new record.
-        let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_LENGTH + schema.byte_len) as usize];
+        let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_LENGTH + schema.byte_len()) as usize];
         let mut bitmap: u32 = 0;
 
         // Byte array address to begin writing values.
@@ -80,7 +80,11 @@ impl Record {
         let mut var_len = 0;
 
         // 1) Write the fixed-length values into the byte vector.
-        for (i, (val, attr)) in values.iter().zip(schema.attributes.iter()).enumerate() {
+        for (i, (val, attr)) in values
+            .iter()
+            .zip(schema.get_attributes().iter())
+            .enumerate()
+        {
             match val.as_ref() {
                 Some(value) => {
                     if value.get_data_type() != attr.get_data_type() {
@@ -180,8 +184,8 @@ impl Record {
     }
 
     /// Return an immutable reference to the record ID.
-    pub fn get_id(&self) -> Option<&RecordId> {
-        self.id.as_ref()
+    pub fn get_id(&self) -> Option<RecordId> {
+        self.id
     }
 
     /// Allocate a slot on disk for this record.
@@ -218,7 +222,7 @@ impl Record {
         }
 
         let mut addr = FIXED_VALUES_OFFSET;
-        for (i, attr) in self.schema.attributes.iter().enumerate() {
+        for (i, attr) in self.schema.get_attributes().iter().enumerate() {
             if i == idx as usize {
                 let value: Box<dyn Value> = match attr.get_data_type() {
                     DataType::Boolean => Box::new(read_bool(self.bytes.as_slice(), addr).unwrap()),
@@ -289,7 +293,7 @@ impl Record {
 
 /// A database record descriptor, comprised of the page ID and slot index that
 /// the record is located at.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct RecordId {
     pub page_id: PageIdT,
     pub slot_index: RecordSlotIdT,
