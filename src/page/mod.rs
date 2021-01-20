@@ -62,6 +62,7 @@ pub fn init_page_variant(page_id: PageIdT, variant: PageVariant) -> Box<dyn Page
 }
 
 /// Custom errors to be used by pages.
+#[derive(Debug)]
 pub enum PageError {
     /// Error to be thrown when a page insertion would trigger an overflow.
     PageOverflow,

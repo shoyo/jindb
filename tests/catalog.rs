@@ -105,7 +105,6 @@ fn test_get_relation() {
     });
 }
 
-#[ignore]
 #[test]
 fn test_insert_record() {
     let ctx = setup();
@@ -131,7 +130,7 @@ fn test_insert_record() {
 
     // Assert that the record can be inserted into the relation.
     let record_id = relation.insert_record(record).unwrap();
-    assert_eq!(record_id.page_id, 0);
+    assert_eq!(record_id.page_id, common::FIRST_RELATION_PAGE_ID);
     assert_eq!(record_id.slot_index, 0);
 }
 

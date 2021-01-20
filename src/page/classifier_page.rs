@@ -40,24 +40,20 @@ const TYPE_LENGTH: u32 = 4;
 /// +-----------------+---------------+-----------------+---------------+-----------------+-----+
 
 pub struct ClassifierPage {
-    /// A unique identifier for the page
-    id: PageIdT,
-
-    /// Raw byte array
-    data: [u8; PAGE_SIZE as usize],
+    bytes: [u8; PAGE_SIZE as usize],
 }
 
 impl Page for ClassifierPage {
     fn get_id(&self) -> u32 {
-        self.id
+        CLASSIFIER_PAGE_ID
     }
 
     fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
-        &self.data
+        &self.bytes
     }
 
     fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
-        &mut self.data
+        &mut self.bytes
     }
 
     fn get_lsn(&self) -> u32 {
@@ -85,19 +81,18 @@ impl ClassifierPage {
     /// Construct a new classifier page.
     pub fn new(_page_id: PageIdT) -> Self {
         Self {
-            id: CLASSIFIER_PAGE_ID,
-            data: [0; PAGE_SIZE as usize],
+            bytes: [0; PAGE_SIZE as usize],
         }
     }
 
     /// Return the number of stored entries.
     pub fn get_count(&self) -> u32 {
-        read_u32(&self.data, COUNT_OFFSET).unwrap()
+        read_u32(&self.bytes, COUNT_OFFSET).unwrap()
     }
 
     /// Set the number of stored entries.
     pub fn set_count(&mut self, count: u32) {
-        write_u32(&mut self.data, COUNT_OFFSET, count).unwrap()
+        write_u32(&mut self.bytes, COUNT_OFFSET, count).unwrap()
     }
 }
 
@@ -177,10 +172,7 @@ mod tests {
             write_u32(&mut array, type_offset, page_type).unwrap();
         }
 
-        ClassifierPage {
-            id: CLASSIFIER_PAGE_ID,
-            data: array,
-        }
+        ClassifierPage { bytes: array }
     }
 
     fn get_entries() -> HashMap<PageIdT, PageVariant> {

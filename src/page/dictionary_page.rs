@@ -27,24 +27,20 @@ const ROOT_LENGTH: PageIdT = 4;
 /// +-----------------+-------------------+--------------------------+-----+
 
 pub struct DictionaryPage {
-    /// A unique identifier for the page
-    id: PageIdT,
-
-    /// Raw byte array
-    data: [u8; PAGE_SIZE as usize],
+    bytes: [u8; PAGE_SIZE as usize],
 }
 
 impl Page for DictionaryPage {
     fn get_id(&self) -> u32 {
-        self.id
+        DICTIONARY_PAGE_ID
     }
 
     fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
-        &self.data
+        &self.bytes
     }
 
     fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
-        &mut self.data
+        &mut self.bytes
     }
 
     fn get_lsn(&self) -> u32 {
@@ -55,12 +51,12 @@ impl Page for DictionaryPage {
         unimplemented!()
     }
 
-    fn get_variant(&self) -> PageVariant {
-        PageVariant::Dictionary
-    }
-
     fn get_free_space(&self) -> u32 {
         unimplemented!()
+    }
+
+    fn get_variant(&self) -> PageVariant {
+        PageVariant::Dictionary
     }
 
     fn as_mut_any(&mut self) -> &mut dyn Any {
@@ -72,19 +68,18 @@ impl DictionaryPage {
     /// Construct a new dictionary page.
     pub fn new(_page_id: PageIdT) -> Self {
         Self {
-            id: DICTIONARY_PAGE_ID,
-            data: [0; PAGE_SIZE as usize],
+            bytes: [0; PAGE_SIZE as usize],
         }
     }
 
     /// Return the number of stored entries.
     pub fn get_count(&self) -> u32 {
-        read_u32(&self.data, COUNT_OFFSET).unwrap()
+        read_u32(&self.bytes, COUNT_OFFSET).unwrap()
     }
 
     /// Set the number of stored entries.
     pub fn set_count(&mut self, count: u32) {
-        write_u32(&mut self.data, COUNT_OFFSET, count).unwrap()
+        write_u32(&mut self.bytes, COUNT_OFFSET, count).unwrap()
     }
 
     /// Search the dictionary for the given entry name and return the corresponding root page ID
@@ -95,9 +90,9 @@ impl DictionaryPage {
         let entry_size = (NAME_LENGTH + ROOT_LENGTH) as usize;
 
         for i in (count_size..count_size + count * entry_size).step_by(entry_size) {
-            let name = read_str256(&self.data, i as u32).unwrap();
+            let name = read_str256(&self.bytes, i as u32).unwrap();
             if name == entry_name {
-                let page_id = read_u32(&self.data, i as u32 + NAME_LENGTH).unwrap();
+                let page_id = read_u32(&self.bytes, i as u32 + NAME_LENGTH).unwrap();
                 return Some(page_id);
             }
         }
@@ -110,9 +105,9 @@ impl DictionaryPage {
         let name_offset = COUNT_OFFSET + COUNT_LENGTH + count * (NAME_LENGTH + ROOT_LENGTH);
         let root_offset = name_offset + NAME_LENGTH;
 
-        write_u32(&mut self.data, COUNT_OFFSET, count + 1).unwrap();
-        write_str256(&mut self.data, name_offset, name).unwrap();
-        write_u32(&mut self.data, root_offset, page_id).unwrap();
+        write_u32(&mut self.bytes, COUNT_OFFSET, count + 1).unwrap();
+        write_str256(&mut self.bytes, name_offset, name).unwrap();
+        write_u32(&mut self.bytes, root_offset, page_id).unwrap();
     }
 }
 
@@ -179,10 +174,7 @@ mod tests {
             write_u32(&mut array, root_offset, *page_id).unwrap();
         }
 
-        DictionaryPage {
-            id: DICTIONARY_PAGE_ID,
-            data: array,
-        }
+        DictionaryPage { bytes: array }
     }
 
     fn get_entries() -> HashMap<&'static str, u32> {
@@ -217,8 +209,8 @@ mod tests {
         let mut page = setup();
         page.set("foo", 111);
         let offset = COUNT_OFFSET + COUNT_LENGTH + 4 * (NAME_LENGTH + ROOT_LENGTH);
-        assert_eq!(read_str256(&page.data, offset).unwrap(), "foo");
-        assert_eq!(read_u32(&page.data, offset + 64).unwrap(), 111);
+        assert_eq!(read_str256(&page.bytes, offset).unwrap(), "foo");
+        assert_eq!(read_u32(&page.bytes, offset + 64).unwrap(), 111);
     }
 
     #[test]

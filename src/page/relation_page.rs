@@ -4,9 +4,9 @@
  */
 
 use crate::common::io::{read_u32, write_u32};
-use crate::common::{LsnT, PageIdT, PAGE_SIZE};
+use crate::common::{LsnT, PageIdT, RecordSlotIdT, PAGE_SIZE};
 use crate::page::{Page, PageError, PageVariant};
-use crate::relation::record::Record;
+use crate::relation::record::{Record, RecordId};
 use std::any::Any;
 
 /// Constants for slotted-page page header.
@@ -18,6 +18,7 @@ const NUM_RECORDS_OFFSET: u32 = 16;
 const LSN_OFFSET: u32 = 20;
 const RECORDS_OFFSET: u32 = 24;
 const RECORD_POINTER_SIZE: u32 = 8;
+const UNINITIALIZED: u32 = 0;
 
 /// An in-memory representation of a database page with slotted-page
 /// architecture. Gets written out to disk by the disk manager.
@@ -53,42 +54,38 @@ const RECORD_POINTER_SIZE: u32 = 8;
 /// +------------------------+----------+----------+----------+
 
 pub struct RelationPage {
-    /// A unique descriptor for this relation page.
-    id: PageIdT,
-
-    /// Raw byte array.
-    data: [u8; PAGE_SIZE as usize],
+    bytes: [u8; PAGE_SIZE as usize],
 }
 
 impl Page for RelationPage {
     fn get_id(&self) -> u32 {
-        self.id
+        read_u32(&self.bytes, PAGE_ID_OFFSET).unwrap()
     }
 
     fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
-        &self.data
+        &self.bytes
     }
 
     fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
-        &mut self.data
+        &mut self.bytes
     }
 
     fn get_lsn(&self) -> u32 {
-        read_u32(&self.data, LSN_OFFSET).unwrap()
+        read_u32(&self.bytes, LSN_OFFSET).unwrap()
     }
 
     fn set_lsn(&mut self, lsn: LsnT) {
-        write_u32(&mut self.data, LSN_OFFSET, lsn).unwrap()
-    }
-
-    fn get_variant(&self) -> PageVariant {
-        PageVariant::Relation
+        write_u32(&mut self.bytes, LSN_OFFSET, lsn).unwrap()
     }
 
     fn get_free_space(&self) -> u32 {
         let free_ptr = self.get_free_space_pointer();
         let num_records = self.get_num_records();
         free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
+    }
+
+    fn get_variant(&self) -> PageVariant {
+        PageVariant::Relation
     }
 
     fn as_mut_any(&mut self) -> &mut dyn Any {
@@ -100,8 +97,7 @@ impl RelationPage {
     /// Create a new in-memory representation of a database page.
     pub fn new(page_id: u32) -> Self {
         let mut page = Self {
-            id: page_id,
-            data: [0; PAGE_SIZE as usize],
+            bytes: [0; PAGE_SIZE as usize],
         };
         page.set_page_id(page_id);
         page.set_free_space_pointer(PAGE_SIZE - 1);
@@ -109,82 +105,85 @@ impl RelationPage {
         page
     }
 
-    /// Get the page ID.
-    pub fn get_page_id(&self) -> u32 {
-        read_u32(&self.data, PAGE_ID_OFFSET).unwrap()
-    }
-
     /// Set the page ID.
     pub fn set_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, PAGE_ID_OFFSET, id).unwrap()
+        write_u32(&mut self.bytes, PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the previous page ID.
     pub fn get_prev_page_id(&self) -> u32 {
-        read_u32(&self.data, PREV_PAGE_ID_OFFSET).unwrap()
+        read_u32(&self.bytes, PREV_PAGE_ID_OFFSET).unwrap()
     }
 
     /// Set the previous page ID.
     pub fn set_prev_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, PREV_PAGE_ID_OFFSET, id).unwrap()
+        write_u32(&mut self.bytes, PREV_PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the next page ID.
-    pub fn get_next_page_id(&self) -> u32 {
-        read_u32(&self.data, NEXT_PAGE_ID_OFFSET).unwrap()
+    pub fn get_next_page_id(&self) -> Option<u32> {
+        let pid = read_u32(&self.bytes, NEXT_PAGE_ID_OFFSET).unwrap();
+        match pid == UNINITIALIZED {
+            true => Some(pid),
+            false => None,
+        }
     }
 
     /// Set the next page ID.
     pub fn set_next_page_id(&mut self, id: u32) {
-        write_u32(&mut self.data, NEXT_PAGE_ID_OFFSET, id).unwrap()
+        write_u32(&mut self.bytes, NEXT_PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get a pointer to the next free space.
     pub fn get_free_space_pointer(&self) -> u32 {
-        read_u32(&self.data, FREE_POINTER_OFFSET).unwrap()
+        read_u32(&self.bytes, FREE_POINTER_OFFSET).unwrap()
     }
 
     /// Set a pointer to the next free space.
     pub fn set_free_space_pointer(&mut self, ptr: u32) {
-        write_u32(&mut self.data, FREE_POINTER_OFFSET, ptr).unwrap()
+        write_u32(&mut self.bytes, FREE_POINTER_OFFSET, ptr).unwrap()
     }
 
     /// Get the number of records contained in the page.
     pub fn get_num_records(&self) -> u32 {
-        read_u32(&self.data, NUM_RECORDS_OFFSET).unwrap()
+        read_u32(&self.bytes, NUM_RECORDS_OFFSET).unwrap()
     }
 
     /// Set the number of records contained in the page.
     pub fn set_num_records(&mut self, num: u32) {
-        write_u32(&mut self.data, NUM_RECORDS_OFFSET, num).unwrap()
+        write_u32(&mut self.bytes, NUM_RECORDS_OFFSET, num).unwrap()
     }
 
     /// Insert a record in the page and update the header.
-    pub fn insert_record(&mut self, record_data: &[u8]) -> Result<(), PageError> {
-        // Calculate header addresses for new length/offset entry
+    pub fn insert_record(&mut self, record: &mut Record) -> Result<(), PageError> {
+        // Calculate header addresses for new length/offset entry.
         let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         let length_addr = offset_addr + 4;
 
-        // Bounds-check for record insertion
+        // Bounds-check for record insertion.
         let free_ptr = self.get_free_space_pointer();
-        let new_free_ptr = free_ptr - record_data.len() as u32;
+        let new_free_ptr = free_ptr - record.len() as u32;
         if new_free_ptr < length_addr + 3 {
             return Err(PageError::PageOverflow);
         }
 
-        // Write record data to allocated space
+        // Write record data to allocated space.
         let start = (new_free_ptr + 1) as usize;
         let end = (free_ptr + 1) as usize;
+        let record_data = record.as_bytes();
         for i in start..end {
-            self.data[i] = record_data[i - start];
+            self.bytes[i] = record_data[i - start];
         }
 
-        // Update header
+        // Update header.
         self.set_free_space_pointer(new_free_ptr);
         self.set_num_records(num_records + 1);
-        write_u32(&mut self.data, new_free_ptr + 1, offset_addr).unwrap();
-        write_u32(&mut self.data, record_data.len() as u32, length_addr).unwrap();
+        write_u32(&mut self.bytes, new_free_ptr + 1, offset_addr).unwrap();
+        write_u32(&mut self.bytes, record_data.len() as u32, length_addr).unwrap();
+
+        // Update record's ID.
+        record.allocate(self.get_id(), num_records);
 
         Ok(())
     }
