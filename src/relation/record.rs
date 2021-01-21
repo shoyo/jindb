@@ -317,7 +317,7 @@ mod tests {
     use super::*;
     use crate::relation::attribute::Attribute;
     use crate::relation::schema::Schema;
-    use crate::relation::types::{DataType, BIGINT, DECIMAL, INT, SMALLINT, TINYINT};
+    use crate::relation::types::DataType;
 
     #[test]
     fn test_create_record() {

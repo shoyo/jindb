@@ -14,7 +14,7 @@ use crate::common::RelationIdT;
 use crate::relation::heap::{Heap, HeapError};
 use crate::relation::record::{Record, RecordId};
 use crate::relation::schema::Schema;
-use crate::relation::types::Value;
+
 use std::sync::Arc;
 
 /// Database relation (i.e. table) represented on disk.

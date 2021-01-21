@@ -12,8 +12,8 @@ use jin::relation::attribute::Attribute;
 use jin::relation::record::Record;
 use jin::relation::schema::Schema;
 use jin::relation::types::DataType;
-use jin::relation::Relation;
-use std::alloc::System;
+
+
 use std::sync::Arc;
 use std::thread;
 

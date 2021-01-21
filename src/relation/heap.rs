@@ -4,15 +4,15 @@
  */
 
 use crate::buffer::manager::{BufferError, BufferManager};
-use crate::buffer::BufferFrame;
+
 use crate::common::{PageIdT, MAX_RECORD_SIZE};
-use crate::page::dictionary_page::DictionaryPage;
+
 use crate::page::relation_page::RelationPage;
-use crate::page::{Page, PageError};
+use crate::page::{Page};
 use crate::relation::record::{Record, RecordId};
-use crate::relation::Relation;
+
 use std::convert::From;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 
 /// A heap is a collection of pages on disk which corresponds to a given relation.
 /// Pages are connected together as a doubly linked list. Each page contains in its
