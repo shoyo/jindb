@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_disk_read() {
-        let ctx = setup(3);
+        let ctx = setup(2);
 
         // Manually write page data to disk.
         let mut file = open_write_file(&ctx.filename);
@@ -201,21 +201,21 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_unallocated_read() {
-        let ctx = setup(4);
+        let ctx = setup(3);
         ctx.disk_manager.read_page(2, &mut [0; PAGE_SIZE as usize]);
     }
 
     #[test]
     #[should_panic]
     fn test_unallocated_write() {
-        let ctx = setup(5);
+        let ctx = setup(4);
         ctx.disk_manager.write_page(2, &[0; PAGE_SIZE as usize]);
     }
 
     #[test]
     /// Assert that multiple threads can read the same page from disk simultaneously.
     fn test_concurrent_read_access() {
-        let ctx = Arc::new(setup(6));
+        let ctx = Arc::new(setup(5));
         let num_threads = 10;
 
         // Write data to a page on disk.
@@ -243,8 +243,8 @@ mod tests {
     /// Assert that multiple threads can allocate and write to different pages on disk
     /// simultaneously.
     fn test_concurrent_write_access() {
-        let ctx = Arc::new(setup(7));
-        let num_threads = 10;
+        let ctx = Arc::new(setup(6));
+        let num_threads = 100;
 
         // Spin up multiple threads, and make each thread allocate a new page on disk.
         // Have each thread write some unique data to their corresponding page.
