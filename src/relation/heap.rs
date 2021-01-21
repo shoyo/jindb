@@ -113,8 +113,11 @@ impl Heap {
                     new_page.set_prev_page_id(page.get_id());
                     page.set_next_page_id(new_page.get_id());
 
-                    self.buffer_manager.unpin_and_drop(frame);
+                    new_frame.set_dirty_flag(true);
+                    frame.set_dirty_flag(true);
+
                     self.buffer_manager.unpin_and_drop(new_frame);
+                    self.buffer_manager.unpin_and_drop(frame);
 
                     return Ok(record.get_id().unwrap());
                 }

@@ -8,7 +8,7 @@ use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
 use crate::buffer::{Buffer, BufferFrame, FrameLatch};
-use crate::common::{BufferFrameIdT, PageIdT, CLASSIFIER_PAGE_ID};
+use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 
@@ -67,7 +67,7 @@ impl BufferManager {
             buffer: Buffer::new(buffer_size),
             disk_manager,
             replacer,
-            page_table: Arc::new(RwLock::new(HashMap::new())),
+            page_table: Arc::new(RwLock::new(HashMap::with_capacity(BUFFER_SIZE as usize))),
             type_chart: Arc::new(RwLock::new(type_chart)),
         }
     }
@@ -119,9 +119,11 @@ impl BufferManager {
                 self._flush_frame(&*frame);
                 frame.reset();
 
-                // Place the new page in the buffer frame and pin it.
+                // Place the new page in the buffer frame, pin it, and flag it as dirty.
                 frame.overwrite(Some(new_page));
                 frame.pin();
+                frame.set_dirty_flag(true);
+
                 self.replacer.pin(frame_id);
 
                 // Return a reference to the page latch.
@@ -174,7 +176,7 @@ impl BufferManager {
                     if let Some(victim_page) = frame.get_page() {
                         page_table.remove(&victim_page.get_id());
                     }
-                    page_table.insert(page_id, frame_id).unwrap();
+                    page_table.insert(page_id, frame_id);
 
                     // Write the existing page out to disk and reset the buffer frame.
                     self._flush_frame(&*frame);

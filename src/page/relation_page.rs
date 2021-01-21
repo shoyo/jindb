@@ -80,9 +80,14 @@ impl Page for RelationPage {
     }
 
     fn get_free_space(&self) -> u32 {
-        let free_ptr = self.get_free_space_pointer();
+        let free_ptr = self.get_free_space_pointer() + 1;
         let num_records = self.get_num_records();
-        free_ptr + 1 - RECORDS_OFFSET - num_records * RECORD_POINTER_SIZE
+
+        let header = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
+        match header >= free_ptr {
+            true => 0,
+            false => free_ptr - header,
+        }
     }
 
     fn get_variant(&self) -> PageVariant {
