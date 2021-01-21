@@ -100,10 +100,6 @@ impl BufferManager {
                 // TODO: handle pin assertions in page replacer
                 frame.assert_no_pins();
 
-                // Write the existing page out to disk and reset the buffer frame.
-                self._flush_frame(&*frame);
-                frame.reset();
-
                 // Allocate space on disk and initialize the new page.
                 let page_id = self.disk_manager.allocate_page();
                 let new_page = init_page_variant(page_id, variant);
@@ -113,8 +109,15 @@ impl BufferManager {
                 let mut type_chart = self.type_chart.write().unwrap();
 
                 // Update the page table and type chart.
+                if let Some(victim_page) = frame.get_page() {
+                    page_table.remove(&victim_page.get_id());
+                }
                 page_table.insert(new_page.get_id(), frame_id);
                 type_chart.insert(page_id, variant);
+
+                // Write the existing page out to disk and reset the buffer frame.
+                self._flush_frame(&*frame);
+                frame.reset();
 
                 // Place the new page in the buffer frame and pin it.
                 frame.overwrite(Some(new_page));
@@ -155,10 +158,6 @@ impl BufferManager {
                     // TODO: handle pin assertions in page replacer
                     frame.assert_no_pins();
 
-                    // Write the existing page out to disk and reset the buffer frame.
-                    self._flush_frame(&*frame);
-                    frame.reset();
-
                     // Acquire locks for page table and type chart (in this order).
                     let mut page_table = self.page_table.write().unwrap();
                     let type_chart = self.type_chart.read().unwrap();
@@ -172,7 +171,14 @@ impl BufferManager {
                         .read_page(page_id, new_page.as_mut_bytes());
 
                     // Update the page table.
+                    if let Some(victim_page) = frame.get_page() {
+                        page_table.remove(&victim_page.get_id());
+                    }
                     page_table.insert(page_id, frame_id).unwrap();
+
+                    // Write the existing page out to disk and reset the buffer frame.
+                    self._flush_frame(&*frame);
+                    frame.reset();
 
                     // Place the new page in the buffer frame and pin it.
                     frame.overwrite(Some(new_page));

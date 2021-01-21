@@ -38,7 +38,7 @@ const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_LENGTH;
 /// database page. While a record exists in-memory, it maintains a reference to the schema which
 /// defines its structure.
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Record {
     /// Unique descriptor for this record. None if record is unallocated.
     id: Option<RecordId>,

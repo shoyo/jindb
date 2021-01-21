@@ -134,6 +134,95 @@ fn test_insert_record() {
     assert_eq!(record_id.slot_index, 0);
 }
 
+#[test]
+fn test_insert_many_records() {
+    let ctx = setup();
+
+    // Create new relation.
+    let relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+
+    // Create a record for the newly created relation.
+    let record = Record::new(
+        vec![
+            Some(Box::new(0)),
+            Some(Box::new(true)),
+            Some(Box::new(
+                "abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz\
+                abcdefghijklmnopqrstuvwxyz"
+                    .to_string(),
+            )),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+
+    // Assert that the record can be inserted into the relation.
+    for _ in 0..100 {
+        assert!(relation.insert_record(record.clone()).is_ok());
+    }
+}
+
 #[ignore]
 #[test]
 fn test_create_index() {

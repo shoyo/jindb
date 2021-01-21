@@ -52,6 +52,7 @@ const UNINITIALIZED: u32 = 0;
 /// +------------------------+----------+----------+----------+
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
 /// +------------------------+----------+----------+----------+
+///                          ^ Free Space Pointer
 
 pub struct RelationPage {
     bytes: [u8; PAGE_SIZE as usize],
@@ -124,8 +125,8 @@ impl RelationPage {
     pub fn get_next_page_id(&self) -> Option<u32> {
         let pid = read_u32(&self.bytes, NEXT_PAGE_ID_OFFSET).unwrap();
         match pid == UNINITIALIZED {
-            true => Some(pid),
-            false => None,
+            true => None,
+            false => Some(pid),
         }
     }
 
@@ -156,17 +157,18 @@ impl RelationPage {
 
     /// Insert a record in the page and update the header.
     pub fn insert_record(&mut self, record: &mut Record) -> Result<(), PageError> {
+        // Bounds-check for record insertion.
+        if record.len() + RECORD_POINTER_SIZE > self.get_free_space() {
+            return Err(PageError::PageOverflow);
+        }
+
         // Calculate header addresses for new length/offset entry.
         let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         let length_addr = offset_addr + 4;
 
-        // Bounds-check for record insertion.
         let free_ptr = self.get_free_space_pointer();
         let new_free_ptr = free_ptr - record.len() as u32;
-        if new_free_ptr < length_addr + 3 {
-            return Err(PageError::PageOverflow);
-        }
 
         // Write record data to allocated space.
         let start = (new_free_ptr + 1) as usize;
