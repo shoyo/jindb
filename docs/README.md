@@ -92,3 +92,7 @@ The disk manager ...
 Potentially delete the free list because with the current implementation the free list and 
 eviction policy struct serve overlapping purposes and keeping both structures updated and in 
 sync possibly incurs performance cost.
+
+### Page creation in buffer manager
+New pages that are initialized in the buffer are immediately flagged as dirty. They are first
+written to disk when the page is flushed to avoid an unnecessary disk write and improve performance.
