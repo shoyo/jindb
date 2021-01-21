@@ -150,65 +150,15 @@ fn test_insert_many_records() {
             Some(Box::new(0)),
             Some(Box::new(true)),
             Some(Box::new(
-                "abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
-                abcdefghijklmnopqrstuvwxyz\
+                "abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
+                abcdefghijklmnopqrstuvwxyz \
                 abcdefghijklmnopqrstuvwxyz"
                     .to_string(),
             )),
@@ -217,9 +167,58 @@ fn test_insert_many_records() {
     )
     .unwrap();
 
-    // Assert that the record can be inserted into the relation.
-    for _ in 0..100 {
+    // Assert that several records can be inserted into the relation.
+    for _ in 0..1000 {
         assert!(relation.insert_record(record.clone()).is_ok());
+    }
+}
+
+#[test]
+fn test_insert_many_records_in_parallel() {
+    let ctx = setup();
+
+    // Create two relations.
+    let relation_1 = ctx
+        .system_catalog
+        .create_relation("relation_1", ctx.schema_1.clone())
+        .unwrap();
+
+    let relation_2 = ctx
+        .system_catalog
+        .create_relation("relation_2", ctx.schema_2.clone())
+        .unwrap();
+
+    // Create records for each newly created relation.
+    let record_1 = Record::new(
+        vec![
+            Some(Box::new(0)),
+            Some(Box::new(true)),
+            Some(Box::new("Hello, World!!!!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+
+    let record_2 = Record::new(
+        vec![Some(Box::new(123456789)), Some(Box::new(true))],
+        ctx.schema_2.clone(),
+    )
+    .unwrap();
+
+    // Spin up several threads and simultaneously insert several records into both relations.
+    for _ in 0..10 {
+        let relation = relation_1.clone();
+        let record = record_1.clone();
+        thread::spawn(move || {
+            assert!(relation.insert_record(record).is_ok());
+        });
+    }
+    for _ in 0..10 {
+        let relation = relation_2.clone();
+        let record = record_2.clone();
+        thread::spawn(move || {
+            assert!(relation.insert_record(record).is_ok());
+        });
     }
 }
 
