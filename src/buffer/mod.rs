@@ -6,14 +6,15 @@
 use crate::common::BufferFrameIdT;
 use crate::page::Page;
 
-use std::sync::{Arc, RwLock};
+use std::any::Any;
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub mod manager;
 pub mod replacement;
 
 /// The database buffer pool to be managed by the buffer manager.
 pub struct Buffer {
-    pool: Vec<FrameLatch>,
+    pool: Vec<FrameArc>,
 }
 
 impl Buffer {
@@ -25,7 +26,7 @@ impl Buffer {
         Self { pool }
     }
 
-    pub fn get(&self, id: BufferFrameIdT) -> FrameLatch {
+    pub fn get(&self, id: BufferFrameIdT) -> FrameArc {
         self.pool[id as usize].clone()
     }
 
@@ -48,10 +49,10 @@ pub struct BufferFrame {
     dirty_flag: bool,
 
     /// Number of active references to the contained page
-    pin_count: u32,
+    pin_count: Arc<Mutex<u32>>,
 
     /// Number of times the contained page has been accessed since being read from disk
-    usage_count: u32,
+    usage_count: Arc<Mutex<u32>>,
 }
 
 impl BufferFrame {
@@ -61,8 +62,8 @@ impl BufferFrame {
             id,
             page: None,
             dirty_flag: false,
-            pin_count: 0,
-            usage_count: 0,
+            pin_count: Arc::new(Mutex::new(0)),
+            usage_count: Arc::new(Mutex::new(0)),
         }
     }
 
@@ -81,11 +82,6 @@ impl BufferFrame {
         self.page.as_mut()
     }
 
-    /// Overwrite the existing page.
-    pub fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
-        self.page = page;
-    }
-
     /// Return the dirty flag of this buffer frame.
     pub fn is_dirty(&self) -> bool {
         self.dirty_flag
@@ -98,42 +94,90 @@ impl BufferFrame {
 
     /// Return the pin count of this buffer frame.
     pub fn get_pin_count(&self) -> u32 {
-        self.pin_count
+        let pins = self.pin_count.lock().unwrap();
+        *pins
     }
 
     /// Increase the pin count of this buffer frame by 1.
-    pub fn pin(&mut self) {
-        self.pin_count += 1;
+    pub fn pin(&self) {
+        let pins = self.pin_count.lock().unwrap();
+        *pins += 1;
     }
 
     /// Decrease the pin count of this buffer frame by 1.
     /// Panics if the pin count is 0.
-    pub fn unpin(&mut self) {
-        if self.pin_count == 0 {
+    pub fn unpin(&self) {
+        let pins = self.pin_count.lock().unwrap();
+        if *pins == 0 {
             panic!("Cannot unpin a page with pin count equal to 0");
         }
-        self.pin_count -= 1;
+        *pins -= 1;
     }
 
-    /// Reset this buffer frame to an initial, empty state.
-    /// This method is typically called when a database page is removed from this buffer frame.
-    pub fn reset(&mut self) {
-        self.page = None;
+    /// Overwrite the existing page and reset buffer frame metadata.
+    pub fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
+        self.page = page;
         self.dirty_flag = false;
-        self.pin_count = 0;
-        self.usage_count = 0;
+        self.pin_count = Arc::new(Mutex::new(0));
+        self.usage_count = Arc::new(Mutex::new(0));
     }
 
     /// Panic if the buffer frame has a pin count greater than 0.
-    pub fn assert_no_pins(&self) {
-        if self.pin_count != 0 {
+    pub fn assert_unpinned(&self) {
+        let pins = self.pin_count.lock().unwrap();
+        if *pins != 0 {
             panic!(
                 "Frame ID: {} contains a page that is pinned ({} pins)",
-                self.id, self.pin_count
+                self.id, *pins
             )
         }
     }
 }
 
 /// Type alias for a guarded buffer frame.
-pub type FrameLatch = Arc<RwLock<BufferFrame>>;
+pub type FrameArc = Arc<RwLock<BufferFrame>>;
+pub type FrameRLatch<'a> = RwLockReadGuard<'a, BufferFrame>;
+pub type FrameWLatch<'a> = RwLockWriteGuard<'a, BufferFrame>;
+
+trait FrameLatch {
+    fn get_id(&self) -> BufferFrameIdT;
+    fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>>;
+    fn get_pin_count(&self) -> u32;
+    fn unpin(&self);
+}
+
+impl<'a> FrameLatch for FrameRLatch<'a> {
+    fn get_id(&self) -> u32 {
+        self.get_id()
+    }
+
+    fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>> {
+        self.get_page()
+    }
+
+    fn get_pin_count(&self) -> u32 {
+        self.get_pin_count()
+    }
+
+    fn unpin(&self) {
+        self.unpin()
+    }
+}
+
+impl<'a> FrameLatch for FrameWLatch<'a> {
+    fn get_id(&self) -> u32 {
+        self.get_id()
+    }
+
+    fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>> {
+        self.get_page()
+    }
+
+    fn get_pin_count(&self) -> u32 {
+        self.get_pin_count()
+    }
+
+    fn unpin(&self) {
+        self.unpin()
+    }
+}

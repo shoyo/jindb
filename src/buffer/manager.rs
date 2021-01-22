@@ -7,14 +7,19 @@ use crate::buffer::replacement::clock::ClockReplacer;
 use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
-use crate::buffer::{Buffer, BufferFrame, FrameLatch};
+use crate::buffer::{Buffer, BufferFrame, FrameArc, FrameLatch, FrameRLatch, FrameWLatch};
 use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 
 use crate::page::{init_page_variant, Page, PageVariant};
+use std::any::Any;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+/// Type alias for read and write latches returned by the buffer manager.
+type PageTable = HashMap<PageIdT, BufferFrameIdT>;
+type TypeChart = HashMap<PageIdT, PageVariant>;
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
 /// Higher layers of the database system make requests to the buffer manager to create and fetch
@@ -33,10 +38,10 @@ pub struct BufferManager {
     replacer: Box<dyn PageReplacer + Send + Sync>,
 
     /// Mapping of pages to buffer frames that they occupy
-    page_table: Arc<RwLock<HashMap<PageIdT, BufferFrameIdT>>>,
+    page_table: Arc<Mutex<PageTable>>,
 
     /// Mapping of pages to their page variants
-    type_chart: Arc<RwLock<HashMap<PageIdT, PageVariant>>>,
+    type_chart: Arc<RwLock<TypeChart>>,
 }
 
 impl BufferManager {
@@ -58,7 +63,9 @@ impl BufferManager {
         // If the classifier page is empty, nothing gets inserted into the type chart.
         let mut classifier = ClassifierPage::new(CLASSIFIER_PAGE_ID);
         disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.as_mut_bytes());
+
         let mut type_chart = HashMap::new();
+
         for (page_id, page_type) in classifier {
             type_chart.insert(page_id, page_type);
         }
@@ -67,169 +74,254 @@ impl BufferManager {
             buffer: Buffer::new(buffer_size),
             disk_manager,
             replacer,
-            page_table: Arc::new(RwLock::new(HashMap::with_capacity(BUFFER_SIZE as usize))),
+            page_table: Arc::new(Mutex::new(HashMap::with_capacity(BUFFER_SIZE as usize))),
             type_chart: Arc::new(RwLock::new(type_chart)),
         }
     }
 
-    /// Initialize a classifier page, pin it, and return its page latch.
-    pub fn create_classifier_page(&self) -> Result<FrameLatch, BufferError> {
+    /// Initialize a classifier page, pin it, and return its write latch.
+    pub fn create_classifier_page(&self) -> Result<FrameWLatch, BufferError> {
         self._create_page(PageVariant::Classifier)
     }
 
-    /// Initialize a dictionary page, pin it, and return its page latch.
-    pub fn create_dictionary_page(&self) -> Result<FrameLatch, BufferError> {
+    /// Initialize a dictionary page, pin it, and return its write latch.
+    pub fn create_dictionary_page(&self) -> Result<FrameWLatch, BufferError> {
         self._create_page(PageVariant::Dictionary)
     }
 
-    /// Initialize a relation page, pin it, and return its page latch.
-    pub fn create_relation_page(&self) -> Result<FrameLatch, BufferError> {
+    /// Initialize a relation page, pin it, and return its write latch.
+    pub fn create_relation_page(&self) -> Result<FrameWLatch, BufferError> {
         self._create_page(PageVariant::Relation)
     }
 
-    /// Initialize a new page, pin it, and return its page latch.
+    /// Initialize a new page, pin it, and return its write latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
-    fn _create_page(&self, variant: PageVariant) -> Result<FrameLatch, BufferError> {
+    fn _create_page(&self, variant: PageVariant) -> Result<FrameWLatch, BufferError> {
+        // Acquire locks for page table and type chart (in this order).
+        let mut page_table = self.page_table.lock().unwrap();
+        let mut type_chart = self.type_chart.write().unwrap();
+
         match self.replacer.evict() {
             Some(frame_id) => {
-                // Acquire latch for victim page.
-                let frame_latch = self.buffer.get(frame_id);
-                let mut frame = frame_latch.write().unwrap();
+                // Acquire write latch for frame to be occupied by new page.
+                let frame_arc = self.buffer.get(frame_id);
+                let mut frame = frame_arc.write().unwrap();
 
                 // Assert that selected page is a valid victim page.
                 // TODO: handle pin assertions in page replacer
-                frame.assert_no_pins();
+                frame.assert_unpinned();
 
                 // Allocate space on disk and initialize the new page.
-                let page_id = self.disk_manager.allocate_page();
-                let new_page = init_page_variant(page_id, variant);
-
-                // Acquire locks for page table and type chart (in this order).
-                let mut page_table = self.page_table.write().unwrap();
-                let mut type_chart = self.type_chart.write().unwrap();
+                let new_page_id = self.disk_manager.allocate_page();
+                let new_page = init_page_variant(new_page_id, variant);
 
                 // Update the page table and type chart.
-                if let Some(victim_page) = frame.get_page() {
-                    page_table.remove(&victim_page.get_id());
+                // If the frame contains a modified victim page, flush its data out to disk.
+                if let Some(victim) = frame.get_page() {
+                    if frame.is_dirty() {
+                        self.disk_manager
+                            .write_page(victim.get_id(), victim.as_bytes());
+                    }
+
+                    // .unwrap() ok since victim page must have an page table entry.
+                    page_table.remove(&victim.get_id()).unwrap();
                 }
-                page_table.insert(new_page.get_id(), frame_id);
-                type_chart.insert(page_id, variant);
+                page_table.insert(new_page_id, frame_id);
+                type_chart.insert(new_page_id, variant);
 
-                // Write the existing page out to disk and reset the buffer frame.
-                self._flush_frame(&*frame);
-                frame.reset();
-
-                // Place the new page in the buffer frame, pin it, and flag it as dirty.
+                // Place the new page in the buffer frame, flag it as dirty, and pin it.
                 frame.overwrite(Some(new_page));
-                frame.pin();
                 frame.set_dirty_flag(true);
-
+                frame.pin();
                 self.replacer.pin(frame_id);
 
-                // Return a reference to the page latch.
-                Ok(frame_latch.clone())
+                // Return the write latch to the new page.
+                Ok(frame)
             }
             None => Err(BufferError::NoBufFrame),
         }
     }
 
-    /// Fetch the specified page, pin it, and return its page latch.
+    /// Fetch the specified page, pin it, and return its read latch.
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
-    pub fn fetch_page(&self, page_id: PageIdT) -> Result<FrameLatch, BufferError> {
+    pub fn fetch_page_read(&self, page_id: PageIdT) -> Result<FrameRLatch, BufferError> {
+        // Assert that the page exists on disk.
         if !self.disk_manager.is_allocated(page_id) {
             return Err(BufferError::PageDiskDNE);
         }
-        match self._page_table_lookup(page_id) {
-            // If the page is already in the buffer, pin it and return its latch.
-            Some(frame_latch) => {
-                let mut frame = frame_latch.write().unwrap();
+
+        // Acquire locks for page table and type chart (in this order).
+        let mut page_table = self.page_table.lock().unwrap();
+        let mut type_chart = self.type_chart.read().unwrap();
+
+        match self.rlookup(&page_table, page_id) {
+            // If the page already exists in the buffer, pin it and return its read latch.
+            Some(frame) => {
                 frame.pin();
-                self.replacer.pin(frame.id);
-                Ok(frame_latch.clone())
+                self.replacer.pin(frame.get_id());
+                Ok(frame)
             }
-            // Otherwise, the page must be read from disk and replace an existing page in the
-            // buffer. If there aren't any pages that can be evicted, give up and return an error.
-            None => match self.replacer.evict() {
-                Some(frame_id) => {
-                    // Acquire latch for victim page.
-                    let frame_latch = self.buffer.get(frame_id);
-                    let mut frame = frame_latch.write().unwrap();
+            // Otherwise, retrieve the page from disk and (possibly) replace a page in the buffer.
+            // If all frames are occupied and pinned, give up and return an error.
+            None => {
+                let (frame, frame_arc) = self._fetch_from_disk(page_id, page_table, type_chart)?;
 
-                    // Assert that selected page is a valid victim page.
-                    // TODO: handle pin assertions in page replacer
-                    frame.assert_no_pins();
+                // Release the write latch, then acquire and return a read latch.
+                drop(frame);
+                Ok(frame_arc.read().unwrap())
+            }
+        }
+    }
 
-                    // Acquire locks for page table and type chart (in this order).
-                    let mut page_table = self.page_table.write().unwrap();
-                    let type_chart = self.type_chart.read().unwrap();
+    /// Fetch the specified page, pin it, and return its write latch.
+    /// If the page does not exist in the buffer, then fetch the page from disk.
+    /// If the page does not exist on disk, then return an error.
+    pub fn fetch_page_write(&self, page_id: PageIdT) -> Result<FrameWLatch, BufferError> {
+        // Assert that the page exists on disk.
+        if !self.disk_manager.is_allocated(page_id) {
+            return Err(BufferError::PageDiskDNE);
+        }
 
-                    // Fetch the requested page into memory from disk.
-                    let mut new_page: Box<dyn Page + Send + Sync> = match type_chart.get(&page_id) {
-                        Some(variant) => init_page_variant(page_id, *variant),
-                        None => panic!("Page ID {} does not have a type chart entry", page_id),
-                    };
-                    self.disk_manager
-                        .read_page(page_id, new_page.as_mut_bytes());
+        // Acquire locks for page table and type chart (in this order).
+        let mut page_table = self.page_table.lock().unwrap();
+        let mut type_chart = self.type_chart.read().unwrap();
 
-                    // Update the page table.
-                    if let Some(victim_page) = frame.get_page() {
-                        page_table.remove(&victim_page.get_id());
+        match self.wlookup(&page_table, page_id) {
+            // If the page already exists in the buffer, pin it and return its read latch.
+            Some(frame) => {
+                frame.pin();
+                self.replacer.pin(frame.get_id());
+                Ok(frame)
+            }
+            // Otherwise, retrieve the page from disk and (possibly) replace a page in the buffer.
+            // If all frames are occupied and pinned, give up and return an error.
+            None => {
+                let (frame, _) = self._fetch_from_disk(page_id, page_table, type_chart)?;
+                Ok(frame)
+            }
+        }
+    }
+
+    /// Fetch the specified page from disk. If there is no available frame in the buffer, return
+    /// an error.
+    fn _fetch_from_disk(
+        &self,
+        page_id: PageIdT,
+        mut page_table: MutexGuard<PageTable>,
+        type_chart: RwLockReadGuard<TypeChart>,
+    ) -> Result<(FrameWLatch, FrameArc), BufferError> {
+        match self.replacer.evict() {
+            Some(frame_id) => {
+                // Acquire write latch for victim page.
+                let frame_arc = self.buffer.get(frame_id);
+                let mut frame = frame_arc.write().unwrap();
+
+                // Assert that selected page is a valid victim page.
+                // TODO: handle pin assertions in page replacer
+                frame.assert_unpinned();
+
+                // Fetch the requested page into memory from disk.
+                let mut page: Box<dyn Page + Send + Sync> = match type_chart.get(&page_id) {
+                    Some(variant) => init_page_variant(page_id, *variant),
+                    None => panic!("Page ID {} does not have a type chart entry", page_id),
+                };
+                self.disk_manager.read_page(page_id, page.as_mut_bytes());
+
+                // Update the page table.
+                // If the frame contains a modified victim page, flush its data out to disk.
+                if let Some(victim) = frame.get_page() {
+                    if frame.is_dirty() {
+                        self.disk_manager
+                            .write_page(victim.get_id(), victim.as_bytes())
                     }
-                    page_table.insert(page_id, frame_id);
 
-                    // Write the existing page out to disk and reset the buffer frame.
-                    self._flush_frame(&*frame);
-                    frame.reset();
-
-                    // Place the new page in the buffer frame and pin it.
-                    frame.overwrite(Some(new_page));
-                    frame.pin();
-                    self.replacer.pin(frame_id);
-
-                    // Return a reference to the page latch.
-                    Ok(frame_latch.clone())
+                    // .unwrap() ok since victim page must have an page table entry.
+                    page_table.remove(&victim.get_id()).unwrap();
                 }
-                None => Err(BufferError::NoBufFrame),
-            },
+                page_table.insert(page_id, frame_id);
+
+                // Place the fetched page in the buffer frame and pin it.
+                frame.overwrite(Some(page));
+                frame.pin();
+                self.replacer.pin(frame_id);
+
+                // Return the write latch.
+                Ok((frame, frame_arc))
+            }
+            None => Err(BufferError::NoBufFrame),
         }
     }
 
     /// Delete the specified page. If the page is pinned, then return an error.
     pub fn delete_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
-        match self._page_table_lookup(page_id) {
-            Some(frame_latch) => {
-                let mut frame = frame_latch.write().unwrap();
+        if !self.disk_manager.is_allocated(page_id) {
+            return Err(BufferError::PageDiskDNE);
+        }
 
+        let mut page_table = self.page_table.lock().unwrap();
+        let mut type_chart = self.type_chart.write().unwrap();
+
+        match self.wlookup(&page_table, page_id) {
+            Some(mut frame) => {
                 match frame.get_pin_count() {
                     0 => {
-                        let mut page_table = self.page_table.write().unwrap();
-                        let mut type_chart = self.type_chart.write().unwrap();
+                        frame.overwrite(None);
+
+                        // .unwrap() ok since page exists in buffer.
                         page_table.remove(&page_id).unwrap();
+
+                        // .unwrap() ok since allocated page must have type chart entry.
                         type_chart.remove(&page_id).unwrap();
 
                         self.disk_manager.deallocate_page(page_id);
-                        self.replacer.unpin(frame.get_id());
-                        frame.reset();
                         Ok(())
                     }
                     _ => Err(BufferError::PagePinned),
                 }
             }
             None => {
+                // .unwrap() ok since allocated page must have type chart entry.
+                type_chart.remove(&page_id).unwrap();
+
                 self.disk_manager.deallocate_page(page_id);
                 Ok(())
             }
         }
     }
 
-    /// Unpin the page contained in the specified frame and drop the write guard.
-    ///
-    /// This method is intended to be used by the same thread that has already gained exclusive
-    /// access to a frame after invoking .write() on a frame latch received through a fetch or
-    /// create request. Instead of dropping its WriteGuard and needing to reacquire it to
-    /// perform an unpin, it uses this method instead to reduce overhead.
-    pub fn unpin_and_drop(&self, mut frame: RwLockWriteGuard<BufferFrame>) {
+    /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
+    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
+        let page_table = self.page_table.lock().unwrap();
+        match self.rlookup(&page_table, page_id) {
+            Some(frame) => {
+                if frame.is_dirty() {
+                    // .unwrap() ok since dirty frame implies frame contains a page.
+                    let page = frame.get_page().unwrap();
+                    self.disk_manager.write_page(page.get_id(), page.as_bytes())
+                }
+                Ok(())
+            }
+            None => Err(BufferError::PageBufDNE),
+        }
+    }
+
+    /// Flush all pages to disk.
+    pub fn flush_all_pages(&self) -> Result<(), BufferError> {
+        for frame_id in 0..self.buffer.size() {
+            let frame_arc = self.buffer.get(frame_id);
+            let frame = frame_arc.read().unwrap();
+            if frame.is_dirty() {
+                // .unwrap() ok since dirty frame implies frame contains a page.
+                let page = frame.get_page().unwrap();
+                self.disk_manager.write_page(page.get_id(), page.as_bytes())
+            }
+        }
+        Ok(())
+    }
+
+    /// Unpin the page contained in the specified frame and release the latch.
+    pub fn unpin(&self, frame: impl FrameLatch) {
         match frame.get_page() {
             Some(_) => {
                 frame.unpin();
@@ -239,63 +331,25 @@ impl BufferManager {
             }
             None => panic!("Attempted to unpin an empty buffer frame"),
         }
-        drop(frame); // Not actually needed, but makes operation explicit.
     }
 
-    /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
-    pub fn flush_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
-        match self._page_table_lookup(page_id) {
-            Some(frame_latch) => {
-                let frame = frame_latch.read().unwrap();
-                self._flush_frame(&*frame);
-                Ok(())
-            }
-            None => Err(BufferError::PageBufDNE),
-        }
-    }
-
-    /// Flush all pages to disk.
-    pub fn flush_all_pages(&self) {
-        for frame_id in 0..self.buffer.size() {
-            let frame_latch = self.buffer.get(frame_id);
-            let frame = frame_latch.read().unwrap();
-            self._flush_frame(&*frame);
-        }
-    }
-
-    /// Flush the page contained in the specified frame latch to disk. Do nothing if the page has
-    /// not been modified.
-    fn _flush_frame(&self, frame: &BufferFrame) {
-        if frame.is_dirty() {
-            // Unwrapping is okay here because a dirty frame implies that a page is contained in
-            // the frame.
-            let page = frame.get_page().unwrap();
-            self.disk_manager.write_page(page.get_id(), page.as_bytes())
-        }
-    }
-
-    /// Find the specified page in the page table, and return its frame latch.
-    /// If the page does not exist in the page table, then return None.
-    /// Panic if a frame that the page table points to is empty or contains the wrong page.
-    fn _page_table_lookup(&self, page_id: PageIdT) -> Option<FrameLatch> {
-        let page_table = self.page_table.read().unwrap();
+    /// Find the specified page in the page table, and return its read latch.
+    fn rlookup(&self, page_table: &MutexGuard<PageTable>, page_id: PageIdT) -> Option<FrameRLatch> {
         match page_table.get(&page_id) {
-            Some(frame_id) => {
-                let frame_latch = self.buffer.get(*frame_id);
-                let frame = frame_latch.read().unwrap();
-                match frame.get_page() {
-                    Some(ref page) => {
-                        if page.get_id() != page_id {
-                            panic!(
-                                "Broken page table: expected page ID {}, got page ID {}",
-                                page_id,
-                                page.get_id()
-                            )
-                        }
-                        Some(frame_latch.clone())
-                    }
-                    None => panic!("Broken page table: frame ID {} is empty", frame_id),
-                }
+            Some(&frame_id) => {
+                let frame_arc = self.buffer.get(frame_id);
+                Some(frame_arc.read().unwrap())
+            }
+            None => None,
+        }
+    }
+
+    /// Find the specified page in the page table, and return its write latch.
+    fn wlookup(&self, page_table: &MutexGuard<PageTable>, page_id: PageIdT) -> Option<FrameWLatch> {
+        match page_table.get(&page_id) {
+            Some(&frame_id) => {
+                let frame_arc = self.buffer.get(frame_id);
+                Some(frame_arc.write().unwrap())
             }
             None => None,
         }
@@ -303,7 +357,6 @@ impl BufferManager {
 }
 
 /// Custom error types to be used by the buffer manager.
-
 #[derive(Debug)]
 pub enum BufferError {
     /// Error to be thrown when no buffer frames are open, and every page occupying a buffer frame is
@@ -313,7 +366,8 @@ pub enum BufferError {
     /// Error to be thrown when a page that is pinned and an operation cannot proceed.
     PagePinned,
 
-    /// Error to be thrown when the specified page does not exist in the buffer.
+    /// Error to be thrown when the specified page does not exist in the buffer. Does NOT
+    /// guarantee that the page exists on disk.
     PageBufDNE,
 
     /// Error to be thrown when the specified page does not exist on disk.

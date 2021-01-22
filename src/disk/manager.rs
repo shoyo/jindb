@@ -9,13 +9,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The disk manager is responsible for managing pages stored on disk.
 
 pub struct DiskManager {
     db_filename: String,
-    next_page_id: Mutex<PageIdT>,
+    next_page_id: Arc<Mutex<PageIdT>>,
 }
 
 impl DiskManager {
@@ -32,7 +32,7 @@ impl DiskManager {
 
         Self {
             db_filename: filename.to_string(),
-            next_page_id: Mutex::new(CLASSIFIER_PAGE_ID + 1),
+            next_page_id: Arc::new(Mutex::new(CLASSIFIER_PAGE_ID + 1)),
         }
     }
 
