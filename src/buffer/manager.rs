@@ -23,19 +23,19 @@ use std::sync::{Arc, RwLock, RwLockWriteGuard};
 /// must be thread-safe.
 
 pub struct BufferManager {
-    /// A pool of buffer frames to hold database pages
+    /// A pool of buffer frames to hold database pages.
     buffer: Buffer,
 
-    /// Disk manager for reading from and writing to disk
+    /// Disk manager for reading from and writing to disk.
     disk_manager: DiskManager,
 
-    /// Page replacement manager
+    /// Page replacement manager.
     replacer: Box<dyn PageReplacer + Send + Sync>,
 
-    /// Mapping of pages to buffer frames that they occupy
+    /// Mapping of pages to buffer frames that they occupy.
     page_table: Arc<RwLock<HashMap<PageIdT, BufferFrameIdT>>>,
 
-    /// Mapping of pages to their page variants
+    /// Mapping of pages to their page variants.
     type_chart: Arc<RwLock<HashMap<PageIdT, PageVariant>>>,
 }
 
@@ -89,14 +89,23 @@ impl BufferManager {
 
     /// Initialize a new page, pin it, and return its page latch.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
+    ///
+    /// Note that the page replacer serves as both the page replacement manager and free list to
+    /// avoid storing redundant frame metadata. Therefore, .evict() is called on the replacer
+    /// regardless of whether the buffer pool is full.
     fn _create_page(&self, variant: PageVariant) -> Result<FrameLatch, BufferError> {
+        println!(
+            "{:?} (create #{:?})",
+            self.buffer,
+            std::thread::current().id()
+        );
         match self.replacer.evict() {
             Some(frame_id) => {
-                // Acquire latch for victim page.
+                // Acquire latch for frame to be occupied by new page.
                 let frame_latch = self.buffer.get(frame_id);
                 let mut frame = frame_latch.write().unwrap();
 
-                // Assert that selected page is a valid victim page.
+                // Verify that the replacer didn't go nuts and select a pinned frame.
                 // TODO: handle pin assertions in page replacer
                 frame.assert_no_pins();
 
@@ -110,7 +119,7 @@ impl BufferManager {
 
                 // Update the page table and type chart.
                 if let Some(victim_page) = frame.get_page() {
-                    page_table.remove(&victim_page.get_id());
+                    page_table.remove(&victim_page.get_id()).unwrap();
                 }
                 page_table.insert(new_page.get_id(), frame_id);
                 type_chart.insert(page_id, variant);
@@ -121,9 +130,8 @@ impl BufferManager {
 
                 // Place the new page in the buffer frame, pin it, and flag it as dirty.
                 frame.overwrite(Some(new_page));
-                frame.pin();
                 frame.set_dirty_flag(true);
-
+                frame.pin();
                 self.replacer.pin(frame_id);
 
                 // Return a reference to the page latch.
@@ -137,6 +145,12 @@ impl BufferManager {
     /// If the page does not exist in the buffer, then fetch the page from disk.
     /// If the page does not exist on disk, then return an error.
     pub fn fetch_page(&self, page_id: PageIdT) -> Result<FrameLatch, BufferError> {
+        println!(
+            "{:?} (fetch {} #{:?})",
+            self.buffer,
+            page_id,
+            std::thread::current().id()
+        );
         if !self.disk_manager.is_allocated(page_id) {
             return Err(BufferError::PageDiskDNE);
         }
@@ -145,7 +159,7 @@ impl BufferManager {
             Some(frame_latch) => {
                 let mut frame = frame_latch.write().unwrap();
                 frame.pin();
-                self.replacer.pin(frame.id);
+                self.replacer.pin(frame.get_id());
                 Ok(frame_latch.clone())
             }
             // Otherwise, the page must be read from disk and replace an existing page in the
@@ -174,7 +188,7 @@ impl BufferManager {
 
                     // Update the page table.
                     if let Some(victim_page) = frame.get_page() {
-                        page_table.remove(&victim_page.get_id());
+                        page_table.remove(&victim_page.get_id()).unwrap();
                     }
                     page_table.insert(page_id, frame_id);
 
@@ -270,7 +284,7 @@ impl BufferManager {
             // Unwrapping is okay here because a dirty frame implies that a page is contained in
             // the frame.
             let page = frame.get_page().unwrap();
-            self.disk_manager.write_page(page.get_id(), page.as_bytes())
+            self.disk_manager.write_page(page.get_id(), page.as_bytes());
         }
     }
 
@@ -287,9 +301,10 @@ impl BufferManager {
                     Some(ref page) => {
                         if page.get_id() != page_id {
                             panic!(
-                                "Broken page table: expected page ID {}, got page ID {}",
+                                "Broken page table: expected page ID {}, got page ID {}, {:?}",
                                 page_id,
-                                page.get_id()
+                                page.get_id(),
+                                page.as_bytes(),
                             )
                         }
                         Some(frame_latch.clone())

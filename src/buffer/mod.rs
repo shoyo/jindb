@@ -6,6 +6,8 @@
 use crate::common::BufferFrameIdT;
 use crate::page::Page;
 
+use std::fmt;
+use std::fmt::Formatter;
 use std::sync::{Arc, RwLock};
 
 pub mod manager;
@@ -34,23 +36,29 @@ impl Buffer {
     }
 }
 
+impl fmt::Debug for Buffer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.pool)
+    }
+}
+
 /// A single buffer frame contained in a buffer pool.
 /// The buffer frame maintains metadata about the contained page, such as a dirty flag and pin
 /// count. The buffer ID should never change after the buffer frame has been initialized.
 pub struct BufferFrame {
-    /// A unique identifier for this buffer frame
+    /// A unique identifier for this buffer frame.
     id: BufferFrameIdT,
 
-    /// The database page contained in this buffer frame
+    /// The database page contained in this buffer frame.
     page: Option<Box<dyn Page + Send + Sync>>,
 
-    /// True if the contained page has been modified since being read from disk
+    /// True if the contained page has been modified since being read from disk.
     dirty_flag: bool,
 
-    /// Number of active references to the contained page
+    /// Number of active references to the contained page.
     pin_count: u32,
 
-    /// Number of times the contained page has been accessed since being read from disk
+    /// Number of times the contained page has been accessed since being read from disk.
     usage_count: u32,
 }
 
@@ -131,6 +139,15 @@ impl BufferFrame {
                 "Frame ID: {} contains a page that is pinned ({} pins)",
                 self.id, self.pin_count
             )
+        }
+    }
+}
+
+impl fmt::Debug for BufferFrame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self.get_page() {
+            Some(page) => write!(f, "id:{:?}, pins:{:?}", page.get_id(), self.pin_count),
+            None => write!(f, "id:None, pins:{:?}", self.pin_count),
         }
     }
 }

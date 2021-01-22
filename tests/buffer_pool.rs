@@ -6,7 +6,6 @@
 use jin::buffer::manager::BufferManager;
 use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::disk::manager::DiskManager;
-use jin::page::Page;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 

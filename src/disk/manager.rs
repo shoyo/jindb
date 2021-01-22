@@ -125,7 +125,7 @@ mod tests {
 
     impl Drop for TestContext {
         fn drop(&mut self) {
-            fs::remove_file(&self.filename);
+            fs::remove_file(&self.filename).unwrap();
         }
     }
 
