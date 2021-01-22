@@ -26,7 +26,8 @@ pub struct Heap {
 impl Heap {
     /// Create a new heap for a database relation.
     pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, BufferError> {
-        let frame = buffer_manager.create_relation_page()?;
+        let frame_arc = buffer_manager.create_relation_page()?;
+        let frame = frame_arc.read().unwrap();
 
         let head_page_id = match frame.get_page() {
             Some(ref page) => page.get_id(),
@@ -60,7 +61,8 @@ impl Heap {
         let mut page_id = self.head_page_id;
         loop {
             // 1) Obtain a write latch for the current page's frame.
-            let mut frame = self.buffer_manager.fetch_page_write(page_id)?;
+            let frame_arc = self.buffer_manager.fetch_page(page_id)?;
+            let mut frame = frame_arc.write().unwrap();
 
             let page = frame
                 .get_mut_page()
@@ -87,7 +89,8 @@ impl Heap {
                     page_id = pid
                 }
                 None => {
-                    let mut new_frame = self.buffer_manager.create_relation_page()?;
+                    let frame_arc = self.buffer_manager.create_relation_page()?;
+                    let mut new_frame = frame_arc.write().unwrap();
 
                     let new_page = new_frame
                         .get_mut_page()

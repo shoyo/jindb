@@ -154,7 +154,7 @@ pub type FrameArc = Arc<RwLock<BufferFrame>>;
 pub type FrameRLatch<'a> = RwLockReadGuard<'a, BufferFrame>;
 pub type FrameWLatch<'a> = RwLockWriteGuard<'a, BufferFrame>;
 
-trait FrameLatch {
+pub trait FrameLatch {
     fn get_id(&self) -> BufferFrameIdT;
     fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>>;
     fn get_pin_count(&self) -> u32;
