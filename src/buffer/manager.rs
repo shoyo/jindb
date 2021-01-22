@@ -28,13 +28,13 @@ type TypeChart = HashMap<PageIdT, PageVariant>;
 /// must be thread-safe.
 
 pub struct BufferManager {
-    /// A pool of buffer frames to hold database pages
+    /// A pool of buffer frames to hold database pages.
     buffer: Buffer,
 
-    /// Disk manager for reading from and writing to disk
+    /// Disk manager for reading from and writing to disk.
     disk_manager: DiskManager,
 
-    /// Page replacement manager
+    /// Page replacement manager.
     replacer: Box<dyn PageReplacer + Send + Sync>,
 
     /// Mapping of pages to buffer frames that they occupy
@@ -107,7 +107,7 @@ impl BufferManager {
                 let frame_arc = self.buffer.get(frame_id);
                 let mut frame = frame_arc.write().unwrap();
 
-                // Assert that selected page is a valid victim page.
+                // Verify that the replacer didn't go nuts and select a pinned frame.
                 // TODO: handle pin assertions in page replacer
                 frame.assert_unpinned();
 
