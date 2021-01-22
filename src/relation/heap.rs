@@ -34,7 +34,7 @@ impl Heap {
             None => panic!("Head frame latch contained no page"),
         };
 
-        buffer_manager.unpin(frame);
+        buffer_manager.unpin_r(frame);
 
         Ok(Self {
             head_page_id,
@@ -75,7 +75,7 @@ impl Heap {
             // If the insertion was successful, return the newly initialized record ID.
             if page.insert_record(&mut record).is_ok() {
                 frame.set_dirty_flag(true);
-                self.buffer_manager.unpin(frame);
+                self.buffer_manager.unpin_w(frame);
 
                 return Ok(record.get_id().unwrap());
             }
@@ -85,7 +85,7 @@ impl Heap {
             // the end of the heap.
             match page.get_next_page_id() {
                 Some(pid) => {
-                    self.buffer_manager.unpin(frame);
+                    self.buffer_manager.unpin_w(frame);
                     page_id = pid
                 }
                 None => {
@@ -106,8 +106,8 @@ impl Heap {
                     new_frame.set_dirty_flag(true);
                     frame.set_dirty_flag(true);
 
-                    self.buffer_manager.unpin(new_frame);
-                    self.buffer_manager.unpin(frame);
+                    self.buffer_manager.unpin_w(new_frame);
+                    self.buffer_manager.unpin_w(frame);
 
                     return Ok(record.get_id().unwrap());
                 }

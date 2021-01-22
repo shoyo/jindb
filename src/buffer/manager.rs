@@ -7,14 +7,14 @@ use crate::buffer::replacement::clock::ClockReplacer;
 use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
-use crate::buffer::{Buffer, FrameArc, FrameLatch, FrameRLatch, FrameWLatch};
+use crate::buffer::{Buffer, FrameArc, FrameRLatch, FrameWLatch};
 use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::{init_page_variant, Page, PageVariant};
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 /// Type alias for read and write latches returned by the buffer manager.
 type PageTable = HashMap<PageIdT, BufferFrameIdT>;
@@ -157,7 +157,7 @@ impl BufferManager {
         match self.lookup(&page_table, page_id) {
             // If the page already exists in the buffer, pin it and return its frame reference.
             Some(frame_arc) => {
-                let mut frame = frame_arc.write().unwrap();
+                let frame = frame_arc.read().unwrap();
 
                 frame.pin();
                 self.replacer.pin(frame.get_id());
@@ -221,7 +221,7 @@ impl BufferManager {
         let mut type_chart = self.type_chart.write().unwrap();
 
         match self.lookup(&page_table, page_id) {
-            Some(mut frame_arc) => {
+            Some(frame_arc) => {
                 let mut frame = frame_arc.write().unwrap();
                 match frame.get_pin_count() {
                     0 => {
@@ -281,8 +281,21 @@ impl BufferManager {
         Ok(())
     }
 
-    /// Unpin the page contained in the specified frame and release the latch.
-    pub fn unpin(&self, frame: impl FrameLatch) {
+    /// Unpin the page contained in the specified frame and release the read latch.
+    pub fn unpin_r(&self, frame: FrameRLatch) {
+        match frame.get_page() {
+            Some(_) => {
+                frame.unpin();
+                if frame.get_pin_count() == 0 {
+                    self.replacer.unpin(frame.get_id());
+                }
+            }
+            None => panic!("Attempted to unpin an empty buffer frame"),
+        }
+    }
+
+    /// Unpin the page contained in the specified frame and release the write latch.
+    pub fn unpin_w(&self, frame: FrameWLatch) {
         match frame.get_page() {
             Some(_) => {
                 frame.unpin();

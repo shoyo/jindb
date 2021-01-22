@@ -24,8 +24,8 @@ fn test_create_buffer_page() {
     let manager = setup();
 
     // Create a page in the buffer manager.
-    let frame_latch = manager.create_relation_page().unwrap();
-    let frame = frame_latch.read().unwrap();
+    let frame_arc = manager.create_relation_page().unwrap();
+    let frame = frame_arc.read().unwrap();
 
     // Assert that the created page is initialized as expected.
     assert!(frame.get_page().is_some());
@@ -74,15 +74,15 @@ fn test_delete_buffer_page() {
 
     // First thread
     thread::spawn(move || {
-        let frame_latch = manager_1.create_relation_page().unwrap();
-        let frame = frame_latch.write().unwrap();
+        let frame_arc = manager_1.create_relation_page().unwrap();
+        let frame = frame_arc.write().unwrap();
 
         // Notify second thread to try to delete newly created page (should fail).
         tx.send(()).unwrap();
         barrier_1.wait();
 
         // Notify second thread to try again after unpinning created page (should pass).
-        manager_1.unpin_and_drop(frame);
+        manager_1.unpin_w(frame);
         tx.send(()).unwrap();
     });
 
