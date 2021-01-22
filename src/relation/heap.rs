@@ -4,15 +4,13 @@
  */
 
 use crate::buffer::manager::{BufferError, BufferManager};
-
 use crate::common::{PageIdT, MAX_RECORD_SIZE};
-
 use crate::page::relation_page::RelationPage;
-use crate::page::{Page};
 use crate::relation::record::{Record, RecordId};
 
+use crate::page::Page;
 use std::convert::From;
-use std::sync::{Arc};
+use std::sync::Arc;
 
 /// A heap is a collection of pages on disk which corresponds to a given relation.
 /// Pages are connected together as a doubly linked list. Each page contains in its
@@ -28,12 +26,15 @@ pub struct Heap {
 impl Heap {
     /// Create a new heap for a database relation.
     pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, BufferError> {
-        let frame_latch = buffer_manager.create_relation_page()?;
-        let frame = frame_latch.read().unwrap();
+        let frame_arc = buffer_manager.create_relation_page()?;
+        let frame = frame_arc.read().unwrap();
+
         let head_page_id = match frame.get_page() {
             Some(ref page) => page.get_id(),
             None => panic!("Head frame latch contained no page"),
         };
+
+        buffer_manager.unpin_r(frame);
 
         Ok(Self {
             head_page_id,
@@ -59,18 +60,10 @@ impl Heap {
         // Traverse the heap.
         let mut page_id = self.head_page_id;
         loop {
-            // 1) Fetch the current page and obtain a write latch.
-            let frame_latch = match self.buffer_manager.fetch_page(page_id) {
-                Ok(latch) => latch,
-                Err(e) => match e {
-                    BufferError::NoBufFrame => return Err(HeapError::from(e)),
-                    BufferError::PageDiskDNE => {
-                        panic!("All pages encountered while traversing heap should exist on disk")
-                    }
-                    _ => unreachable!(),
-                },
-            };
-            let mut frame = frame_latch.write().unwrap();
+            // 1) Obtain a write latch for the current page's frame.
+            let frame_arc = self.buffer_manager.fetch_page(page_id)?;
+            let mut frame = frame_arc.write().unwrap();
+
             let page = frame
                 .get_mut_page()
                 .unwrap()
@@ -81,27 +74,24 @@ impl Heap {
             // 2) Attempt to insert the record into the current page.
             // If the insertion was successful, return the newly initialized record ID.
             if page.insert_record(&mut record).is_ok() {
-                self.buffer_manager.unpin_and_drop(frame);
+                frame.set_dirty_flag(true);
+                self.buffer_manager.unpin_w(frame);
+
                 return Ok(record.get_id().unwrap());
             }
 
-            // If the insertion was unsuccessful, we attempt to traverse to the next page. If
-            // there is no next page, we instead create a new page, insert the record, and link
-            // the new page to the end of the heap.
+            // If the insertion was unsuccessful, attempt to traverse to the next page. If there
+            // is no next page, create a new page, insert the record, and link the new page to
+            // the end of the heap.
             match page.get_next_page_id() {
                 Some(pid) => {
-                    self.buffer_manager.unpin_and_drop(frame);
+                    self.buffer_manager.unpin_w(frame);
                     page_id = pid
                 }
                 None => {
-                    let frame_latch = match self.buffer_manager.create_relation_page() {
-                        Ok(latch) => latch,
-                        Err(e) => match e {
-                            BufferError::NoBufFrame => return Err(HeapError::from(e)),
-                            _ => unreachable!(),
-                        },
-                    };
-                    let mut new_frame = frame_latch.write().unwrap();
+                    let frame_arc = self.buffer_manager.create_relation_page()?;
+                    let mut new_frame = frame_arc.write().unwrap();
+
                     let new_page = new_frame
                         .get_mut_page()
                         .unwrap()
@@ -116,8 +106,8 @@ impl Heap {
                     new_frame.set_dirty_flag(true);
                     frame.set_dirty_flag(true);
 
-                    self.buffer_manager.unpin_and_drop(new_frame);
-                    self.buffer_manager.unpin_and_drop(frame);
+                    self.buffer_manager.unpin_w(new_frame);
+                    self.buffer_manager.unpin_w(frame);
 
                     return Ok(record.get_id().unwrap());
                 }

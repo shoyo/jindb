@@ -7,6 +7,7 @@ use crate::common::io::{read_u32, write_u32};
 use crate::common::{LsnT, PAGE_SIZE};
 use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::Record;
+
 use std::any::Any;
 
 /// Constants for slotted-page page header.
