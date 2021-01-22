@@ -7,15 +7,14 @@ use crate::buffer::replacement::clock::ClockReplacer;
 use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
-use crate::buffer::{Buffer, BufferFrame, FrameArc, FrameLatch, FrameRLatch, FrameWLatch};
+use crate::buffer::{Buffer, FrameArc, FrameLatch, FrameRLatch, FrameWLatch};
 use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
-
 use crate::page::{init_page_variant, Page, PageVariant};
-use std::any::Any;
+
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard};
 
 /// Type alias for read and write latches returned by the buffer manager.
 type PageTable = HashMap<PageIdT, BufferFrameIdT>;
@@ -152,8 +151,8 @@ impl BufferManager {
         }
 
         // Acquire locks for page table and type chart (in this order).
-        let mut page_table = self.page_table.lock().unwrap();
-        let mut type_chart = self.type_chart.read().unwrap();
+        let page_table = self.page_table.lock().unwrap();
+        let type_chart = self.type_chart.read().unwrap();
 
         match self.rlookup(&page_table, page_id) {
             // If the page already exists in the buffer, pin it and return its read latch.
@@ -184,8 +183,8 @@ impl BufferManager {
         }
 
         // Acquire locks for page table and type chart (in this order).
-        let mut page_table = self.page_table.lock().unwrap();
-        let mut type_chart = self.type_chart.read().unwrap();
+        let page_table = self.page_table.lock().unwrap();
+        let type_chart = self.type_chart.read().unwrap();
 
         match self.wlookup(&page_table, page_id) {
             // If the page already exists in the buffer, pin it and return its read latch.

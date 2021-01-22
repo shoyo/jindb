@@ -106,14 +106,14 @@ impl BufferFrame {
 
     /// Increase the pin count of this buffer frame by 1.
     pub fn pin(&self) {
-        let pins = self.pin_count.lock().unwrap();
+        let mut pins = self.pin_count.lock().unwrap();
         *pins += 1;
     }
 
     /// Decrease the pin count of this buffer frame by 1.
     /// Panics if the pin count is 0.
     pub fn unpin(&self) {
-        let pins = self.pin_count.lock().unwrap();
+        let mut pins = self.pin_count.lock().unwrap();
         if *pins == 0 {
             panic!("Cannot unpin a page with pin count equal to 0");
         }
