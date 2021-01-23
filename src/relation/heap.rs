@@ -89,8 +89,14 @@ impl Heap {
                     page_id = pid
                 }
                 None => {
-                    let frame_arc = self.buffer_manager.create_relation_page()?;
-                    let mut new_frame = frame_arc.write().unwrap();
+                    // DROP write latch to current page BEFORE calling buffer manager to prevent
+                    // deadlocks.
+                    let prev_pid = page.get_id();
+                    self.buffer_manager.unpin_w(frame);
+
+                    // ACQUIRE write latch to new page, insert record, and add prev page ID.
+                    let new_frame_arc = self.buffer_manager.create_relation_page()?;
+                    let mut new_frame = new_frame_arc.write().unwrap();
 
                     let new_page = new_frame
                         .get_mut_page()
@@ -98,17 +104,33 @@ impl Heap {
                         .as_mut_any()
                         .downcast_mut::<RelationPage>()
                         .unwrap();
+                    let new_pid = new_page.get_id();
 
                     new_page.insert_record(&mut record).unwrap();
-                    new_page.set_prev_page_id(page.get_id());
-                    page.set_next_page_id(new_page.get_id());
-
+                    new_page.set_prev_page_id(prev_pid);
                     new_frame.set_dirty_flag(true);
-                    frame.set_dirty_flag(true);
 
+                    // DROP write latch to new page.
                     self.buffer_manager.unpin_w(new_frame);
-                    self.buffer_manager.unpin_w(frame);
 
+                    // ACQUIRE write latch to prev page, and add next page ID.
+                    let prev_frame_arc = self.buffer_manager.fetch_page(prev_pid)?;
+                    let mut prev_frame = prev_frame_arc.write().unwrap();
+
+                    let prev_page = prev_frame
+                        .get_mut_page()
+                        .unwrap()
+                        .as_mut_any()
+                        .downcast_mut::<RelationPage>()
+                        .unwrap();
+
+                    prev_page.set_next_page_id(new_pid);
+                    prev_frame.set_dirty_flag(true);
+
+                    // DROP write latch to prev page.
+                    self.buffer_manager.unpin_w(prev_frame);
+
+                    // Return inserted record ID.
                     return Ok(record.get_id().unwrap());
                 }
             }
