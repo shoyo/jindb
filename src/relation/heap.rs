@@ -89,7 +89,7 @@ impl Heap {
                     page_id = pid
                 }
                 None => {
-                    // DROP write latch to current page BEFORE calling buffer manager to prevent
+                    // RELEASE write latch to current page BEFORE calling buffer manager to prevent
                     // deadlocks.
                     let prev_pid = page.get_id();
                     self.buffer_manager.unpin_w(frame);
@@ -110,7 +110,7 @@ impl Heap {
                     new_page.set_prev_page_id(prev_pid);
                     new_frame.set_dirty_flag(true);
 
-                    // DROP write latch to new page.
+                    // RELEASE write latch to new page.
                     self.buffer_manager.unpin_w(new_frame);
 
                     // ACQUIRE write latch to prev page, and add next page ID.
@@ -127,7 +127,7 @@ impl Heap {
                     prev_page.set_next_page_id(new_pid);
                     prev_frame.set_dirty_flag(true);
 
-                    // DROP write latch to prev page.
+                    // RELEASE write latch to prev page.
                     self.buffer_manager.unpin_w(prev_frame);
 
                     // Return inserted record ID.
