@@ -150,7 +150,7 @@ impl BufferManager {
             return Err(BufferError::PageDiskDNE);
         }
 
-        // Acquire locks for page table and type chart (in this order).
+        // Acquire latches for page table and type chart (in this order).
         let mut page_table = self.page_table.lock().unwrap();
         let type_chart = self.type_chart.read().unwrap();
 
