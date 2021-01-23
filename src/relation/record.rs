@@ -14,8 +14,8 @@ use crate::relation::types::{size_of, DataType, InnerValue, Value};
 use std::sync::Arc;
 
 /// Constants for record offsets.
-const NULL_BITMAP_LENGTH: u32 = 4;
-const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_LENGTH;
+const NULL_BITMAP_SIZE: u32 = 4;
+const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_SIZE;
 
 /// A database record with variable-length attributes.
 ///
@@ -69,7 +69,7 @@ impl Record {
         }
 
         // Initialize empty byte vector and bitmap to be owned by new record.
-        let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_LENGTH + schema.byte_len()) as usize];
+        let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_SIZE + schema.byte_len()) as usize];
         let mut bitmap: u32 = 0;
 
         // Byte array address to begin writing values.
@@ -283,11 +283,16 @@ impl Record {
         Ok(is_null)
     }
 
-    /// Index the schema and set the corresponding value contained in the Record to null. panic
+    /// Index the schema and set the corresponding value contained in the Record to null. Panic
     /// if the specified index is out-of-bounds.
     pub fn set_null(&mut self, idx: u32) -> Result<(), RecordErr> {
         if idx >= self.schema.attr_len() {
             return Err(RecordErr::IndexOutOfBounds);
+        }
+
+        let attrs = self.schema.get_attributes();
+        if !attrs[idx as usize].is_nullable() {
+            return Err(RecordErr::NotNullable);
         }
 
         set_nth_bit(&mut self.bitmap, idx).unwrap();
@@ -359,6 +364,20 @@ mod tests {
 
         // Check that a record can be created with valid values.
         let mut record = Record::new(valid_values, schema.clone()).unwrap();
+
+        // Check that the record behaves as expected.
+        assert_eq!(
+            record.len(),
+            NULL_BITMAP_SIZE
+                + size_of(DataType::Boolean)
+                + size_of(DataType::TinyInt)
+                + size_of(DataType::SmallInt)
+                + size_of(DataType::Int)
+                + size_of(DataType::BigInt)
+                + size_of(DataType::Decimal)
+                + size_of(DataType::Varchar)
+                + "Hello, World!".len() as u32
+        );
 
         // Check that each value contains the expected value.
         let value = record.get_value(0).unwrap();
