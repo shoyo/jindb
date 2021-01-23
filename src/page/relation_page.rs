@@ -4,7 +4,7 @@
  */
 
 use crate::common::io::{read_u32, write_u32};
-use crate::common::{LsnT, PAGE_SIZE};
+use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::Record;
 
@@ -113,22 +113,26 @@ impl RelationPage {
     }
 
     /// Set the page ID.
-    pub fn set_page_id(&mut self, id: u32) {
+    pub fn set_page_id(&mut self, id: PageIdT) {
         write_u32(&mut self.bytes, PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the previous page ID.
-    pub fn get_prev_page_id(&self) -> u32 {
-        read_u32(&self.bytes, PREV_PAGE_ID_OFFSET).unwrap()
+    pub fn get_prev_page_id(&self) -> Option<PageIdT> {
+        let pid = read_u32(&self.bytes, PREV_PAGE_ID_OFFSET).unwrap();
+        match pid == UNINITIALIZED {
+            true => None,
+            false => Some(pid),
+        }
     }
 
     /// Set the previous page ID.
-    pub fn set_prev_page_id(&mut self, id: u32) {
+    pub fn set_prev_page_id(&mut self, id: PageIdT) {
         write_u32(&mut self.bytes, PREV_PAGE_ID_OFFSET, id).unwrap()
     }
 
     /// Get the next page ID.
-    pub fn get_next_page_id(&self) -> Option<u32> {
+    pub fn get_next_page_id(&self) -> Option<PageIdT> {
         let pid = read_u32(&self.bytes, NEXT_PAGE_ID_OFFSET).unwrap();
         match pid == UNINITIALIZED {
             true => None,
@@ -137,7 +141,7 @@ impl RelationPage {
     }
 
     /// Set the next page ID.
-    pub fn set_next_page_id(&mut self, id: u32) {
+    pub fn set_next_page_id(&mut self, id: PageIdT) {
         write_u32(&mut self.bytes, NEXT_PAGE_ID_OFFSET, id).unwrap()
     }
 
