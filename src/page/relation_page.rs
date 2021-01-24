@@ -21,20 +21,19 @@ const RECORDS_OFFSET: u32 = 24;
 const RECORD_POINTER_SIZE: u32 = 8;
 const UNINITIALIZED: u32 = 0;
 
-/// An in-memory representation of a database page with slotted-page
-/// architecture. Gets written out to disk by the disk manager.
+/// An in-memory representation of a database page with slotted-page architecture. Gets written
+/// out to disk by the disk manager.
 ///
-/// Contains a header and variable-length records that grow in opposite
-/// directions, similarly to a heap and stack. Also stores information
-/// to be used by the buffer manager for book-keeping such as pin count
-/// and dirty flag.
+/// Contains a header and variable-length records that grow in opposite directions, similarly to
+/// a heap and stack. Also stores information to be used by the buffer manager for book-keeping
+/// such as pin count and dirty flag.
 ///
 ///
 /// Data format:
 /// +--------------------+--------------+---------------------+
 /// |  HEADER (grows ->) | ... FREE ... | (<- grows) RECORDS  |
 /// +--------------------+--------------+---------------------+
-///                                     ^ Free Space Pointer
+///                                     ^ Free Pointer
 ///
 ///
 /// Header metadata (number denotes size in bytes):
@@ -53,7 +52,7 @@ const UNINITIALIZED: u32 = 0;
 /// +------------------------+----------+----------+----------+
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
 /// +------------------------+----------+----------+----------+
-///                          ^ Free Space Pointer
+///                          ^ Free Pointer
 
 pub struct RelationPage {
     bytes: [u8; PAGE_SIZE as usize],
@@ -81,7 +80,7 @@ impl Page for RelationPage {
     }
 
     fn get_free_space(&self) -> u32 {
-        let free_ptr = self.get_free_space_pointer() + 1;
+        let free_ptr = self.get_free_pointer() + 1;
         let num_records = self.get_num_records();
 
         let header = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
@@ -107,7 +106,7 @@ impl RelationPage {
             bytes: [0; PAGE_SIZE as usize],
         };
         page.set_page_id(page_id);
-        page.set_free_space_pointer(PAGE_SIZE - 1);
+        page.set_free_pointer(PAGE_SIZE - 1);
         page.set_num_records(0);
         page
     }
@@ -146,12 +145,12 @@ impl RelationPage {
     }
 
     /// Get a pointer to the next free space.
-    pub fn get_free_space_pointer(&self) -> u32 {
+    pub fn get_free_pointer(&self) -> u32 {
         read_u32(&self.bytes, FREE_POINTER_OFFSET).unwrap()
     }
 
     /// Set a pointer to the next free space.
-    pub fn set_free_space_pointer(&mut self, ptr: u32) {
+    pub fn set_free_pointer(&mut self, ptr: u32) {
         write_u32(&mut self.bytes, FREE_POINTER_OFFSET, ptr).unwrap()
     }
 
@@ -177,7 +176,7 @@ impl RelationPage {
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         let length_addr = offset_addr + 4;
 
-        let free_ptr = self.get_free_space_pointer();
+        let free_ptr = self.get_free_pointer();
         let new_free_ptr = free_ptr - record.len() as u32;
 
         // Write record data to allocated space.
@@ -189,10 +188,10 @@ impl RelationPage {
         }
 
         // Update header.
-        self.set_free_space_pointer(new_free_ptr);
+        self.set_free_pointer(new_free_ptr);
         self.set_num_records(num_records + 1);
-        write_u32(&mut self.bytes, new_free_ptr + 1, offset_addr).unwrap();
-        write_u32(&mut self.bytes, record_data.len() as u32, length_addr).unwrap();
+        write_u32(&mut self.bytes, offset_addr, new_free_ptr + 1).unwrap();
+        write_u32(&mut self.bytes, length_addr, record_data.len() as u32).unwrap();
 
         // Update record's ID.
         record.allocate(self.get_id(), num_records);
@@ -203,5 +202,103 @@ impl RelationPage {
     /// Update a record in the page.
     fn update_record(&mut self, _record: Record) -> Result<(), ()> {
         Err(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::io::{read_bool, read_f32, read_i32, read_str};
+    use crate::relation::attribute::Attribute;
+    use crate::relation::schema::Schema;
+    use crate::relation::types::{size_of, DataType};
+    use std::sync::Arc;
+
+    #[test]
+    fn test_insert_record() {
+        // Initialize empty page.
+        let mut page = RelationPage::new(10);
+        assert_eq!(page.get_id(), 10);
+        assert!(page.get_next_page_id().is_none());
+        assert!(page.get_prev_page_id().is_none());
+        assert_eq!(page.get_num_records(), 0);
+        assert_eq!(page.get_free_space(), PAGE_SIZE - RECORDS_OFFSET);
+
+        let varchar = "Hello, World!".to_string();
+        let varchar_len = varchar.len() as u32;
+
+        // Initialize record to be inserted.
+        let mut record = Record::new(
+            vec![
+                Some(Box::new(varchar)),
+                Some(Box::new(true)),
+                Some(Box::new(123_456_i32)),
+                Some(Box::new(std::f32::consts::PI)),
+            ],
+            Arc::new(Schema::new(vec![
+                Attribute::new("varch", DataType::Varchar, false, false, false),
+                Attribute::new("bool", DataType::Boolean, false, false, false),
+                Attribute::new("int", DataType::Int, false, false, false),
+                Attribute::new("deci", DataType::Decimal, false, false, false),
+            ])),
+        )
+        .unwrap();
+
+        // Insert record into page.
+        page.insert_record(&mut record).unwrap();
+        assert_eq!(page.get_num_records(), 1);
+        assert_eq!(
+            page.get_free_space(),
+            PAGE_SIZE - RECORDS_OFFSET - record.len() - RECORD_POINTER_SIZE
+        );
+        assert_eq!(page.get_free_pointer(), PAGE_SIZE - record.len() - 1);
+
+        // Assert that record bytes were written to the correct locations in the page.
+
+        // Expected page layout:
+        // +-------------------------------------------------------------------------+
+        // |  PAGE  | RECORD | RECORD | ... | RECORD | RECORD FIXED- |  RECORD VAR-  |
+        // | HEADER | OFFSET | LENGTH | ... | BITMAP | LENGTH VALUES | LENGTH VALUES |
+        // +-------------------------------------------------------------------------+
+        // ^0       ^ RECORDS_OFFSET        ^ FREE POINTER               PAGE_SIZE-1 ^
+        //                                  |____________ record.len() ______________|
+
+        let page_bytes = page.as_bytes();
+        println!("{:?}", page_bytes);
+        println!("{:?}", record.as_bytes());
+
+        let offset_addr = RECORDS_OFFSET;
+        let length_addr = RECORDS_OFFSET + 4;
+        assert_eq!(
+            read_u32(page_bytes, offset_addr).unwrap(),
+            PAGE_SIZE - record.len()
+        );
+        assert_eq!(read_u32(page_bytes, length_addr).unwrap(), record.len());
+
+        let bitmap_size = 4;
+        let bitmap_addr = PAGE_SIZE - record.len();
+        let str_offset_addr = bitmap_addr + bitmap_size;
+        let str_length_addr = str_offset_addr + 4;
+        let bool_addr = str_length_addr + 4;
+        let int_addr = bool_addr + size_of(DataType::Boolean);
+        let deci_addr = int_addr + size_of(DataType::Int);
+        let str_val_addr = deci_addr + size_of(DataType::Decimal);
+
+        assert_eq!(read_u32(page_bytes, bitmap_addr).unwrap(), 0);
+        assert_eq!(
+            read_u32(page_bytes, str_offset_addr).unwrap(),
+            record.len() - varchar_len
+        );
+        assert_eq!(read_u32(page_bytes, str_length_addr).unwrap(), varchar_len);
+        assert_eq!(read_bool(page_bytes, bool_addr).unwrap(), true);
+        assert_eq!(read_i32(page_bytes, int_addr).unwrap(), 123_456_i32);
+        assert_eq!(
+            read_f32(page_bytes, deci_addr).unwrap(),
+            std::f32::consts::PI
+        );
+        assert_eq!(
+            read_str(page_bytes, str_val_addr, varchar_len).unwrap(),
+            "Hello, World!".to_string()
+        );
     }
 }

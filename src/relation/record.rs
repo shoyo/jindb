@@ -344,7 +344,7 @@ mod tests {
             None,
             Some(Box::new(7_654_321_i32)),
             Some(Box::new(-9_876_543_210_i64)),
-            None,
+            Some(Box::new(-5.4321_f32)),
             Some(Box::new("Hello, World!".to_string())),
         ];
         // Create a series of values that are NOT a valid instance of the schema.
@@ -386,6 +386,9 @@ mod tests {
 
         let value = record.get_value(2).unwrap();
         assert!(value.is_none());
+
+        let value = record.get_value(5).unwrap();
+        assert_eq!(value.unwrap().get_inner(), InnerValue::Decimal(-5.4321f32));
 
         let value = record.get_value(6).unwrap();
         assert_eq!(
