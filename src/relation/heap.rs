@@ -42,6 +42,16 @@ impl Heap {
         })
     }
 
+    /// Read the specified record from the relation.
+    pub fn read(&self, rid: RecordId) -> Result<Arc<Record>, HeapError> {
+        let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
+        let frame = frame_arc.read().unwrap();
+
+        let page = frame.get_relation_page().unwrap();
+
+        todo!()
+    }
+
     /// Insert a record into the relation. If there is currently no space available in the buffer
     /// pool to fetch/create pages, return an error.
     ///
@@ -64,12 +74,7 @@ impl Heap {
             let frame_arc = self.buffer_manager.fetch_page(page_id)?;
             let mut frame = frame_arc.write().unwrap();
 
-            let page = frame
-                .get_mut_page()
-                .unwrap()
-                .as_mut_any()
-                .downcast_mut::<RelationPage>()
-                .unwrap();
+            let page = frame.get_mut_relation_page().unwrap();
 
             // 2) Attempt to insert the record into the current page.
             // If the insertion was successful, return the newly initialized record ID.
@@ -98,12 +103,7 @@ impl Heap {
                     let new_frame_arc = self.buffer_manager.create_relation_page()?;
                     let mut new_frame = new_frame_arc.write().unwrap();
 
-                    let new_page = new_frame
-                        .get_mut_page()
-                        .unwrap()
-                        .as_mut_any()
-                        .downcast_mut::<RelationPage>()
-                        .unwrap();
+                    let new_page = new_frame.get_mut_relation_page().unwrap();
                     let new_pid = new_page.get_id();
 
                     new_page.insert_record(&mut record).unwrap();
@@ -117,12 +117,7 @@ impl Heap {
                     let prev_frame_arc = self.buffer_manager.fetch_page(prev_pid)?;
                     let mut prev_frame = prev_frame_arc.write().unwrap();
 
-                    let prev_page = prev_frame
-                        .get_mut_page()
-                        .unwrap()
-                        .as_mut_any()
-                        .downcast_mut::<RelationPage>()
-                        .unwrap();
+                    let prev_page = prev_frame.get_mut_relation_page().unwrap();
 
                     prev_page.set_next_page_id(new_pid);
                     prev_frame.set_dirty_flag(true);
@@ -138,8 +133,21 @@ impl Heap {
     }
 
     /// Update a record in this relation.
-    pub fn update(&self, _record: Record) -> Result<(), ()> {
-        Err(())
+    pub fn update(&self, record: Record, rid: RecordId) -> Result<(), HeapError> {
+        if record.is_allocated() {
+            return Err(HeapError::RecordAlreadyAlloc);
+        }
+
+        let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
+        let mut frame = frame_arc.write().unwrap();
+
+        let page = frame.get_mut_relation_page().unwrap();
+
+        self.buffer_manager.unpin_w(frame);
+
+        todo!();
+
+        Ok(())
     }
 
     /// Flag the specified record as deleted.
@@ -170,6 +178,9 @@ pub enum HeapError {
     /// This error should eventually become obsolete once records of arbitrary size become
     /// supported.
     RecordTooLarge,
+
+    /// Error to be thrown when a record specified with a page ID and slot index does not exist.
+    RecordDNE,
 
     /// Errors to be thrown when the buffer manager encounters a recoverable error.
     BufMgrNoBufFrame,

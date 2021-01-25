@@ -58,28 +58,33 @@ impl Relation {
         self.schema.clone()
     }
 
+    /// Read and return a record from this relation.
+    pub fn read(&self, rid: RecordId) -> Result<Arc<Record>, HeapError> {
+        self.heap.read(rid)
+    }
+
     /// Insert a record into this relation. Return the record ID of the inserted record.
-    pub fn insert_record(&self, record: Record) -> Result<RecordId, HeapError> {
+    pub fn insert(&self, record: Record) -> Result<RecordId, HeapError> {
         self.heap.insert(record)
     }
 
     /// Update a record in this relation.
-    pub fn update_record(&self, record: Record) -> Result<(), ()> {
-        self.heap.update(record)
+    pub fn update(&self, record: Record, rid: RecordId) -> Result<(), HeapError> {
+        self.heap.update(record, rid)
     }
 
     /// Flag a record in this relation for deletion.
-    pub fn flag_delete_record(&self, record_id: RecordId) -> Result<(), ()> {
-        self.heap.flag_delete(record_id)
+    pub fn flag_delete(&self, rid: RecordId) -> Result<(), ()> {
+        self.heap.flag_delete(rid)
     }
 
     /// Commit a delete operation for a record in this relation.
-    pub fn commit_delete_record(&self, record_id: RecordId) -> Result<(), ()> {
-        self.heap.commit_delete(record_id)
+    pub fn commit_delete(&self, rid: RecordId) -> Result<(), ()> {
+        self.heap.commit_delete(rid)
     }
 
     /// Rollback a delete operation for a record in this relation.
-    pub fn rollback_delete_record(&mut self, record_id: RecordId) -> Result<(), ()> {
-        self.heap.rollback_delete(record_id)
+    pub fn rollback_delete(&mut self, rid: RecordId) -> Result<(), ()> {
+        self.heap.rollback_delete(rid)
     }
 }
