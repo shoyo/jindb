@@ -8,7 +8,7 @@ use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
 use crate::buffer::{Buffer, FrameArc, FrameRLatch, FrameWLatch};
-use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID};
+use crate::common::{BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID};
 use crate::disk::manager::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::{init_page_variant, Page, PageVariant};
@@ -68,6 +68,9 @@ impl BufferManager {
         for (page_id, page_type) in classifier {
             type_chart.insert(page_id, page_type);
         }
+
+        type_chart.insert(DICTIONARY_PAGE_ID, PageVariant::Dictionary);
+        type_chart.insert(CLASSIFIER_PAGE_ID, PageVariant::Classifier);
 
         Self {
             buffer: Buffer::new(buffer_size),
@@ -150,7 +153,7 @@ impl BufferManager {
             return Err(BufferError::PageDiskDNE);
         }
 
-        // Acquire locks for page table and type chart (in this order).
+        // Acquire latches for page table and type chart (in this order).
         let mut page_table = self.page_table.lock().unwrap();
         let type_chart = self.type_chart.read().unwrap();
 

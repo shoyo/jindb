@@ -60,6 +60,7 @@ impl PageReplacer for SlowReplacer {
 
     fn unpin(&self, frame_id: u32) {
         let mut queue = self.queue.lock().unwrap();
+
         let count = queue
             .iter()
             .filter(|id| **id == frame_id)
