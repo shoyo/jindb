@@ -210,7 +210,7 @@ fn test_insert_many_records_in_parallel() {
     .unwrap();
 
     let num_threads = 20;
-    let num_inserts_per_thread = 1000;
+    let num_inserts_per_thread = 100;
     let mut handles = Vec::with_capacity(num_threads);
 
     // Spin up several threads and simultaneously insert several records into both relations.
