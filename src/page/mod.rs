@@ -39,6 +39,10 @@ pub trait Page {
     /// Return the page variant.
     fn get_variant(&self) -> PageVariant;
 
+    /// Return an immutable reference to this page that implements Any.
+    /// Used when downcasting to a concrete page type.
+    fn as_any(&self) -> &dyn Any;
+
     /// Return a mutable reference to this page that implements Any.
     /// Used when downcasting to a concrete page type.
     fn as_mut_any(&mut self) -> &mut dyn Any;
@@ -66,4 +70,7 @@ pub fn init_page_variant(page_id: PageIdT, variant: PageVariant) -> Box<dyn Page
 pub enum PageError {
     /// Error to be thrown when a page insertion would trigger an overflow.
     PageOverflow,
+
+    /// Error to be thrown when a slot index is out of bounds.
+    SlotOutOfBounds,
 }

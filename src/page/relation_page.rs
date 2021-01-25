@@ -6,7 +6,7 @@
 use crate::common::io::{read_u32, write_u32};
 use crate::common::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::{Page, PageError, PageVariant};
-use crate::relation::record::Record;
+use crate::relation::record::{Record, RecordId};
 
 use std::any::Any;
 
@@ -94,6 +94,10 @@ impl Page for RelationPage {
         PageVariant::Relation
     }
 
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
@@ -164,6 +168,11 @@ impl RelationPage {
         write_u32(&mut self.bytes, NUM_RECORDS_OFFSET, num).unwrap()
     }
 
+    /// Read the record at the specified slot index.
+    pub fn read_record(&self, slot: u32) -> Result<Record, PageError> {
+        todo!()
+    }
+
     /// Insert a record in the page and update the header.
     pub fn insert_record(&mut self, record: &mut Record) -> Result<(), PageError> {
         // Bounds-check for record insertion.
@@ -199,9 +208,9 @@ impl RelationPage {
         Ok(())
     }
 
-    /// Update a record in the page.
-    fn update_record(&mut self, _record: Record) -> Result<(), ()> {
-        Err(())
+    /// Update the record at the specified slot index.
+    fn update_record(&mut self, record: Record, slot: u32) -> Result<(), ()> {
+        todo!()
     }
 }
 

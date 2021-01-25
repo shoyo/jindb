@@ -6,6 +6,8 @@
 use crate::common::BufferFrameIdT;
 use crate::page::Page;
 
+use crate::page::relation_page::RelationPage;
+use crate::relation::Relation;
 use std::fmt::{self, Formatter};
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -78,14 +80,40 @@ impl BufferFrame {
         self.id
     }
 
-    /// Return an immutable reference to the contained page wrapped in an Option.
+    /// Return an immutable reference to the contained page.
     pub fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>> {
         self.page.as_ref()
     }
 
-    /// Return a mutable reference to the contained page wrapped in an Option.
+    /// Return a mutable reference to the contained page.
     pub fn get_mut_page(&mut self) -> Option<&mut Box<dyn Page + Send + Sync>> {
         self.page.as_mut()
+    }
+
+    /// Return an immutable reference to the contained page downcasted to a relation page.
+    /// Return an error if this buffer is empty or the contained page cannot be downcast to a
+    /// relation page.
+    pub fn get_relation_page(&self) -> Result<&RelationPage, BufferFrameError> {
+        match &self.page {
+            Some(page) => match page.as_any().downcast_ref::<RelationPage>() {
+                Some(relation_page) => Ok(relation_page),
+                None => Err(BufferFrameError::InvalidDowncast),
+            },
+            None => Err(BufferFrameError::EmptyBuffer),
+        }
+    }
+
+    /// Return a mutable reference to the contained page downcasted to a relation page.
+    /// Return an error if this buffer is empty or the contained page cannot be downcast to a
+    /// relation page.
+    pub fn get_mut_relation_page(&mut self) -> Result<&mut RelationPage, BufferFrameError> {
+        match &mut self.page {
+            Some(page) => match page.as_mut_any().downcast_mut::<RelationPage>() {
+                Some(relation_page) => Ok(relation_page),
+                None => Err(BufferFrameError::InvalidDowncast),
+            },
+            None => Err(BufferFrameError::EmptyBuffer),
+        }
     }
 
     /// Return the dirty flag of this buffer frame.
@@ -147,6 +175,16 @@ impl fmt::Debug for BufferFrame {
             None => write!(f, "id:None, pins:{:?}", self.pin_count),
         }
     }
+}
+
+/// Custom buffer errors.
+#[derive(Debug)]
+pub enum BufferFrameError {
+    /// Error to be thrown when a page expected to contain a page is empty.
+    EmptyBuffer,
+
+    /// Error to be thrown when a page cannot be downcast to a specified concrete type.
+    InvalidDowncast,
 }
 
 /// Type alias for a guarded buffer frame.
