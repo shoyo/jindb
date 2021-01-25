@@ -209,23 +209,25 @@ fn test_insert_many_records_in_parallel() {
     )
     .unwrap();
 
-    let mut handles = Vec::with_capacity(20);
+    let num_threads = 20;
+    let num_inserts_per_thread = 1000;
+    let mut handles = Vec::with_capacity(num_threads);
 
     // Spin up several threads and simultaneously insert several records into both relations.
-    for _ in 0..10 {
+    for _ in 0..num_threads / 2 {
         let relation = relation_1.clone();
         let record = record_1.clone();
         handles.push(thread::spawn(move || {
-            for _ in 0..100 {
+            for _ in 0..num_inserts_per_thread {
                 relation.insert_record(record.clone()).unwrap();
             }
         }));
     }
-    for _ in 0..10 {
+    for _ in 0..num_threads / 2 {
         let relation = relation_2.clone();
         let record = record_2.clone();
         handles.push(thread::spawn(move || {
-            for _ in 0..100 {
+            for _ in 0..num_inserts_per_thread {
                 relation.insert_record(record.clone()).unwrap();
             }
         }));
