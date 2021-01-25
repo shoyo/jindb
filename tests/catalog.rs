@@ -9,9 +9,9 @@ use jin::concurrency::transaction_manager::TransactionManager;
 use jin::disk::manager::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::attribute::Attribute;
-use jin::relation::record::Record;
+use jin::relation::record::{Record, RecordId};
 use jin::relation::schema::Schema;
-use jin::relation::types::DataType;
+use jin::relation::types::{DataType, InnerValue};
 
 use std::sync::Arc;
 use std::thread;
@@ -33,9 +33,9 @@ fn setup() -> TestContext {
     );
 
     let schema_1 = Arc::new(Schema::new(vec![
-        Attribute::new("foo", DataType::Int, true, true, false),
-        Attribute::new("bar", DataType::Boolean, false, false, false),
-        Attribute::new("baz", DataType::Varchar, false, false, false),
+        Attribute::new("foo", DataType::Int, true, true, true),
+        Attribute::new("bar", DataType::Boolean, false, false, true),
+        Attribute::new("baz", DataType::Varchar, false, false, true),
     ]));
 
     let schema_2 = Arc::new(Schema::new(vec![
@@ -128,7 +128,7 @@ fn test_insert_record() {
     assert!(record.get_id().is_none());
 
     // Assert that the record can be inserted into the relation.
-    let record_id = relation.insert_record(record).unwrap();
+    let record_id = relation.insert(record).unwrap();
     assert_eq!(record_id.page_id, common::FIRST_RELATION_PAGE_ID);
     assert_eq!(record_id.slot_index, 0);
 }
@@ -173,7 +173,7 @@ fn test_insert_many_records() {
 
     // Assert that several records can be inserted into the relation.
     for _ in 0..20 {
-        assert!(relation.insert_record(record.clone()).is_ok());
+        assert!(relation.insert(record.clone()).is_ok());
     }
 }
 
@@ -219,7 +219,7 @@ fn test_insert_many_records_in_parallel() {
         let record = record_1.clone();
         handles.push(thread::spawn(move || {
             for _ in 0..num_inserts_per_thread {
-                relation.insert_record(record.clone()).unwrap();
+                relation.insert(record.clone()).unwrap();
             }
         }));
     }
@@ -228,7 +228,7 @@ fn test_insert_many_records_in_parallel() {
         let record = record_2.clone();
         handles.push(thread::spawn(move || {
             for _ in 0..num_inserts_per_thread {
-                relation.insert_record(record.clone()).unwrap();
+                relation.insert(record.clone()).unwrap();
             }
         }));
     }
@@ -236,6 +236,68 @@ fn test_insert_many_records_in_parallel() {
     for handle in handles {
         handle.join().unwrap();
     }
+}
+
+#[test]
+fn test_read_record() {
+    let ctx = setup();
+
+    // Create a relation and insert a record.
+    let mut relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+    let record = Record::new(
+        vec![Some(Box::new(54321_i32)), Some(Box::new(false)), None],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let rid = relation.insert(record).unwrap();
+
+    // Assert that read values are correct.
+    let dne = RecordId {
+        page_id: rid.page_id,
+        slot_index: rid.slot_index + 1,
+    };
+
+    let result = relation.read(rid);
+    assert!(result.is_ok());
+    assert!(relation.read(dne).is_err());
+
+    let record = result.unwrap();
+
+    let value = record.get_value(0).unwrap().unwrap().get_inner();
+    assert_eq!(value, InnerValue::Int(54321));
+
+    let value = record.get_value(1).unwrap().unwrap().get_inner();
+    assert_eq!(value, InnerValue::Boolean(false));
+
+    let value = record.get_value(2).unwrap();
+    assert!(value.is_none());
+}
+
+#[test]
+fn test_update_record() {
+    let ctx = setup();
+
+    // Create a relation and insert a record.
+    let mut relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+    let record = Record::new(
+        vec![Some(Box::new(54321)), Some(Box::new(false)), None],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    relation.insert(record);
+
+    assert!(false);
+}
+
+#[test]
+fn test_delete_record() {
+    assert!(false)
 }
 
 #[ignore]
