@@ -64,6 +64,34 @@ pub fn write_u32(array: &mut [u8], offset: u32, value: u32) -> Result<(), IoErro
     Ok(())
 }
 
+/// Read an unsigned 64-bit integer at the specified offset in the byte array.
+#[inline]
+pub fn read_u64(array: &[u8], offset: u32) -> Result<u64, IoError> {
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 8)?;
+
+    let mut bytes = [0; 8];
+    for i in 0..8 {
+        bytes[i] = array[offset + i];
+    }
+
+    Ok(u64::from_le_bytes(bytes))
+}
+
+/// Write an unsigned 64-bit integer at the specified offset in the byte array. Any existing
+/// value is overwritten.
+#[inline]
+pub fn write_u64(array: &mut [u8], offset: u32, value: u64) -> Result<(), IoError> {
+    let offset = offset as usize;
+    check_overflow(array.len(), offset, 8)?;
+
+    for i in 0..8 {
+        array[offset + i] = ((value >> (i * 8)) & 0xff) as u8;
+    }
+
+    Ok(())
+}
+
 /// Read a signed 8-bit integer at the specified offset in the byte array.
 #[inline]
 pub fn read_i8(array: &[u8], offset: u32) -> Result<i8, IoError> {
@@ -336,6 +364,20 @@ mod tests {
         // Assert that write fails with an overflow.
         let result = write_u32(&mut array, PAGE_SIZE - 3, value);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_write_u64() {
+        let mut array = vec![0; 100];
+        let offset = 72;
+        let value = 980981237789123_u64;
+
+        let result = write_u64(array.as_mut_slice(), offset, value);
+        assert!(result.is_ok());
+
+        let result = read_u64(array.as_slice(), offset);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), value)
     }
 
     #[test]

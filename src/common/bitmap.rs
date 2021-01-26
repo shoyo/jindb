@@ -5,29 +5,29 @@
 
 /// Utility functions for interacting with bitmaps.
 
-/// Return the n-th bit in the 32-bit bitmap.
-pub fn get_nth_bit(bitmap: &u32, n: u32) -> Result<u32, BitmapErr> {
-    if n >= 32 {
+/// Return the n-th bit in the 64-bit bitmap.
+pub fn get_nth_bit(bitmap: &u64, n: u32) -> Result<u64, BitmapErr> {
+    if n >= 64 {
         return Err(BitmapErr::OutOfBounds);
     }
-    Ok((*bitmap >> n) & 1u32)
+    Ok((*bitmap >> n) & 1u64)
 }
 
 /// Set the n-th bit in the 32-bit bitmap to 1.
-pub fn set_nth_bit(bitmap: &mut u32, n: u32) -> Result<(), BitmapErr> {
-    if n >= 32 {
+pub fn set_nth_bit(bitmap: &mut u64, n: u32) -> Result<(), BitmapErr> {
+    if n >= 64 {
         return Err(BitmapErr::OutOfBounds);
     }
-    *bitmap |= 1u32 << n;
+    *bitmap |= 1u64 << n;
     Ok(())
 }
 
-/// Set the n-th bit in the 32-bit bitmap to 0.
-pub fn clear_nth_bit(bitmap: &mut u32, n: u32) -> Result<(), BitmapErr> {
-    if n >= 32 {
+/// Set the n-th bit in the 64-bit bitmap to 0.
+pub fn clear_nth_bit(bitmap: &mut u64, n: u32) -> Result<(), BitmapErr> {
+    if n >= 64 {
         return Err(BitmapErr::OutOfBounds);
     }
-    *bitmap &= !(1u32 << n);
+    *bitmap &= !(1u64 << n);
     Ok(())
 }
 
