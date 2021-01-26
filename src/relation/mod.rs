@@ -59,7 +59,7 @@ impl Relation {
     }
 
     /// Read and return a record from this relation.
-    pub fn read(&self, rid: RecordId) -> Result<Arc<Record>, HeapError> {
+    pub fn read(&self, rid: RecordId) -> Result<Record, HeapError> {
         self.heap.read(rid)
     }
 

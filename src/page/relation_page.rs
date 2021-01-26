@@ -170,7 +170,22 @@ impl RelationPage {
 
     /// Read the record at the specified slot index.
     pub fn read_record(&self, slot: u32) -> Result<Record, PageError> {
-        todo!()
+        if slot >= self.get_num_records() {
+            return Err(PageError::SlotOutOfBounds);
+        }
+        let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
+        let length_addr = offset_addr + 4;
+
+        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
+        let length = read_u32(&self.bytes, length_addr).unwrap() as usize;
+
+        let bytes: Vec<u8> = Vec::from(&self.bytes[offset..offset + length]);
+        let rid = RecordId {
+            page_id: self.get_id(),
+            slot_index: slot,
+        };
+
+        Ok(Record::from_bytes(bytes, rid))
     }
 
     /// Insert a record in the page and update the header.
@@ -273,8 +288,6 @@ mod tests {
         //                                  |____________ record.len() ______________|
 
         let page_bytes = page.as_bytes();
-        println!("{:?}", page_bytes);
-        println!("{:?}", record.as_bytes());
 
         let offset_addr = RECORDS_OFFSET;
         let length_addr = RECORDS_OFFSET + 4;
@@ -284,7 +297,7 @@ mod tests {
         );
         assert_eq!(read_u32(page_bytes, length_addr).unwrap(), record.len());
 
-        let bitmap_size = 4;
+        let bitmap_size = 8;
         let bitmap_addr = PAGE_SIZE - record.len();
         let str_offset_addr = bitmap_addr + bitmap_size;
         let str_length_addr = str_offset_addr + 4;

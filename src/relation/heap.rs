@@ -8,7 +8,7 @@ use crate::common::{PageIdT, MAX_RECORD_SIZE};
 use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
 
-use crate::page::Page;
+use crate::page::{Page, PageError};
 use std::convert::From;
 use std::sync::Arc;
 
@@ -43,13 +43,16 @@ impl Heap {
     }
 
     /// Read the specified record from the relation.
-    pub fn read(&self, rid: RecordId) -> Result<Arc<Record>, HeapError> {
+    pub fn read(&self, rid: RecordId) -> Result<Record, HeapError> {
         let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
         let frame = frame_arc.read().unwrap();
 
         let page = frame.get_relation_page().unwrap();
 
-        todo!()
+        match page.read_record(rid.slot_index) {
+            Ok(record) => Ok(record),
+            Err(_) => Err(HeapError::RecordDNE),
+        }
     }
 
     /// Insert a record into the relation. If there is currently no space available in the buffer

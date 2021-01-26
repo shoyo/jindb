@@ -5,8 +5,9 @@
 
 use crate::common::bitmap::{get_nth_bit, set_nth_bit};
 use crate::common::io::{
-    read_bool, read_f32, read_i16, read_i32, read_i64, read_i8, read_str, read_u32, write_bool,
-    write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
+    read_bool, read_f32, read_i16, read_i32, read_i64, read_i8, read_str, read_u32, read_u64,
+    write_bool, write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
+    write_u64, IoError,
 };
 use crate::common::{PageIdT, RecordSlotIdT};
 use crate::relation::schema::Schema;
@@ -14,8 +15,11 @@ use crate::relation::types::{size_of, DataType, InnerValue, Value};
 use std::sync::Arc;
 
 /// Constants for record offsets.
-const NULL_BITMAP_SIZE: u32 = 4;
-const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_SIZE;
+const NULL_BITMAP_SIZE: u32 = 8;
+const NULL_BITMAP_OFFSET: u32 = 0;
+const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_OFFSET + NULL_BITMAP_SIZE;
+
+type NullBitmapT = u64;
 
 /// A database record with variable-length attributes.
 ///
@@ -46,11 +50,8 @@ pub struct Record {
     /// Raw byte array for this record.
     bytes: Vec<u8>,
 
-    /// Schema that defines the structure of this record.
-    schema: Arc<Schema>,
-
     /// A null bitmap that defines which values in the record are null.
-    bitmap: u32,
+    bitmap: NullBitmapT,
 }
 
 impl Record {
@@ -68,9 +69,9 @@ impl Record {
             return Err(RecordErr::ValSchemaMismatch);
         }
 
-        // Initialize empty byte vector and bitmap to be owned by new record.
+        // Initialize empty byte vector and null bitmap of new record.
         let mut bytes: Vec<u8> = vec![0; (NULL_BITMAP_SIZE + schema.byte_len()) as usize];
-        let mut bitmap: u32 = 0;
+        let mut bitmap: NullBitmapT = 0;
 
         // Byte array address to begin writing values.
         let mut addr = FIXED_VALUES_OFFSET;
@@ -175,12 +176,28 @@ impl Record {
             addr += varchar.len() as u32;
         }
 
+        // 3) Write the null bitmap into the byte vector.
+        write_u64(bytes.as_mut_slice(), NULL_BITMAP_OFFSET, bitmap);
+
         Ok(Self {
             id: None,
             bytes,
-            schema,
             bitmap,
         })
+    }
+
+    /// Create a record from a byte vector.
+    ///
+    /// Used to initialize an in-memory representation of a record that has already been
+    /// allocated to a relation page.
+    pub fn from_bytes(bytes: Vec<u8>, rid: RecordId) -> Self {
+        let bitmap = read_u64(bytes.as_slice(), NULL_BITMAP_OFFSET).unwrap();
+
+        Self {
+            id: Some(rid),
+            bytes,
+            bitmap,
+        }
     }
 
     /// Return the raw byte array for this record.
@@ -217,29 +234,33 @@ impl Record {
     /// idx = 1 returns the value for "Bar".
     /// idx = 2 returns the value for "Baz".
     /// idx > 2 would panic.
-    pub fn get_value(&self, idx: u32) -> Result<Option<Box<dyn Value>>, RecordErr> {
-        if idx >= self.schema.attr_len() {
+    pub fn get_value(
+        &self,
+        idx: u32,
+        schema: Arc<Schema>,
+    ) -> Result<Option<Box<dyn Value>>, RecordErr> {
+        if idx >= schema.attr_len() {
             return Err(RecordErr::IndexOutOfBounds);
         }
 
-        if self.is_null(idx).unwrap() {
+        if self.is_null(idx, schema.clone()).unwrap() {
             return Ok(None);
         }
 
         let mut addr = FIXED_VALUES_OFFSET;
-        for (i, attr) in self.schema.get_attributes().iter().enumerate() {
+        for (i, attr) in schema.get_attributes().iter().enumerate() {
             if i == idx as usize {
                 let value: Box<dyn Value> = match attr.get_data_type() {
-                    DataType::Boolean => Box::new(read_bool(self.bytes.as_slice(), addr).unwrap()),
-                    DataType::TinyInt => Box::new(read_i8(self.bytes.as_slice(), addr).unwrap()),
-                    DataType::SmallInt => Box::new(read_i16(self.bytes.as_slice(), addr).unwrap()),
-                    DataType::Int => Box::new(read_i32(self.bytes.as_slice(), addr).unwrap()),
-                    DataType::BigInt => Box::new(read_i64(self.bytes.as_slice(), addr).unwrap()),
-                    DataType::Decimal => Box::new(read_f32(self.bytes.as_slice(), addr).unwrap()),
+                    DataType::Boolean => Box::new(read_bool(self.bytes.as_slice(), addr)?),
+                    DataType::TinyInt => Box::new(read_i8(self.bytes.as_slice(), addr)?),
+                    DataType::SmallInt => Box::new(read_i16(self.bytes.as_slice(), addr)?),
+                    DataType::Int => Box::new(read_i32(self.bytes.as_slice(), addr)?),
+                    DataType::BigInt => Box::new(read_i64(self.bytes.as_slice(), addr)?),
+                    DataType::Decimal => Box::new(read_f32(self.bytes.as_slice(), addr)?),
                     DataType::Varchar => Box::new({
-                        let offset = read_u32(self.bytes.as_slice(), addr).unwrap();
-                        let length = read_u32(self.bytes.as_slice(), addr + 4).unwrap();
-                        read_str(self.bytes.as_slice(), offset, length).unwrap()
+                        let offset = read_u32(self.bytes.as_slice(), addr)?;
+                        let length = read_u32(self.bytes.as_slice(), addr + 4)?;
+                        read_str(self.bytes.as_slice(), offset, length)?
                     }),
                 };
                 return Ok(Some(value));
@@ -273,8 +294,8 @@ impl Record {
     /// idx = 1 returns whether the value for "Bar" is null.
     /// idx = 2 returns whether the value for "Baz" is null.
     /// idx > 2 would panic.
-    pub fn is_null(&self, idx: u32) -> Result<bool, RecordErr> {
-        if idx >= self.schema.attr_len() {
+    pub fn is_null(&self, idx: u32, schema: Arc<Schema>) -> Result<bool, RecordErr> {
+        if idx >= schema.attr_len() {
             return Err(RecordErr::IndexOutOfBounds);
         }
 
@@ -285,17 +306,18 @@ impl Record {
 
     /// Index the schema and set the corresponding value contained in the Record to null. Panic
     /// if the specified index is out-of-bounds.
-    pub fn set_null(&mut self, idx: u32) -> Result<(), RecordErr> {
-        if idx >= self.schema.attr_len() {
+    pub fn set_null(&mut self, idx: u32, schema: Arc<Schema>) -> Result<(), RecordErr> {
+        if idx >= schema.attr_len() {
             return Err(RecordErr::IndexOutOfBounds);
         }
 
-        let attrs = self.schema.get_attributes();
+        let attrs = schema.get_attributes();
         if !attrs[idx as usize].is_nullable() {
             return Err(RecordErr::NotNullable);
         }
 
         set_nth_bit(&mut self.bitmap, idx).unwrap();
+        write_u64(self.bytes.as_mut_slice(), NULL_BITMAP_OFFSET, self.bitmap).unwrap();
 
         Ok(())
     }
@@ -315,6 +337,12 @@ pub enum RecordErr {
     ValSchemaMismatch,
     NotNullable,
     IndexOutOfBounds,
+}
+
+impl From<IoError> for RecordErr {
+    fn from(_: IoError) -> Self {
+        RecordErr::ValSchemaMismatch
+    }
 }
 
 #[cfg(test)]
@@ -380,23 +408,23 @@ mod tests {
         );
 
         // Check that each value contains the expected value.
-        let value = record.get_value(0).unwrap();
+        let value = record.get_value(0, schema.clone()).unwrap();
         assert!(value.is_some());
         assert_eq!(value.unwrap().get_inner(), InnerValue::Boolean(true));
 
-        let value = record.get_value(2).unwrap();
+        let value = record.get_value(2, schema.clone()).unwrap();
         assert!(value.is_none());
 
-        let value = record.get_value(5).unwrap();
+        let value = record.get_value(5, schema.clone()).unwrap();
         assert_eq!(value.unwrap().get_inner(), InnerValue::Decimal(-5.4321f32));
 
-        let value = record.get_value(6).unwrap();
+        let value = record.get_value(6, schema.clone()).unwrap();
         assert_eq!(
             value.unwrap().get_inner(),
             InnerValue::Varchar("Hello, World!".to_string())
         );
 
-        let value = record.get_value(7);
+        let value = record.get_value(7, schema.clone());
         assert!(value.is_err());
 
         // Check that allocation behaves as expected.
