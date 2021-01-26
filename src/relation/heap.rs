@@ -136,6 +136,9 @@ impl Heap {
     }
 
     /// Update a record in this relation.
+    ///
+    /// Argument `record` should be an unallocated Record instance with the same schema as
+    /// the record being updated. `rid` specifies the location of the record.
     pub fn update(&self, record: Record, rid: RecordId) -> Result<(), HeapError> {
         if record.is_allocated() {
             return Err(HeapError::RecordAlreadyAlloc);

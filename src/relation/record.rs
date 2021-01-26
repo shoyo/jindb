@@ -325,7 +325,7 @@ impl Record {
 
 /// A database record descriptor, comprised of the page ID and slot index that
 /// the record is located at.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RecordId {
     pub page_id: PageIdT,
     pub slot_index: RecordSlotIdT,

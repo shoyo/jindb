@@ -298,9 +298,42 @@ fn test_update_record() {
         ctx.schema_1.clone(),
     )
     .unwrap();
+    let record_id = record.get_id().unwrap();
     relation.insert(record);
 
-    assert!(false);
+    // Update the existing record.
+    let update = Record::new(
+        vec![
+            Some(Box::new(12345)),
+            None,
+            Some(Box::new("Hello, World!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let result = relation.update(update, record_id);
+    assert!(result.is_ok());
+
+    // Assert that the record is correctly updated.
+    let record = relation.read(record_id).unwrap();
+    assert_eq!(record.get_id().unwrap(), record_id);
+
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Int(12345));
+
+    let value = record.get_value(0, ctx.schema_1.clone()).unwrap();
+    assert!(value.is_none());
+
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Varchar("Hello, World!".to_string()));
 }
 
 #[test]
