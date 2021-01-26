@@ -266,13 +266,21 @@ fn test_read_record() {
 
     let record = result.unwrap();
 
-    let value = record.get_value(0).unwrap().unwrap().get_inner();
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
     assert_eq!(value, InnerValue::Int(54321));
 
-    let value = record.get_value(1).unwrap().unwrap().get_inner();
+    let value = record
+        .get_value(1, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
     assert_eq!(value, InnerValue::Boolean(false));
 
-    let value = record.get_value(2).unwrap();
+    let value = record.get_value(2, ctx.schema_1.clone()).unwrap();
     assert!(value.is_none());
 }
 
