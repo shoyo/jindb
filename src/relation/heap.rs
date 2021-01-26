@@ -9,6 +9,7 @@ use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
 
 use crate::page::{Page, PageError};
+use crate::relation::heap::HeapError::RecordTooLarge;
 use std::convert::From;
 use std::sync::Arc;
 
@@ -49,10 +50,7 @@ impl Heap {
 
         let page = frame.get_relation_page().unwrap();
 
-        match page.read_record(rid.slot_index) {
-            Ok(record) => Ok(record),
-            Err(_) => Err(HeapError::RecordDNE),
-        }
+        Ok(page.read_record(rid.slot_index)?)
     }
 
     /// Insert a record into the relation. If there is currently no space available in the buffer
@@ -148,10 +146,9 @@ impl Heap {
         let mut frame = frame_arc.write().unwrap();
 
         let page = frame.get_mut_relation_page().unwrap();
+        page.update_record(record, rid.slot_index)?;
 
         self.buffer_manager.unpin_w(frame);
-
-        todo!();
 
         Ok(())
     }
@@ -159,17 +156,17 @@ impl Heap {
     /// Flag the specified record as deleted.
     /// The record is not actually deleted until .apply_delete() is called.
     pub fn flag_delete(&self, _record_id: RecordId) -> Result<(), ()> {
-        Err(())
+        todo!()
     }
 
     /// Commit a delete operation for the specified record.
     pub fn commit_delete(&self, _record_id: RecordId) -> Result<(), ()> {
-        Err(())
+        todo!()
     }
 
     /// Rollback a delete operation for the specified record.
     pub fn rollback_delete(&self, _record_id: RecordId) -> Result<(), ()> {
-        Err(())
+        todo!()
     }
 }
 
@@ -202,6 +199,15 @@ impl From<BufferError> for HeapError {
             BufferError::PagePinned => HeapError::BufMgrPagePinned,
             BufferError::PageBufDNE => HeapError::BufMgrPageBufDNE,
             BufferError::PageDiskDNE => HeapError::BufMgrPageDiskDNE,
+        }
+    }
+}
+
+impl From<PageError> for HeapError {
+    fn from(e: PageError) -> Self {
+        match e {
+            PageError::PageOverflow => HeapError::RecordTooLarge,
+            PageError::SlotOutOfBounds => HeapError::RecordDNE,
         }
     }
 }

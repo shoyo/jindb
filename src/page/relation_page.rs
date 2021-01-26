@@ -179,7 +179,7 @@ impl RelationPage {
         let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
         let length = read_u32(&self.bytes, length_addr).unwrap() as usize;
 
-        let bytes: Vec<u8> = Vec::from(&self.bytes[offset..offset + length]);
+        let bytes = Vec::from(&self.bytes[offset..offset + length]);
         let rid = RecordId {
             page_id: self.get_id(),
             slot_index: slot,
@@ -224,8 +224,37 @@ impl RelationPage {
     }
 
     /// Update the record at the specified slot index.
-    fn update_record(&mut self, record: Record, slot: u32) -> Result<(), ()> {
-        todo!()
+    ///
+    /// Argument `record` should be an unallocated Record instance with the same schema as the
+    /// record being updated.
+    ///
+    /// NOTE: This method is currently incomplete, in that it returns an error if the new record is
+    /// larger than the old record. In such a case, the caller must perform a delete -> insert
+    /// instead.
+    pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
+        if slot >= self.get_num_records() {
+            return Err(PageError::SlotOutOfBounds);
+        }
+
+        let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
+        let length_addr = offset_addr + 4;
+
+        let length = read_u32(&self.bytes, length_addr).unwrap();
+
+        // Check that there is enough space to insert the updated record.
+        if length < new_record.len() {
+            return Err(PageError::PageOverflow);
+        }
+
+        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
+
+        // Update the record and header.
+        for i in 0..new_record.len() as usize {
+            self.bytes[offset + i] = new_record.as_bytes()[i];
+        }
+        write_u32(&mut self.bytes, length_addr, new_record.len());
+
+        Ok(())
     }
 }
 
@@ -234,6 +263,7 @@ mod tests {
     use super::*;
     use crate::common::io::{read_bool, read_f32, read_i32, read_str};
     use crate::relation::attribute::Attribute;
+    use crate::relation::record::NULL_BITMAP_SIZE;
     use crate::relation::schema::Schema;
     use crate::relation::types::{size_of, DataType};
     use std::sync::Arc;
@@ -297,7 +327,7 @@ mod tests {
         );
         assert_eq!(read_u32(page_bytes, length_addr).unwrap(), record.len());
 
-        let bitmap_size = 8;
+        let bitmap_size = NULL_BITMAP_SIZE;
         let bitmap_addr = PAGE_SIZE - record.len();
         let str_offset_addr = bitmap_addr + bitmap_size;
         let str_length_addr = str_offset_addr + 4;

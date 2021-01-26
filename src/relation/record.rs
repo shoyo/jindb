@@ -15,11 +15,11 @@ use crate::relation::types::{size_of, DataType, InnerValue, Value};
 use std::sync::Arc;
 
 /// Constants for record offsets.
-const NULL_BITMAP_SIZE: u32 = 8;
+pub const NULL_BITMAP_SIZE: u32 = 8;
 const NULL_BITMAP_OFFSET: u32 = 0;
 const FIXED_VALUES_OFFSET: u32 = NULL_BITMAP_OFFSET + NULL_BITMAP_SIZE;
 
-type NullBitmapT = u64;
+pub type NullBitmapT = u64;
 
 /// A database record with variable-length attributes.
 ///
