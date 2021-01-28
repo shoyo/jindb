@@ -1,6 +1,7 @@
 # <img src="images/logo.png" alt="Jin DB" width="450"/>
 ![Build Status](https://github.com/shoyo/jin/workflows/build/badge.svg)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/shoyo/jin/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/shoyo/jin/branch/main/graph/badge.svg?token=5P533NMXD6)](https://codecov.io/gh/shoyo/jin)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/shoyo/jin)
 
 ## About
