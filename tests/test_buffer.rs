@@ -47,7 +47,7 @@ fn test_fetch_buffer_page() {
     let manager_2 = manager_1.clone();
     let (tx, rx) = mpsc::channel();
 
-    thread::spawn(move || {
+    let handle_1 = thread::spawn(move || {
         // Assert that fetching a nonexistent page fails.
         let result = manager_1.fetch_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(result.is_err());
@@ -57,11 +57,14 @@ fn test_fetch_buffer_page() {
         tx.send(()).unwrap();
     });
 
-    thread::spawn(move || {
+    let handle_2 = thread::spawn(move || {
         let _ = rx.recv().unwrap();
         let result = manager_2.fetch_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(result.is_ok());
     });
+
+    handle_1.join().unwrap();
+    handle_2.join().unwrap();
 }
 
 #[test]
@@ -73,7 +76,7 @@ fn test_delete_buffer_page() {
     let barrier_2 = barrier_1.clone();
 
     // First thread
-    thread::spawn(move || {
+    let handle_1 = thread::spawn(move || {
         let frame_arc = manager_1.create_relation_page().unwrap();
         let frame = frame_arc.write().unwrap();
 
@@ -87,7 +90,7 @@ fn test_delete_buffer_page() {
     });
 
     // Second thread
-    thread::spawn(move || {
+    let handle_2 = thread::spawn(move || {
         // Receive notification from first thread to delete newly created page (should fail).
         let _ = rx.recv().unwrap();
         let first_attempt = manager_2.delete_page(constants::FIRST_RELATION_PAGE_ID);
@@ -99,4 +102,7 @@ fn test_delete_buffer_page() {
         let second_attempt = manager_2.delete_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(second_attempt.is_ok());
     });
+
+    handle_1.join().unwrap();
+    handle_2.join().unwrap();
 }
