@@ -3,15 +3,15 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::bitmap::{get_nth_bit, set_nth_bit};
-use crate::common::io::{
+use crate::bitmap::{get_nth_bit, set_nth_bit};
+use crate::constants::{PageIdT, RecordSlotIdT};
+use crate::io::{
     read_bool, read_f32, read_i16, read_i32, read_i64, read_i8, read_str, read_u32, read_u64,
     write_bool, write_f32, write_i16, write_i32, write_i64, write_i8, write_str, write_u32,
     write_u64, IoError,
 };
-use crate::common::{PageIdT, RecordSlotIdT};
-use crate::relation::schema::Schema;
 use crate::relation::types::{size_of, DataType, InnerValue, Value};
+use crate::relation::Schema;
 use std::sync::Arc;
 
 /// Constants for record offsets.
@@ -177,7 +177,7 @@ impl Record {
         }
 
         // 3) Write the null bitmap into the byte vector.
-        write_u64(bytes.as_mut_slice(), NULL_BITMAP_OFFSET, bitmap);
+        write_u64(bytes.as_mut_slice(), NULL_BITMAP_OFFSET, bitmap).unwrap();
 
         Ok(Self {
             id: None,
@@ -348,9 +348,9 @@ impl From<IoError> for RecordErr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::relation::attribute::Attribute;
-    use crate::relation::schema::Schema;
     use crate::relation::types::DataType;
+    use crate::relation::Attribute;
+    use crate::relation::Schema;
 
     #[test]
     fn test_create_record() {

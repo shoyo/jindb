@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::{BufferError, BufferManager};
-use crate::common::{PageIdT, MAX_RECORD_SIZE};
+use crate::buffer::{BufferError, BufferManager};
+use crate::constants::{PageIdT, MAX_RECORD_SIZE};
 use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
 

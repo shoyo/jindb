@@ -3,9 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::buffer::manager::BufferManager;
 use jin::buffer::replacement::ReplacerAlgorithm;
-use jin::disk::manager::DiskManager;
+use jin::buffer::BufferManager;
+use jin::disk::DiskManager;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 

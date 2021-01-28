@@ -10,7 +10,7 @@
 /// records of each plan node. Parent nodes receive the records produced by all of its child nodes
 /// (follows the "Volcano Model").
 use crate::relation::record::Record;
-use crate::relation::schema::Schema;
+use crate::relation::Schema;
 use std::sync::{Arc, Mutex, RwLock};
 
 pub mod aggregation;

@@ -7,7 +7,7 @@ pub mod clock;
 pub mod lru;
 pub mod slow;
 
-use crate::common::BufferFrameIdT;
+use crate::constants::BufferFrameIdT;
 
 /// Eviction policy variants
 pub enum ReplacerAlgorithm {

@@ -3,15 +3,14 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::buffer::manager::BufferManager;
 use jin::buffer::replacement::ReplacerAlgorithm;
-use jin::concurrency::transaction_manager::TransactionManager;
-use jin::disk::manager::DiskManager;
+use jin::buffer::BufferManager;
+use jin::disk::DiskManager;
 use jin::execution::system_catalog::SystemCatalog;
-use jin::relation::attribute::Attribute;
 use jin::relation::record::{Record, RecordId};
-use jin::relation::schema::Schema;
 use jin::relation::types::{DataType, InnerValue};
+use jin::relation::Attribute;
+use jin::relation::Schema;
 
 use std::sync::Arc;
 use std::thread;
@@ -19,7 +18,6 @@ use std::thread;
 mod common;
 
 struct TestContext {
-    txn_manager: TransactionManager,
     schema_1: Arc<Schema>,
     schema_2: Arc<Schema>,
     system_catalog: Arc<SystemCatalog>,
@@ -47,7 +45,6 @@ fn setup() -> TestContext {
         system_catalog: Arc::new(SystemCatalog::new(Arc::new(buffer_manager))),
         schema_1,
         schema_2,
-        txn_manager: TransactionManager::new(),
     }
 }
 

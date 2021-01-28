@@ -4,7 +4,7 @@
  */
 
 use crate::buffer::replacement::PageReplacer;
-use crate::common::BufferFrameIdT;
+use crate::constants::BufferFrameIdT;
 
 /// A clock eviction policy for the database buffer.
 pub struct ClockReplacer {}

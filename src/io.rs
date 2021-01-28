@@ -298,7 +298,7 @@ pub enum IoError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::PAGE_SIZE;
+    use crate::constants::PAGE_SIZE;
 
     #[test]
     fn test_read_u32() {

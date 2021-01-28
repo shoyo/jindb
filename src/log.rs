@@ -3,8 +3,10 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{LsnT, TransactionIdT};
+use crate::constants::{LsnT, TransactionIdT};
 use std::collections::HashMap;
+
+pub struct LogManager;
 
 struct LogRecovery {
     log_buffer: String,

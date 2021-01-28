@@ -5,7 +5,7 @@
 
 use crate::execution::plans::{PlanVariant, QueryPlanNode};
 use crate::relation::record::Record;
-use crate::relation::schema::Schema;
+use crate::relation::Schema;
 use std::sync::{Arc, Mutex, RwLock};
 
 pub struct AggregationPlanNode {

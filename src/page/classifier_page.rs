@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::io::{read_u32, write_u32};
-use crate::common::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
+use crate::constants::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
+use crate::io::{read_u32, write_u32};
 use crate::page::{Page, PageVariant};
 use std::any::Any;
 

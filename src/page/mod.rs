@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{LsnT, PageIdT, PAGE_SIZE};
+use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
@@ -14,7 +14,7 @@ pub mod dictionary_page;
 pub mod relation_page;
 
 /// A trait for pages stored in the database. A page, regardless of its variant, is
-/// common::PAGE_SIZE bytes in length.
+/// constants::PAGE_SIZE bytes in length.
 /// Pages can store various things, such as metadata (dictionary page), relation data (relation
 /// pages), index headers (index header pages) and indexes (index pages).
 pub trait Page {

@@ -3,10 +3,10 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::RelationIdT;
+use crate::constants::RelationIdT;
 use crate::execution::plans::{PlanVariant, QueryPlanNode};
 use crate::relation::record::Record;
-use crate::relation::schema::Schema;
+use crate::relation::Schema;
 use std::sync::{Arc, Mutex, RwLock};
 
 pub struct InsertPlanNode {

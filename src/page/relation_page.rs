@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::io::{read_u32, write_u32};
-use crate::common::{LsnT, PageIdT, PAGE_SIZE};
+use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
+use crate::io::{read_u32, write_u32};
 use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::{Record, RecordId};
 
@@ -252,7 +252,7 @@ impl RelationPage {
         for i in 0..new_record.len() as usize {
             self.bytes[offset + i] = new_record.as_bytes()[i];
         }
-        write_u32(&mut self.bytes, length_addr, new_record.len());
+        write_u32(&mut self.bytes, length_addr, new_record.len()).unwrap();
 
         Ok(())
     }
@@ -261,11 +261,11 @@ impl RelationPage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::io::{read_bool, read_f32, read_i32, read_str};
-    use crate::relation::attribute::Attribute;
+    use crate::io::{read_bool, read_f32, read_i32, read_str};
     use crate::relation::record::NULL_BITMAP_SIZE;
-    use crate::relation::schema::Schema;
     use crate::relation::types::{size_of, DataType};
+    use crate::relation::Attribute;
+    use crate::relation::Schema;
     use std::sync::Arc;
 
     #[test]

@@ -4,7 +4,7 @@
  */
 
 use crate::buffer::replacement::PageReplacer;
-use crate::common::BufferFrameIdT;
+use crate::constants::BufferFrameIdT;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 

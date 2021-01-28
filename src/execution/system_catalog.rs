@@ -3,11 +3,11 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::{BufferError, BufferManager};
-use crate::common::RelationIdT;
+use crate::buffer::{BufferError, BufferManager};
+use crate::constants::RelationIdT;
 use crate::relation::heap::Heap;
-use crate::relation::schema::Schema;
 use crate::relation::Relation;
+use crate::relation::Schema;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, RwLock};

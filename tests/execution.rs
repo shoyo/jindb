@@ -5,7 +5,7 @@
 
 use jin::execution::plans::insert::InsertPlanNode;
 use jin::execution::plans::QueryPlanNode;
-use jin::relation::schema::Schema;
+use jin::relation::Schema;
 use std::sync::Arc;
 
 /// Tests for query execution.

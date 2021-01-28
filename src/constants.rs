@@ -3,10 +3,6 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-pub mod bitmap;
-pub mod collections;
-pub mod io;
-
 /// Note: This file is NOT a configuration file. The type aliases and global constants below are
 /// primarily meant to improve readability throughout the codebase. The values should not be
 /// configured/modified unless explicitly annotated with "safe to modify".

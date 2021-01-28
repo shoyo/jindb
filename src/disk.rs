@@ -3,9 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
-use crate::disk::open_write_file;
-use std::fs::File;
+use crate::constants::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
+
+use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
@@ -100,14 +100,13 @@ impl DiskManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
-    use crate::disk::manager::DiskManager;
-    use crate::disk::open_write_file;
+    use crate::constants::{CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
+    use crate::disk::{open_write_file, DiskManager};
     use std::convert::TryInto;
-    use std::fs::File;
+    use std::fs::{self, File};
     use std::io::{Read, Seek, SeekFrom, Write};
     use std::sync::{Arc, Barrier};
-    use std::{fs, thread};
+    use std::thread;
 
     struct TestContext {
         disk_manager: DiskManager,
@@ -299,4 +298,13 @@ mod tests {
             handle.join().unwrap();
         }
     }
+}
+
+/// Open a file in write-mode.
+fn open_write_file(filename: &str) -> File {
+    OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(filename)
+        .unwrap()
 }

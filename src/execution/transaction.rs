@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::common::{LsnT, TransactionIdT, INVALID_LSN};
+use crate::constants::{LsnT, TransactionIdT, INVALID_LSN};
 use crate::page::relation_page::RelationPage;
 use crate::relation::record::{Record, RecordId};
 use crate::relation::Relation;

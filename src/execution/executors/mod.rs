@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::buffer::manager::BufferManager;
+use crate::buffer::BufferManager;
 use crate::execution::system_catalog::SystemCatalog;
 use crate::execution::transaction::Transaction;
 use crate::relation::record::Record;

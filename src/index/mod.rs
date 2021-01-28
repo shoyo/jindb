@@ -5,7 +5,7 @@
 
 use crate::execution::transaction::Transaction;
 use crate::relation::record::{Record, RecordId};
-use crate::relation::schema::Schema;
+use crate::relation::Schema;
 
 pub mod btree_index;
 pub mod hash_table_index;
