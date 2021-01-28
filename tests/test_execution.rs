@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::execution::plans::insert::InsertPlanNode;
-use jin::execution::plans::QueryPlanNode;
+use jin::plan::insert::InsertPlanNode;
+use jin::plan::QueryPlanNode;
 use jin::relation::Schema;
 use std::sync::Arc;
 
@@ -23,5 +23,9 @@ fn setup() -> Box<dyn QueryPlanNode> {
     Box::new(query_plan)
 }
 
+#[ignore]
 #[test]
-fn test_execute_query_plan() {}
+fn test_execute_query_plan() {
+    let _root = setup();
+    assert!(false);
+}

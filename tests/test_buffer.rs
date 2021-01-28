@@ -9,12 +9,12 @@ use jin::disk::DiskManager;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 
-mod common;
+mod constants;
 
 fn setup() -> Arc<BufferManager> {
     Arc::new(BufferManager::new(
-        common::TEST_BUFFER_SIZE,
-        DiskManager::new(common::TEST_DB_FILENAME),
+        constants::TEST_BUFFER_SIZE,
+        DiskManager::new(constants::TEST_DB_FILENAME),
         ReplacerAlgorithm::Slow,
     ))
 }
@@ -30,12 +30,12 @@ fn test_create_buffer_page() {
     // Assert that the created page is initialized as expected.
     assert!(frame.get_page().is_some());
     let page = frame.get_page().unwrap();
-    assert_eq!(page.get_id(), common::FIRST_RELATION_PAGE_ID);
+    assert_eq!(page.get_id(), constants::FIRST_RELATION_PAGE_ID);
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
     // existing pages are pinned.
     let mut latches = Vec::new();
-    for _ in 1..common::TEST_BUFFER_SIZE {
+    for _ in 1..constants::TEST_BUFFER_SIZE {
         latches.push(manager.create_relation_page().unwrap());
     }
     assert!(manager.create_relation_page().is_err());
@@ -49,7 +49,7 @@ fn test_fetch_buffer_page() {
 
     thread::spawn(move || {
         // Assert that fetching a nonexistent page fails.
-        let result = manager_1.fetch_page(common::FIRST_RELATION_PAGE_ID);
+        let result = manager_1.fetch_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(result.is_err());
 
         // Create a page and notify other threads to try to fetch the new page (should pass).
@@ -59,7 +59,7 @@ fn test_fetch_buffer_page() {
 
     thread::spawn(move || {
         let _ = rx.recv().unwrap();
-        let result = manager_2.fetch_page(common::FIRST_RELATION_PAGE_ID);
+        let result = manager_2.fetch_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(result.is_ok());
     });
 }
@@ -90,13 +90,13 @@ fn test_delete_buffer_page() {
     thread::spawn(move || {
         // Receive notification from first thread to delete newly created page (should fail).
         let _ = rx.recv().unwrap();
-        let first_attempt = manager_2.delete_page(common::FIRST_RELATION_PAGE_ID);
+        let first_attempt = manager_2.delete_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(first_attempt.is_err());
         barrier_2.wait();
 
         // Receive notification from first thread to delete page again (should pass).
         let _ = rx.recv().unwrap();
-        let second_attempt = manager_2.delete_page(common::FIRST_RELATION_PAGE_ID);
+        let second_attempt = manager_2.delete_page(constants::FIRST_RELATION_PAGE_ID);
         assert!(second_attempt.is_ok());
     });
 }

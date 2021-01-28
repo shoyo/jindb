@@ -113,15 +113,6 @@ mod tests {
         filename: String,
     }
 
-    impl TestContext {
-        fn new(filename: &str) -> Self {
-            Self {
-                disk_manager: DiskManager::new(filename),
-                filename: filename.to_string(),
-            }
-        }
-    }
-
     impl Drop for TestContext {
         fn drop(&mut self) {
             fs::remove_file(&self.filename).unwrap();

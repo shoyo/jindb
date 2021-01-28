@@ -3,7 +3,6 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-/// The `plans` directory contains definitions for nodes on a query plan tree.
 /// Each node represents a single operation (such as hash join, sequential scan, etc.) on a
 /// collection of database records.
 /// During execution, an executor repeatedly calls `next()` on a node to obtain the processed
@@ -13,7 +12,7 @@ use crate::relation::record::Record;
 use crate::relation::Schema;
 use std::sync::{Arc, Mutex, RwLock};
 
-pub mod aggregation;
+pub mod aggr;
 pub mod hash_join;
 pub mod insert;
 pub mod seq_scan;

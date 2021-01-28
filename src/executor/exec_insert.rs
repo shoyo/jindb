@@ -3,8 +3,8 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::execution::executors::{BaseExecutor, QueryMeta};
-use crate::execution::plans::insert::InsertPlanNode;
+use crate::executor::{BaseExecutor, QueryMeta};
+use crate::plan::insert::InsertPlanNode;
 use crate::relation::record::Record;
 use std::sync::{Arc, Mutex};
 

@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::execution::plans::{PlanVariant, QueryPlanNode};
+use crate::plan::{PlanVariant, QueryPlanNode};
 use crate::relation::record::Record;
 use crate::relation::Schema;
 use std::sync::{Arc, Mutex, RwLock};

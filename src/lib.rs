@@ -5,11 +5,13 @@
 
 pub mod bitmap;
 pub mod buffer;
+pub mod catalog;
 pub mod constants;
 pub mod disk;
-pub mod execution;
+pub mod executor;
 pub mod index;
 pub mod io;
 pub mod log;
 pub mod page;
+pub mod plan;
 pub mod relation;

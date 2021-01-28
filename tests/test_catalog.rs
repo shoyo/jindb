@@ -5,8 +5,8 @@
 
 use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::buffer::BufferManager;
+use jin::catalog::SystemCatalog;
 use jin::disk::DiskManager;
-use jin::execution::system_catalog::SystemCatalog;
 use jin::relation::record::{Record, RecordId};
 use jin::relation::types::{DataType, InnerValue};
 use jin::relation::Attribute;
@@ -15,7 +15,7 @@ use jin::relation::Schema;
 use std::sync::Arc;
 use std::thread;
 
-mod common;
+mod constants;
 
 struct TestContext {
     schema_1: Arc<Schema>,
@@ -25,8 +25,8 @@ struct TestContext {
 
 fn setup() -> TestContext {
     let buffer_manager = BufferManager::new(
-        common::TEST_BUFFER_SIZE,
-        DiskManager::new(common::TEST_DB_FILENAME),
+        constants::TEST_BUFFER_SIZE,
+        DiskManager::new(constants::TEST_DB_FILENAME),
         ReplacerAlgorithm::Slow,
     );
 
@@ -126,7 +126,7 @@ fn test_insert_record() {
 
     // Assert that the record can be inserted into the relation.
     let record_id = relation.insert(record).unwrap();
-    assert_eq!(record_id.page_id, common::FIRST_RELATION_PAGE_ID);
+    assert_eq!(record_id.page_id, constants::FIRST_RELATION_PAGE_ID);
     assert_eq!(record_id.slot_index, 0);
 }
 
