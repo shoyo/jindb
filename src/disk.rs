@@ -9,13 +9,13 @@ use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The disk manager is responsible for managing pages stored on disk.
 
 pub struct DiskManager {
     db_filename: String,
-    next_page_id: Arc<Mutex<PageIdT>>,
+    next_page_id: AtomicU32,
 }
 
 impl DiskManager {
@@ -32,7 +32,7 @@ impl DiskManager {
 
         Self {
             db_filename: filename.to_string(),
-            next_page_id: Arc::new(Mutex::new(CLASSIFIER_PAGE_ID + 1)),
+            next_page_id: AtomicU32::new(CLASSIFIER_PAGE_ID + 1),
         }
     }
 
@@ -73,28 +73,31 @@ impl DiskManager {
         let mut file = open_write_file(&self.db_filename);
 
         // Obtain the descriptor for the newly allocated page.
-        let mut page_id = self.next_page_id.lock().unwrap();
-        let alloc_id = *page_id;
-        *page_id += 1;
+        let mut page_id = self.get_next_page_id();
 
         // Zero-out newly allocated page on disk.
         let data = [0; PAGE_SIZE as usize];
-        let offset = alloc_id * PAGE_SIZE;
+        let offset = page_id * PAGE_SIZE;
         file.seek(SeekFrom::Start(offset as u64)).unwrap();
         file.write_all(&data).unwrap();
         file.flush().unwrap();
 
         // Return new page descriptor.
-        alloc_id
+        page_id
     }
 
     /// Deallocate the specified page on disk. (Do nothing for now)
     pub fn deallocate_page(&self, _page_id: PageIdT) {}
 
+    /// Return the next page ID and atomically increment the counter.
+    fn get_next_page_id(&self) -> u32 {
+        // Note: .fetch_add() increments the value and returns the PREVIOUS value
+        self.next_page_id.fetch_add(1, Ordering::SeqCst)
+    }
+
     /// Return whether the specified page is currently allocated on disk.
     pub fn is_allocated(&self, page_id: PageIdT) -> bool {
-        let next_page_id = self.next_page_id.lock().unwrap();
-        page_id < *next_page_id
+        page_id < self.next_page_id.load(Ordering::SeqCst)
     }
 }
 
