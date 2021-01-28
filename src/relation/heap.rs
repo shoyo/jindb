@@ -5,11 +5,11 @@
 
 use crate::buffer::{BufferError, BufferManager};
 use crate::constants::{PageIdT, MAX_RECORD_SIZE};
-use crate::page::relation_page::RelationPage;
+
 use crate::relation::record::{Record, RecordId};
 
 use crate::page::{Page, PageError};
-use crate::relation::heap::HeapError::RecordTooLarge;
+
 use std::convert::From;
 use std::sync::Arc;
 

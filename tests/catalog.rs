@@ -240,7 +240,7 @@ fn test_read_record() {
     let ctx = setup();
 
     // Create a relation and insert a record.
-    let mut relation = ctx
+    let relation = ctx
         .system_catalog
         .create_relation("foo", ctx.schema_1.clone())
         .unwrap();
@@ -286,7 +286,7 @@ fn test_update_record() {
     let ctx = setup();
 
     // Create a relation and insert a record.
-    let mut relation = ctx
+    let relation = ctx
         .system_catalog
         .create_relation("foo", ctx.schema_1.clone())
         .unwrap();

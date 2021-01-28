@@ -14,7 +14,7 @@ use crate::disk::DiskManager;
 use crate::page::classifier_page::ClassifierPage;
 use crate::page::relation_page::RelationPage;
 use crate::page::{init_page_variant, Page, PageVariant};
-use crate::relation::Relation;
+
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
