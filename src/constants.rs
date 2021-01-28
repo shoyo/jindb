@@ -17,7 +17,7 @@ pub type LsnT = u32;
 
 /// Global constants
 pub const DB_FILENAME: &str = "db.jin"; // safe to modify
-pub const PAGE_SIZE: u32 = 4096; // safe to modify
+pub const PAGE_SIZE: u32 = 8192; // safe to modify
 pub const MAX_RECORD_SIZE: u32 = PAGE_SIZE - 4 * 8;
 pub const BUFFER_SIZE: BufferFrameIdT = 1024; // safe to modify
 pub const DICTIONARY_PAGE_ID: PageIdT = 0;
