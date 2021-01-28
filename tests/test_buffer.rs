@@ -77,15 +77,19 @@ fn test_delete_buffer_page() {
 
     // First thread
     let handle_1 = thread::spawn(move || {
+        // Create new pinned page in buffer.
         let frame_arc = manager_1.create_relation_page().unwrap();
-        let frame = frame_arc.write().unwrap();
 
         // Notify second thread to try to delete newly created page (should fail).
         tx.send(()).unwrap();
         barrier_1.wait();
 
-        // Notify second thread to try again after unpinning created page (should pass).
+        // Acquire a latch, perform some work, and unpin the new page.
+        let frame = frame_arc.write().unwrap();
+        // <-- Perform some workload here in practice.
         manager_1.unpin_w(frame);
+
+        // Notify second thread to try to delete the newly created page again (should pass).
         tx.send(()).unwrap();
     });
 

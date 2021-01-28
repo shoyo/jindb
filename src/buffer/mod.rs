@@ -15,7 +15,6 @@ use crate::page::classifier_page::ClassifierPage;
 use crate::page::relation_page::RelationPage;
 use crate::page::{init_page_variant, Page, PageVariant};
 
-
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -400,10 +399,12 @@ impl BufferManager {
 
     /// Delete the specified page. If the page is pinned, then return an error.
     pub fn delete_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
+        // Assert that the page exists on disk.
         if !self.disk_manager.is_allocated(page_id) {
             return Err(BufferError::PageDiskDNE);
         }
 
+        // Acquire latches for page table and type chart (in this order).
         let mut page_table = self.page_table.lock().unwrap();
         let mut type_chart = self.type_chart.write().unwrap();
 
