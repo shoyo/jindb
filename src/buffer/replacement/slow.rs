@@ -56,7 +56,7 @@ impl PageReplacer for SlowReplacer {
             let matches = queue
                 .iter()
                 .enumerate()
-                .filter(|(i, &id)| id == frame_id)
+                .filter(|(_, &id)| id == frame_id)
                 .collect::<Vec<(usize, &BufferFrameIdT)>>();
             match matches.len() {
                 0 => panic!("Frame ID {} exists in the set but not the queue"),
