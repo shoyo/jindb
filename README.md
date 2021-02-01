@@ -14,6 +14,11 @@ Install the Rust toolchain [here](https://www.rust-lang.org/tools/install) or ru
 ```
 % curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+Jin requires nightly Rust. Configure nightly with:
+```
+% rustup toolchain install nightly
+% rustup override set nightly
+```
 
 To build the project during development, run:
 ```
