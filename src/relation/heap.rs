@@ -154,18 +154,18 @@ impl Heap {
     }
 
     /// Flag the specified record as deleted.
-    /// The record is not actually deleted until .apply_delete() is called.
-    pub fn flag_delete(&self, _record_id: RecordId) -> Result<(), ()> {
+    /// The record is not actually deleted until the delete operation is committed.
+    pub fn flag_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
         todo!()
     }
 
     /// Commit a delete operation for the specified record.
-    pub fn commit_delete(&self, _record_id: RecordId) -> Result<(), ()> {
+    pub fn commit_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
         todo!()
     }
 
     /// Rollback a delete operation for the specified record.
-    pub fn rollback_delete(&self, _record_id: RecordId) -> Result<(), ()> {
+    pub fn rollback_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
         todo!()
     }
 }

@@ -71,17 +71,17 @@ impl Relation {
     }
 
     /// Flag a record in this relation for deletion.
-    pub fn flag_delete(&self, rid: RecordId) -> Result<(), ()> {
+    pub fn flag_delete(&self, rid: RecordId) -> Result<(), HeapError> {
         self.heap.flag_delete(rid)
     }
 
     /// Commit a delete operation for a record in this relation.
-    pub fn commit_delete(&self, rid: RecordId) -> Result<(), ()> {
+    pub fn commit_delete(&self, rid: RecordId) -> Result<(), HeapError> {
         self.heap.commit_delete(rid)
     }
 
     /// Rollback a delete operation for a record in this relation.
-    pub fn rollback_delete(&mut self, rid: RecordId) -> Result<(), ()> {
+    pub fn rollback_delete(&mut self, rid: RecordId) -> Result<(), HeapError> {
         self.heap.rollback_delete(rid)
     }
 }
