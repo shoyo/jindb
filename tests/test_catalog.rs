@@ -12,6 +12,7 @@ use jin::relation::types::{DataType, InnerValue};
 use jin::relation::Attribute;
 use jin::relation::Schema;
 
+use jin::relation::heap::HeapError;
 use std::sync::Arc;
 use std::thread;
 
@@ -301,14 +302,12 @@ fn test_update_record() {
     .unwrap();
     let record_id = relation.insert(record).unwrap();
 
-    // Update the existing record.
+    // Update the existing record (to a larger record).
     let update = Record::new(
         vec![
             Some(Box::new(12345)),
             None,
-            Some(Box::new("Hello!".to_string())),
-            // TODO: handle longer records like below.
-            // Some(Box::new("Hello, World! Hello, World!".to_string())),
+            Some(Box::new("Hello, World! Hello, World!".to_string())),
         ],
         ctx.schema_1.clone(),
     )
@@ -338,10 +337,60 @@ fn test_update_record() {
     assert_eq!(value, InnerValue::Varchar("Hello!".to_string()));
 }
 
-#[ignore]
 #[test]
 fn test_delete_record() {
-    assert!(false)
+    let ctx = setup();
+
+    // Create a relation and insert a record.
+    let relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+    let record = Record::new(
+        vec![
+            Some(Box::new(54321)),
+            Some(Box::new(false)),
+            Some(Box::new("Hello, World!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let record_id = relation.insert(record).unwrap();
+
+    // Flag and delete the existing record.
+    let result = relation.flag_delete(record_id);
+    assert!(result.is_ok());
+
+    assert!(false);
+}
+
+#[test]
+fn test_flag_delete_then_read_record() {
+    let ctx = setup();
+
+    let relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+    let record = Record::new(
+        vec![
+            Some(Box::new(54321)),
+            Some(Box::new(false)),
+            Some(Box::new("Hello, World!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let record_id = relation.insert(record).unwrap(); // Create a relation and insert a record.
+
+    // Flag the existing record, then attempt to read it.
+    relation.flag_delete(record_id).unwrap();
+    assert_eq!(
+        relation.read(record_id).unwrap_err(),
+        HeapError::RecordDeleted
+    );
+
+    assert!(false);
 }
 
 #[ignore]
