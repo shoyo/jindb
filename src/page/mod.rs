@@ -73,4 +73,8 @@ pub enum PageError {
 
     /// Error to be thrown when a slot index is out of bounds.
     SlotOutOfBounds,
+
+    /// Error to be thrown when a specified record has already been deleted and a
+    /// read/update/delete operation cannot proceed.
+    RecordDeleted,
 }

@@ -9,6 +9,7 @@ use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::{Record, RecordId};
 
 use std::any::Any;
+use std::mem::size_of;
 
 /// Constants for slotted-page page header.
 const PAGE_ID_OFFSET: u32 = 0;
@@ -19,7 +20,27 @@ const NUM_RECORDS_OFFSET: u32 = 16;
 const LSN_OFFSET: u32 = 20;
 const RECORDS_OFFSET: u32 = 24;
 const RECORD_POINTER_SIZE: u32 = 8;
-const UNINITIALIZED: u32 = 0;
+
+/// The ID 0 is used to indicate an invalid page ID.
+/// Page ID 0 will always be a metadata page reserved for the system catalog, so we don't need
+/// to worry about a relation page actually having an ID equal to INVALID_PAGE_ID.
+const INVALID_PAGE_ID: u32 = 0;
+
+/// The delete mask is used to efficiently mark records in a page for deletion. The mask itself
+/// is an unsigned 32-bit integer with only the leftmost bit set to 1. When a record is marked
+/// for deletion, the leftmost bit of its length value in the header is set to 1 by using the
+/// delete mask. To check if a record is marked for deletion, we check the leftmost bit of its
+/// length.
+/// This raises the question of whether or not this causes false positives. For the leftmost bit
+/// of a 32-bit integer to be 1, the integer must be greater than or equal to 2147483648 (= 1 << 31)
+/// which far exceeds any reasonable page size on current hardware, let alone any practical length
+/// for a record in a page. (side note: I look forward to the day that claiming 2GB is too large
+/// for a page record sounds silly.)
+/// Although this method of record deletion is more space-efficient than allocating a boolean for
+/// each record in the page, it makes working with the length value more tedious. Whenever the
+/// length of a record is read from the header, we must first verify that the leftmost bit is a
+/// 0 before using it to index the record on the page.
+const DELETE_MASK: u32 = 1_u32 << 31;
 
 /// An in-memory representation of a database page with slotted-page architecture. Gets written
 /// out to disk by the disk manager.
@@ -123,7 +144,7 @@ impl RelationPage {
     /// Get the previous page ID.
     pub fn get_prev_page_id(&self) -> Option<PageIdT> {
         let pid = read_u32(&self.bytes, PREV_PAGE_ID_OFFSET).unwrap();
-        match pid == UNINITIALIZED {
+        match pid == INVALID_PAGE_ID {
             true => None,
             false => Some(pid),
         }
@@ -137,7 +158,7 @@ impl RelationPage {
     /// Get the next page ID.
     pub fn get_next_page_id(&self) -> Option<PageIdT> {
         let pid = read_u32(&self.bytes, NEXT_PAGE_ID_OFFSET).unwrap();
-        match pid == UNINITIALIZED {
+        match pid == INVALID_PAGE_ID {
             true => None,
             false => Some(pid),
         }
@@ -177,9 +198,14 @@ impl RelationPage {
         let length_addr = offset_addr + 4;
 
         let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
-        let length = read_u32(&self.bytes, length_addr).unwrap() as usize;
+        let length = read_u32(&self.bytes, length_addr).unwrap();
 
-        let bytes = Vec::from(&self.bytes[offset..offset + length]);
+        // Check that the record has not been deleted.
+        if self._is_deleted(length) {
+            return Err(PageError::RecordDeleted);
+        }
+
+        let bytes = Vec::from(&self.bytes[offset..offset + length as usize]);
         let rid = RecordId {
             page_id: self.get_id(),
             slot_index: slot,
@@ -241,6 +267,11 @@ impl RelationPage {
 
         let length = read_u32(&self.bytes, length_addr).unwrap();
 
+        // Check that the record has not been deleted.
+        if self._is_deleted(length) {
+            return Err(PageError::RecordDeleted);
+        }
+
         // Check that there is enough space to insert the updated record.
         if length < new_record.len() {
             return Err(PageError::PageOverflow);
@@ -255,6 +286,43 @@ impl RelationPage {
         write_u32(&mut self.bytes, length_addr, new_record.len()).unwrap();
 
         Ok(())
+    }
+
+    /// Flag the record at the specified slot index for deletion.
+    /// The record is not actually deleted until the deletion is committed.
+    pub fn flag_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
+        if slot >= self.get_num_records() {
+            return Err(PageError::SlotOutOfBounds);
+        }
+
+        let length_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE + 4;
+        let length = read_u32(&self.bytes, length_addr).unwrap();
+
+        // Check that the record has not already been deleted.
+        if self._is_deleted(length) {
+            return Err(PageError::RecordDeleted);
+        }
+
+        // Flag the record for deletion.
+        let new_length = self._set_delete_bit(length);
+        write_u32(&mut self.bytes, length_addr, new_length).unwrap();
+
+        Ok(())
+    }
+
+    /// Return true if the specified record is empty or flagged for deletion, false otherwise.
+    fn _is_deleted(&self, record_length: u32) -> bool {
+        record_length & DELETE_MASK != 0 || record_length == 0
+    }
+
+    /// Flag a given record for deletion.
+    fn _set_delete_bit(&self, record_length: u32) -> u32 {
+        record_length | DELETE_MASK
+    }
+
+    /// Unflag a given record for deletion.
+    fn _unset_delete_bit(&self, record_length: u32) -> u32 {
+        record_length & !DELETE_MASK
     }
 }
 

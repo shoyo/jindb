@@ -155,23 +155,31 @@ impl Heap {
 
     /// Flag the specified record as deleted.
     /// The record is not actually deleted until the delete operation is committed.
-    pub fn flag_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
-        todo!()
+    pub fn flag_delete(&self, rid: RecordId) -> Result<(), HeapError> {
+        let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
+        let mut frame = frame_arc.write().unwrap();
+
+        let page = frame.get_mut_relation_page().unwrap();
+        page.flag_delete_record(rid.slot_index)?;
+
+        self.buffer_manager.unpin_w(frame);
+
+        Ok(())
     }
 
     /// Commit a delete operation for the specified record.
-    pub fn commit_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
+    pub fn commit_delete(&self, rid: RecordId) -> Result<(), HeapError> {
         todo!()
     }
 
     /// Rollback a delete operation for the specified record.
-    pub fn rollback_delete(&self, record_id: RecordId) -> Result<(), HeapError> {
+    pub fn rollback_delete(&self, rid: RecordId) -> Result<(), HeapError> {
         todo!()
     }
 }
 
 /// Custom errors to be used by the heap.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum HeapError {
     /// Error to be thrown when a record to be used for insertion or replacement is already
     /// allocated elsewhere on disk.
@@ -184,6 +192,10 @@ pub enum HeapError {
 
     /// Error to be thrown when a record specified with a page ID and slot index does not exist.
     RecordDNE,
+
+    /// Error to be thrown when a record specified with a page ID and slot index has been flagged
+    /// for deletion and an operation cannot proceed.
+    RecordDeleted,
 
     /// Errors to be thrown when the buffer manager encounters a recoverable error.
     BufMgrNoBufFrame,
@@ -208,6 +220,7 @@ impl From<PageError> for HeapError {
         match e {
             PageError::PageOverflow => HeapError::RecordTooLarge,
             PageError::SlotOutOfBounds => HeapError::RecordDNE,
+            PageError::RecordDeleted => HeapError::RecordDeleted,
         }
     }
 }
