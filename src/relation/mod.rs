@@ -81,7 +81,7 @@ impl Relation {
     }
 
     /// Rollback a delete operation for a record in this relation.
-    pub fn rollback_delete(&mut self, rid: RecordId) -> Result<(), HeapError> {
+    pub fn rollback_delete(&self, rid: RecordId) -> Result<(), HeapError> {
         self.heap.rollback_delete(rid)
     }
 }
@@ -95,7 +95,6 @@ impl Relation {
 /// Attributes may include "full_name", "year_enrolled", "field_of_study", each with different
 /// metadata such as the data type, or whether the field is nullable.
 /// The schema is defined as the collection of each defined attribute.
-
 #[derive(Debug)]
 pub struct Schema {
     attributes: Vec<Attribute>,
