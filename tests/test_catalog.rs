@@ -364,6 +364,34 @@ fn test_delete_record() {
     assert!(false);
 }
 
+#[ignore]
+#[test]
+fn test_rollback_delete_record() {
+    let ctx = setup();
+
+    // Create a relation, insert a record, then delete the record.
+    let relation = ctx
+        .system_catalog
+        .create_relation("foo", ctx.schema_1.clone())
+        .unwrap();
+    let record = Record::new(
+        vec![
+            Some(Box::new(54321)),
+            Some(Box::new(false)),
+            Some(Box::new("Hello, World!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let record_id = relation.insert(record).unwrap();
+    relation.flag_delete(record_id).unwrap();
+    relation.commit_delete(record_id).unwrap();
+
+    let result = relation.rollback_delete(record_id);
+    assert!(result.is_ok());
+    assert!(relation.read(record_id).is_ok());
+}
+
 #[test]
 fn test_flag_delete_then_read_record() {
     let ctx = setup();
