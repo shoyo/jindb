@@ -9,7 +9,6 @@ use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::{Record, RecordId};
 
 use std::any::Any;
-use std::mem::size_of;
 
 /// Constants for slotted-page page header.
 const PAGE_ID_OFFSET: u32 = 0;
@@ -20,6 +19,10 @@ const NUM_RECORDS_OFFSET: u32 = 16;
 const LSN_OFFSET: u32 = 20;
 const RECORDS_OFFSET: u32 = 24;
 const RECORD_POINTER_SIZE: u32 = 8;
+
+/// Type aliases for readability.
+type RecordOffsetT = u32;
+type RecordLengthT = u32;
 
 /// The ID 0 is used to indicate an invalid page ID.
 /// Page ID 0 will always be a metadata page reserved for the system catalog, so we don't need
@@ -126,7 +129,7 @@ impl Page for RelationPage {
 
 impl RelationPage {
     /// Create a new in-memory representation of a database page.
-    pub fn new(page_id: u32) -> Self {
+    pub fn new(page_id: PageIdT) -> Self {
         let mut page = Self {
             bytes: [0; PAGE_SIZE as usize],
         };
@@ -191,12 +194,7 @@ impl RelationPage {
 
     /// Read the record at the specified slot index.
     pub fn read_record(&self, slot: u32) -> Result<Record, PageError> {
-        if slot >= self.get_num_records() {
-            return Err(PageError::SlotOutOfBounds);
-        }
-        let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
-        let length_addr = offset_addr + 4;
-
+        let (offset_addr, length_addr) = self.get_pointer_addrs(slot)?;
         let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
         let length = read_u32(&self.bytes, length_addr).unwrap();
 
@@ -258,12 +256,7 @@ impl RelationPage {
     /// larger than the old record. In such a case, the caller must perform a delete -> insert
     /// instead.
     pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
-        if slot >= self.get_num_records() {
-            return Err(PageError::SlotOutOfBounds);
-        }
-
-        let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
-        let length_addr = offset_addr + 4;
+        let (offset_addr, length_addr) = self.get_pointer_addrs(slot)?;
 
         let length = read_u32(&self.bytes, length_addr).unwrap();
 
@@ -291,11 +284,8 @@ impl RelationPage {
     /// Flag the record at the specified slot index for deletion.
     /// The record is not actually deleted until the deletion is committed.
     pub fn flag_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
-        if slot >= self.get_num_records() {
-            return Err(PageError::SlotOutOfBounds);
-        }
+        let (_, length_addr) = self.get_pointer_addrs(slot)?;
 
-        let length_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE + 4;
         let length = read_u32(&self.bytes, length_addr).unwrap();
 
         // Check that the record has not already been deleted.
@@ -308,6 +298,27 @@ impl RelationPage {
         write_u32(&mut self.bytes, length_addr, new_length).unwrap();
 
         Ok(())
+    }
+
+    /// Delete the record at the specified slot index.
+    /// If the record has been flagged for deletion, then we are committing the deletion and
+    /// actually removing the record from the page.
+    /// If the record has NOT been flagged for deletion, then we are rolling back an insertion.
+    pub fn commit_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
+        let (_, length_addr) = self.get_pointer_addrs(slot)?;
+        let length = read_u32(&self.bytes, length_addr).unwrap();
+
+        match self._is_deleted(length) {
+            // The record is flagged, so we are commiting a deletion.
+            true => {
+                todo!()
+            }
+
+            // The record is NOT flagged, so we are rolling back an insertion.
+            false => {
+                todo!()
+            }
+        }
     }
 
     /// Return true if the specified record is empty or flagged for deletion, false otherwise.
@@ -323,6 +334,20 @@ impl RelationPage {
     /// Unflag a given record for deletion.
     fn _unset_delete_bit(&self, record_length: u32) -> u32 {
         record_length & !DELETE_MASK
+    }
+
+    /// Return the byte array addresses of the offset and length at a given slot index.
+    /// Return an error if the slot index is out of bounds.
+    #[inline]
+    fn get_pointer_addrs(&self, slot: u32) -> Result<(RecordOffsetT, RecordLengthT), PageError> {
+        if slot >= self.get_num_records() {
+            return Err(PageError::SlotOutOfBounds);
+        }
+
+        let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
+        let length_addr = offset_addr + 4;
+
+        Ok((offset_addr, length_addr))
     }
 }
 
