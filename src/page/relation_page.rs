@@ -22,7 +22,7 @@ const RECORD_POINTER_SIZE: u32 = 8;
 
 /// Type aliases for readability.
 type RecordOffsetT = u32;
-type RecordLengthT = u32;
+type RecordSizeT = u32;
 
 /// The ID 0 is used to indicate an invalid page ID.
 /// Page ID 0 will always be a metadata page reserved for the system catalog, so we don't need
@@ -31,17 +31,17 @@ const INVALID_PAGE_ID: u32 = 0;
 
 /// The delete mask is used to efficiently mark records in a page for deletion. The mask itself
 /// is an unsigned 32-bit integer with only the leftmost bit set to 1. When a record is marked
-/// for deletion, the leftmost bit of its length value in the header is set to 1 by using the
+/// for deletion, the leftmost bit of its size value in the header is set to 1 by using the
 /// delete mask. To check if a record is marked for deletion, we check the leftmost bit of its
-/// length.
+/// size.
 /// This raises the question of whether or not this causes false positives. For the leftmost bit
 /// of a 32-bit integer to be 1, the integer must be greater than or equal to 2147483648 (= 1 << 31)
-/// which far exceeds any reasonable page size on current hardware, let alone any practical length
+/// which far exceeds any reasonable page size on current hardware, let alone any practical size
 /// for a record in a page. (side note: I look forward to the day that claiming 2GB is too large
 /// for a page record sounds silly.)
 /// Although this method of record deletion is more space-efficient than allocating a boolean for
-/// each record in the page, it makes working with the length value more tedious. Whenever the
-/// length of a record is read from the header, we must first verify that the leftmost bit is a
+/// each record in the page, it makes working with the size value more tedious. Whenever the
+/// size of a record is read from the header, we must first verify that the leftmost bit is a
 /// 0 before using it to index the record on the page.
 const DELETE_MASK: u32 = 1_u32 << 31;
 
@@ -67,9 +67,9 @@ const DELETE_MASK: u32 = 1_u32 << 31;
 /// +------------------------+-----------------+--------------+
 /// | FREE SPACE POINTER (4) | NUM RECORDS (4) |    LSN (4)   |
 /// +------------------------+-----------------+--------------+
-/// +---------------------+---------------------+-------------+
-/// | RECORD 1 OFFSET (4) | RECORD 1 LENGTH (4) |     ...     |
-/// +---------------------+---------------------+-------------+
+/// +---------------------+-------------------+---------------+
+/// | RECORD 1 OFFSET (4) | RECORD 1 SIZE (4) |      ...      |
+/// +---------------------+-------------------+---------------+
 ///
 ///
 /// Records:
@@ -194,16 +194,16 @@ impl RelationPage {
 
     /// Read the record at the specified slot index.
     pub fn read_record(&self, slot: u32) -> Result<Record, PageError> {
-        let (offset_addr, length_addr) = self.get_pointer_addrs(slot)?;
+        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
         let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
-        let length = read_u32(&self.bytes, length_addr).unwrap();
+        let size = read_u32(&self.bytes, size_addr).unwrap();
 
         // Check that the record has not been deleted.
-        if self._is_deleted(length) {
+        if self._is_deleted(size) {
             return Err(PageError::RecordDeleted);
         }
 
-        let bytes = Vec::from(&self.bytes[offset..offset + length as usize]);
+        let bytes = Vec::from(&self.bytes[offset..offset + size as usize]);
         let rid = RecordId {
             page_id: self.get_id(),
             slot_index: slot,
@@ -219,10 +219,10 @@ impl RelationPage {
             return Err(PageError::PageOverflow);
         }
 
-        // Calculate header addresses for new length/offset entry.
+        // Calculate header addresses for new size/offset entry.
         let num_records = self.get_num_records();
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
-        let length_addr = offset_addr + 4;
+        let size_addr = offset_addr + 4;
 
         let free_ptr = self.get_free_pointer();
         let new_free_ptr = free_ptr - record.len() as u32;
@@ -239,7 +239,7 @@ impl RelationPage {
         self.set_free_pointer(new_free_ptr);
         self.set_num_records(num_records + 1);
         write_u32(&mut self.bytes, offset_addr, new_free_ptr + 1).unwrap();
-        write_u32(&mut self.bytes, length_addr, record_data.len() as u32).unwrap();
+        write_u32(&mut self.bytes, size_addr, record_data.len() as u32).unwrap();
 
         // Update record's ID.
         record.allocate(self.get_id(), num_records);
@@ -256,17 +256,18 @@ impl RelationPage {
     /// larger than the old record. In such a case, the caller must perform a delete -> insert
     /// instead.
     pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
-        let (offset_addr, length_addr) = self.get_pointer_addrs(slot)?;
+        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
 
-        let length = read_u32(&self.bytes, length_addr).unwrap();
+        let size = read_u32(&self.bytes, size_addr).unwrap();
 
         // Check that the record has not been deleted.
-        if self._is_deleted(length) {
+        if self._is_deleted(size) {
             return Err(PageError::RecordDeleted);
         }
 
         // Check that there is enough space to insert the updated record.
-        if length < new_record.len() {
+        // If there is not enough space, then the caller should delete then insert instead.
+        if size < new_record.len() {
             return Err(PageError::PageOverflow);
         }
 
@@ -276,7 +277,7 @@ impl RelationPage {
         for i in 0..new_record.len() as usize {
             self.bytes[offset + i] = new_record.as_bytes()[i];
         }
-        write_u32(&mut self.bytes, length_addr, new_record.len()).unwrap();
+        write_u32(&mut self.bytes, size_addr, new_record.len()).unwrap();
 
         Ok(())
     }
@@ -284,18 +285,18 @@ impl RelationPage {
     /// Flag the record at the specified slot index for deletion.
     /// The record is not actually deleted until the deletion is committed.
     pub fn flag_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
-        let (_, length_addr) = self.get_pointer_addrs(slot)?;
+        let (_, size_addr) = self.get_pointer_addrs(slot)?;
 
-        let length = read_u32(&self.bytes, length_addr).unwrap();
+        let size = read_u32(&self.bytes, size_addr).unwrap();
 
         // Check that the record has not already been deleted.
-        if self._is_deleted(length) {
+        if self._is_deleted(size) {
             return Err(PageError::RecordDeleted);
         }
 
         // Flag the record for deletion.
-        let new_length = self._set_delete_bit(length);
-        write_u32(&mut self.bytes, length_addr, new_length).unwrap();
+        let new_size = self._set_delete_bit(size);
+        write_u32(&mut self.bytes, size_addr, new_size).unwrap();
 
         Ok(())
     }
@@ -304,50 +305,98 @@ impl RelationPage {
     /// If the record has been flagged for deletion, then we are committing the deletion and
     /// actually removing the record from the page.
     /// If the record has NOT been flagged for deletion, then we are rolling back an insertion.
+    ///
+    /// Implementation:
+    /// We shift over all bytes between the free pointer and the record to be deleted to the
+    /// right, by the size of the deleted record.
+    ///
+    /// Before deletion:
+    /// +--------------------------------------------------------------+
+    /// | Header |   ...   | records | RECORD TO DELETE | more records |
+    /// +--------------------------------------------------------------+
+    ///       Free pointer ^         ^ offset
+    ///                              |------ size ------|
+    ///
+    /// After deletion:
+    /// +--------------------------------------------------------------+
+    /// | Header |            ...             | records | more records |
+    /// +--------------------------------------------------------------+
+    ///                          Free pointer ^
+    ///
+    /// After deletion, we need to update the pointers of records to the left of the deleted
+    /// record. Therefore, all records with an offset LESS than the deleted record (with a
+    /// non-zero size entry) have their offset INCREASED by the size of the deleted record.
     pub fn commit_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
-        let (_, length_addr) = self.get_pointer_addrs(slot)?;
-        let length = read_u32(&self.bytes, length_addr).unwrap();
+        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
+        let offset = read_u32(&self.bytes, offset_addr).unwrap();
+        let mut size = read_u32(&self.bytes, size_addr).unwrap();
 
-        match self._is_deleted(length) {
-            // The record is flagged, so we are commiting a deletion.
-            true => {
-                todo!()
-            }
+        // If the record is flagged for deletion, we obtain the correct record size before
+        // proceeding.
+        if self._is_deleted(size) {
+            size = self._unset_delete_bit(size);
+        }
 
-            // The record is NOT flagged, so we are rolling back an insertion.
-            false => {
-                todo!()
+        let free_ptr = self.get_free_pointer();
+
+        // Shift over bytes using a temporary buffer.
+        let src = free_ptr as usize;
+        let dest = (free_ptr + size) as usize;
+        let cnt = (offset - free_ptr) as usize;
+        let mut buf = vec![0; cnt];
+        for i in 0..cnt {
+            buf[i] = self.bytes[src + i];
+        }
+        for i in 0..cnt {
+            self.bytes[dest + i] = buf[i];
+        }
+
+        // Update header.
+        self.set_free_pointer(dest as u32);
+        write_u32(&mut self.bytes, offset_addr, 0);
+        write_u32(&mut self.bytes, size_addr, 0);
+
+        for slot_idx in 0..self.get_num_records() {
+            let (offset_addr, size_addr) = self.get_pointer_addrs(slot_idx).unwrap();
+            let t_offset = read_u32(&self.bytes, offset_addr).unwrap();
+            let t_size = read_u32(&self.bytes, size_addr).unwrap();
+
+            if t_offset < offset && t_size != 0 {
+                let new_t_offset = t_offset + size;
+                write_u32(&mut self.bytes, offset_addr, new_t_offset).unwrap();
             }
         }
+
+        Ok(())
     }
 
     /// Return true if the specified record is empty or flagged for deletion, false otherwise.
-    fn _is_deleted(&self, record_length: u32) -> bool {
-        record_length & DELETE_MASK != 0 || record_length == 0
+    fn _is_deleted(&self, record_size: u32) -> bool {
+        record_size & DELETE_MASK != 0 || record_size == 0
     }
 
     /// Flag a given record for deletion.
-    fn _set_delete_bit(&self, record_length: u32) -> u32 {
-        record_length | DELETE_MASK
+    fn _set_delete_bit(&self, record_size: u32) -> u32 {
+        record_size | DELETE_MASK
     }
 
     /// Unflag a given record for deletion.
-    fn _unset_delete_bit(&self, record_length: u32) -> u32 {
-        record_length & !DELETE_MASK
+    fn _unset_delete_bit(&self, record_size: u32) -> u32 {
+        record_size & !DELETE_MASK
     }
 
-    /// Return the byte array addresses of the offset and length at a given slot index.
+    /// Return the byte array addresses of the offset and size at a given slot index.
     /// Return an error if the slot index is out of bounds.
     #[inline]
-    fn get_pointer_addrs(&self, slot: u32) -> Result<(RecordOffsetT, RecordLengthT), PageError> {
+    fn get_pointer_addrs(&self, slot: u32) -> Result<(RecordOffsetT, RecordSizeT), PageError> {
         if slot >= self.get_num_records() {
             return Err(PageError::SlotOutOfBounds);
         }
 
         let offset_addr = RECORDS_OFFSET + slot * RECORD_POINTER_SIZE;
-        let length_addr = offset_addr + 4;
+        let size_addr = offset_addr + 4;
 
-        Ok((offset_addr, length_addr))
+        Ok((offset_addr, size_addr))
     }
 }
 
@@ -405,26 +454,26 @@ mod tests {
         // Expected page layout:
         // +-------------------------------------------------------------------------+
         // |  PAGE  | RECORD | RECORD | ... | RECORD | RECORD FIXED- |  RECORD VAR-  |
-        // | HEADER | OFFSET | LENGTH | ... | BITMAP | LENGTH VALUES | LENGTH VALUES |
+        // | HEADER | OFFSET |  SIZE  | ... | BITMAP | SIZE VALUES   |  SIZE VALUES  |
         // +-------------------------------------------------------------------------+
-        // ^0       ^ RECORDS_OFFSET        ^ FREE POINTER               PAGE_SIZE-1 ^
+        // ^ 0      ^ RECORDS_OFFSET        ^ FREE POINTER               PAGE_SIZE-1 ^
         //                                  |____________ record.len() ______________|
 
         let page_bytes = page.as_bytes();
 
         let offset_addr = RECORDS_OFFSET;
-        let length_addr = RECORDS_OFFSET + 4;
+        let size_addr = RECORDS_OFFSET + 4;
         assert_eq!(
             read_u32(page_bytes, offset_addr).unwrap(),
             PAGE_SIZE - record.len()
         );
-        assert_eq!(read_u32(page_bytes, length_addr).unwrap(), record.len());
+        assert_eq!(read_u32(page_bytes, size_addr).unwrap(), record.len());
 
         let bitmap_size = NULL_BITMAP_SIZE;
         let bitmap_addr = PAGE_SIZE - record.len();
         let str_offset_addr = bitmap_addr + bitmap_size;
-        let str_length_addr = str_offset_addr + 4;
-        let bool_addr = str_length_addr + 4;
+        let str_size_addr = str_offset_addr + 4;
+        let bool_addr = str_size_addr + 4;
         let int_addr = bool_addr + size_of(DataType::Boolean);
         let deci_addr = int_addr + size_of(DataType::Int);
         let str_val_addr = deci_addr + size_of(DataType::Decimal);
@@ -434,7 +483,7 @@ mod tests {
             read_u32(page_bytes, str_offset_addr).unwrap(),
             record.len() - varchar_len
         );
-        assert_eq!(read_u32(page_bytes, str_length_addr).unwrap(), varchar_len);
+        assert_eq!(read_u32(page_bytes, str_size_addr).unwrap(), varchar_len);
         assert_eq!(read_bool(page_bytes, bool_addr).unwrap(), true);
         assert_eq!(read_i32(page_bytes, int_addr).unwrap(), 123_456_i32);
         assert_eq!(

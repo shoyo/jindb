@@ -65,8 +65,8 @@ impl Relation {
         self.heap.insert(record)
     }
 
-    /// Update a record in this relation.
-    pub fn update(&self, record: Record, rid: RecordId) -> Result<(), HeapError> {
+    /// Update a record in this relation. Return the record ID of the updated record.
+    pub fn update(&self, record: Record, rid: RecordId) -> Result<RecordId, HeapError> {
         self.heap.update(record, rid)
     }
 

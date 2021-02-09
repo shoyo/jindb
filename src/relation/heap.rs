@@ -133,11 +133,13 @@ impl Heap {
         }
     }
 
-    /// Update a record in this relation.
+    /// Update a record in this relation and return the ID of the updated record. If the size of
+    /// the new record is less than or equal to the updated record, then the ID stays the same.
+    /// Otherwise, the record may be reallocated and is assigned a new record ID.
     ///
     /// Argument `record` should be an unallocated Record instance with the same schema as
-    /// the record being updated. `rid` specifies the location of the record.
-    pub fn update(&self, record: Record, rid: RecordId) -> Result<(), HeapError> {
+    /// the record being updated. `rid` specifies the location of the record to be updated.
+    pub fn update(&self, record: Record, rid: RecordId) -> Result<RecordId, HeapError> {
         if record.is_allocated() {
             return Err(HeapError::RecordAlreadyAlloc);
         }
@@ -146,11 +148,25 @@ impl Heap {
         let mut frame = frame_arc.write().unwrap();
 
         let page = frame.get_mut_relation_page().unwrap();
-        page.update_record(record, rid.slot_index)?;
+        match page.update_record(record.clone(), rid.slot_index) {
+            Ok(_) => {
+                self.buffer_manager.unpin_w(frame);
+                Ok(rid)
+            }
+            Err(e) => match e {
+                PageError::PageOverflow => {
+                    page.flag_delete_record(rid.slot_index)?;
+                    page.commit_delete_record(rid.slot_index)?;
 
-        self.buffer_manager.unpin_w(frame);
+                    self.buffer_manager.unpin_w(frame);
 
-        Ok(())
+                    let new_id = self.insert(record).unwrap();
+
+                    Ok(new_id)
+                }
+                _ => Err(e.into()),
+            },
+        }
     }
 
     /// Flag the specified record as deleted.
@@ -169,7 +185,15 @@ impl Heap {
 
     /// Commit a delete operation for the specified record.
     pub fn commit_delete(&self, rid: RecordId) -> Result<(), HeapError> {
-        todo!()
+        let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
+        let mut frame = frame_arc.write().unwrap();
+
+        let page = frame.get_mut_relation_page().unwrap();
+        page.commit_delete_record(rid.slot_index)?;
+
+        self.buffer_manager.unpin_w(frame);
+
+        Ok(())
     }
 
     /// Rollback a delete operation for the specified record.
