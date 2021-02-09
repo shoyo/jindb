@@ -316,6 +316,7 @@ fn test_update_record() {
     assert!(result.is_ok());
 
     // Assert that the record is correctly updated.
+    let record_id = result.unwrap();
     let record = relation.read(record_id).unwrap();
     assert_eq!(record.get_id().unwrap(), record_id);
 
@@ -334,7 +335,10 @@ fn test_update_record() {
         .unwrap()
         .unwrap()
         .get_inner();
-    assert_eq!(value, InnerValue::Varchar("Hello!".to_string()));
+    assert_eq!(
+        value,
+        InnerValue::Varchar("Hello, World! Hello, World!".to_string())
+    );
 }
 
 #[test]
@@ -361,7 +365,8 @@ fn test_delete_record() {
     let result = relation.flag_delete(record_id);
     assert!(result.is_ok());
 
-    assert!(false);
+    let result = relation.commit_delete(record_id);
+    assert!(result.is_ok());
 }
 
 #[ignore]
@@ -417,8 +422,6 @@ fn test_flag_delete_then_read_record() {
         relation.read(record_id).unwrap_err(),
         HeapError::RecordDeleted
     );
-
-    assert!(false);
 }
 
 #[ignore]
