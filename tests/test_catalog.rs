@@ -286,7 +286,7 @@ fn test_read_record() {
 fn test_update_record() {
     let ctx = setup();
 
-    // Create a relation and insert a record.
+    // Create a relation and insert records.
     let relation = ctx
         .system_catalog
         .create_relation("foo", ctx.schema_1.clone())
@@ -302,7 +302,18 @@ fn test_update_record() {
     .unwrap();
     let record_id = relation.insert(record).unwrap();
 
-    // Update the existing record (to a larger record).
+    let other_record = Record::new(
+        vec![
+            Some(Box::new(999999)),
+            Some(Box::new(true)),
+            Some(Box::new("Lorem Ipsum".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let other_id = relation.insert(other_record).unwrap();
+
+    // Update the first record to a larger record.
     let update = Record::new(
         vec![
             Some(Box::new(12345)),
@@ -339,13 +350,73 @@ fn test_update_record() {
         value,
         InnerValue::Varchar("Hello, World! Hello, World!".to_string())
     );
+
+    // Update the same record to a smaller record.
+    let update = Record::new(
+        vec![
+            Some(Box::new(77777)),
+            None,
+            Some(Box::new("Hello!".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let result = relation.update(update, record_id);
+    assert!(result.is_ok());
+
+    // Assert that the record is correctly updated.
+    let record_id = result.unwrap();
+    let record = relation.read(record_id).unwrap();
+    assert_eq!(record.get_id().unwrap(), record_id);
+
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Int(77777));
+
+    let value = record.get_value(1, ctx.schema_1.clone()).unwrap();
+    assert!(value.is_none());
+
+    let value = record
+        .get_value(2, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Varchar("Hello!".to_string()));
+
+    // Assert that other record can still be accessed.
+    let record = relation.read(other_id).unwrap();
+    assert_eq!(record.get_id().unwrap(), other_id);
+
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Int(999999));
+
+    let value = record
+        .get_value(1, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Boolean(true));
+
+    let value = record
+        .get_value(2, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Varchar("Lorem Ipsum".to_string()));
 }
 
 #[test]
 fn test_delete_record() {
     let ctx = setup();
 
-    // Create a relation and insert a record.
+    // Create a relation and insert records.
     let relation = ctx
         .system_catalog
         .create_relation("foo", ctx.schema_1.clone())
@@ -360,13 +431,48 @@ fn test_delete_record() {
     )
     .unwrap();
     let record_id = relation.insert(record).unwrap();
+    let other_record = Record::new(
+        vec![
+            Some(Box::new(-12345)),
+            Some(Box::new(true)),
+            Some(Box::new("Lorem Ipsum".to_string())),
+        ],
+        ctx.schema_1.clone(),
+    )
+    .unwrap();
+    let other_id = relation.insert(other_record).unwrap();
 
-    // Flag and delete the existing record.
+    // Flag and delete the first record.
     let result = relation.flag_delete(record_id);
     assert!(result.is_ok());
 
     let result = relation.commit_delete(record_id);
     assert!(result.is_ok());
+
+    // Assert that the second record can still be accessed.
+    let record = relation.read(other_id).unwrap();
+    assert_eq!(record.get_id().unwrap(), other_id);
+
+    let value = record
+        .get_value(0, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Int(-12345));
+
+    let value = record
+        .get_value(1, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Boolean(true));
+
+    let value = record
+        .get_value(2, ctx.schema_1.clone())
+        .unwrap()
+        .unwrap()
+        .get_inner();
+    assert_eq!(value, InnerValue::Varchar("Lorem Ipsum".to_string()));
 }
 
 #[ignore]

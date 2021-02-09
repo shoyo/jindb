@@ -247,37 +247,92 @@ impl RelationPage {
         Ok(())
     }
 
-    /// Update the record at the specified slot index.
+    /// Update the record at the specified slot index. If the page does not have enough space to
+    /// update the record (i.e. the new record is larger than the older value and the page is
+    /// full), then return an error. The caller must perform a delete-then-insert instead.
     ///
-    /// Argument `record` should be an unallocated Record instance with the same schema as the
+    /// The argument `record` should be an unallocated Record instance with the same schema as the
     /// record being updated.
     ///
-    /// NOTE: This method is currently incomplete, in that it returns an error if the new record is
-    /// larger than the old record. In such a case, the caller must perform a delete -> insert
-    /// instead.
+    /// Implementation:
+    /// In the case that the update fits on the current page, we shift over every byte between
+    /// the free pointer and record to be updated by the size difference between the new and old
+    /// record. We write the new record into the newly adjusted space. If the new record is
+    /// smaller than the old record, we shift the bytes to the right, and vice versa.
+    ///
+    /// Afterward, we need to update the pointer of records to the left of the updated record.
+    /// Therefore, all records with an offset LESS than the old record's offset (with a non-zero
+    /// size entry) have their offset adjusted by the size difference between the new and old
+    /// record.
+    ///
+    /// Before update:
+    /// +------------------------------------------------------------------------+
+    /// | Header |        ...        | records | RECORD TO UPDATE | more records |
+    /// +------------------------------------------------------------------------+
+    ///                 Free pointer ^         ^ offset
+    ///                                        |------ size ------|
+    ///
+    /// After update:
+    /// +------------------------------------------------------------------------+
+    /// | Header |     ...     | records |     UPDATED RECORD     | more records |
+    /// +------------------------------------------------------------------------+
+    ///           Free pointer ^         ^ offset
+    ///                                  |-----|------ size ------|
+    ///                     size difference ^
+    ///
     pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
         let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
-
-        let size = read_u32(&self.bytes, size_addr).unwrap();
+        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
+        let old_size = read_u32(&self.bytes, size_addr).unwrap();
+        let new_size = new_record.size();
 
         // Check that the record has not been deleted.
-        if self._is_deleted(size) {
+        if self._is_deleted(old_size) {
             return Err(PageError::RecordDeleted);
         }
 
         // Check that there is enough space to insert the updated record.
-        // If there is not enough space, then the caller should delete then insert instead.
-        if size < new_record.len() {
+        // If there is not enough space, then the caller must delete-then-insert instead.
+        if self.get_free_space() + old_size < new_size {
             return Err(PageError::PageOverflow);
         }
 
-        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
+        // Shift over bytes using a temporary buffer.
+        let free_ptr = self.get_free_pointer();
 
-        // Update the record and header.
-        for i in 0..new_record.len() as usize {
-            self.bytes[offset + i] = new_record.as_bytes()[i];
+        let src = free_ptr as usize;
+        let dst = (free_ptr + old_size - new_size) as usize;
+        let cnt = offset - free_ptr as usize;
+
+        let mut buf = vec![0; cnt];
+        for i in 0..cnt {
+            buf[i] = self.bytes[src + i];
         }
-        write_u32(&mut self.bytes, size_addr, new_record.len()).unwrap();
+        for i in 0..cnt {
+            self.bytes[dst + i] = buf[i];
+        }
+
+        // Write update to newly adjusted space.
+        let new_offset = (offset as u32 + old_size - new_size) as usize;
+        let new_bytes = new_record.as_bytes();
+        for i in 0..new_size as usize {
+            self.bytes[new_offset + i] = new_bytes[i];
+        }
+
+        // Update header.
+        self.set_free_pointer(dst as u32);
+        write_u32(&mut self.bytes, size_addr, new_size).unwrap();
+
+        for slot_idx in 0..self.get_num_records() {
+            let (offset_addr, size_addr) = self.get_pointer_addrs(slot_idx).unwrap();
+            let t_offset = read_u32(&self.bytes, offset_addr).unwrap();
+            let t_size = read_u32(&self.bytes, size_addr).unwrap();
+
+            if t_offset < offset as u32 + old_size && t_size > 0 {
+                let new_t_offset = t_offset + old_size - new_size;
+                write_u32(&mut self.bytes, offset_addr, new_t_offset).unwrap();
+            }
+        }
 
         Ok(())
     }
@@ -307,8 +362,12 @@ impl RelationPage {
     /// If the record has NOT been flagged for deletion, then we are rolling back an insertion.
     ///
     /// Implementation:
-    /// We shift over all bytes between the free pointer and the record to be deleted to the
+    /// We shift over every byte between the free pointer and the record to be deleted to the
     /// right, by the size of the deleted record.
+    ///
+    /// After deletion, we need to update the pointers of records to the left of the deleted
+    /// record. Therefore, all records with an offset LESS than the deleted record (with a
+    /// non-zero size entry) have their offset INCREASED by the size of the deleted record.
     ///
     /// Before deletion:
     /// +--------------------------------------------------------------+
@@ -323,9 +382,6 @@ impl RelationPage {
     /// +--------------------------------------------------------------+
     ///                          Free pointer ^
     ///
-    /// After deletion, we need to update the pointers of records to the left of the deleted
-    /// record. Therefore, all records with an offset LESS than the deleted record (with a
-    /// non-zero size entry) have their offset INCREASED by the size of the deleted record.
     pub fn commit_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
         let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
         let offset = read_u32(&self.bytes, offset_addr).unwrap();
@@ -337,22 +393,23 @@ impl RelationPage {
             size = self._unset_delete_bit(size);
         }
 
+        // Shift over bytes using a temporary buffer.
         let free_ptr = self.get_free_pointer();
 
-        // Shift over bytes using a temporary buffer.
         let src = free_ptr as usize;
-        let dest = (free_ptr + size) as usize;
+        let dst = (free_ptr + size) as usize;
         let cnt = (offset - free_ptr) as usize;
+
         let mut buf = vec![0; cnt];
         for i in 0..cnt {
             buf[i] = self.bytes[src + i];
         }
         for i in 0..cnt {
-            self.bytes[dest + i] = buf[i];
+            self.bytes[dst + i] = buf[i];
         }
 
         // Update header.
-        self.set_free_pointer(dest as u32);
+        self.set_free_pointer(dst as u32);
         write_u32(&mut self.bytes, offset_addr, 0);
         write_u32(&mut self.bytes, size_addr, 0);
 
