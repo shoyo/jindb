@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::constants::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
+use crate::constants::{PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
 
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
@@ -21,8 +21,7 @@ pub struct DiskManager {
 impl DiskManager {
     /// Create a new disk manager.
     ///
-    /// The first pages of both the dictionary page and classifier page are allocated when the
-    /// disk manager is initialized. (Pages with ID = 0 and ID = 1)
+    /// The first dictionary page (ID = 0) is allocated when the disk manager is initialized.
     pub fn new(filename: &str) -> Self {
         // Create database file.
         let mut file = open_write_file(filename);
@@ -32,7 +31,7 @@ impl DiskManager {
 
         Self {
             db_filename: filename.to_string(),
-            next_page_id: AtomicU32::new(CLASSIFIER_PAGE_ID + 1),
+            next_page_id: AtomicU32::new(DICTIONARY_PAGE_ID + 1),
         }
     }
 
