@@ -9,9 +9,14 @@ use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
 use std::any::Any;
 
-pub mod classifier_page;
 pub mod dictionary_page;
 pub mod relation_page;
+
+/// A type alias for a raw byte array representing a page on disk. Lower layers of the database
+/// (buffer manager, disk manager, etc.) handle pages as raw pages, and upper layers of the
+/// database adapt raw pages into concrete page types (a type that implements the Page trait) as
+/// needed.
+pub type PageBytes = [u8; PAGE_SIZE as usize];
 
 /// A trait for pages stored in the database. A page, regardless of its variant, is
 /// constants::PAGE_SIZE bytes in length.
@@ -22,10 +27,10 @@ pub trait Page {
     fn get_id(&self) -> PageIdT;
 
     /// Return a reference to the raw byte array.
-    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize];
+    fn as_bytes(&self) -> &PageBytes;
 
     /// Return a mutable reference to the raw byte array.
-    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize];
+    fn as_mut_bytes(&mut self) -> &mut PageBytes;
 
     /// Return the log sequence number.
     fn get_lsn(&self) -> LsnT;
@@ -46,23 +51,6 @@ pub trait Page {
     /// Return a mutable reference to this page that implements Any.
     /// Used when downcasting to a concrete page type.
     fn as_mut_any(&mut self) -> &mut dyn Any;
-}
-
-/// Page variants.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PageVariant {
-    Classifier,
-    Dictionary,
-    Relation,
-}
-
-/// Initialize a boxed page instance for the given variant.
-pub fn init_page_variant(page_id: PageIdT, variant: PageVariant) -> Box<dyn Page + Send + Sync> {
-    match variant {
-        PageVariant::Classifier => Box::new(ClassifierPage::new(page_id)),
-        PageVariant::Dictionary => Box::new(DictionaryPage::new(page_id)),
-        PageVariant::Relation => Box::new(RelationPage::new(page_id)),
-    }
 }
 
 /// Custom errors to be used by pages.

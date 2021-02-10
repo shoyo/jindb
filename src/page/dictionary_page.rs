@@ -27,7 +27,7 @@ const ROOT_LENGTH: PageIdT = 4;
 /// +-----------------+-------------------+--------------------------+-----+
 
 pub struct DictionaryPage {
-    bytes: [u8; PAGE_SIZE as usize],
+    bytes: RawPage,
 }
 
 impl Page for DictionaryPage {
@@ -35,11 +35,11 @@ impl Page for DictionaryPage {
         DICTIONARY_PAGE_ID
     }
 
-    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
+    fn as_bytes(&self) -> &RawPage {
         &self.bytes
     }
 
-    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn as_mut_bytes(&mut self) -> &mut RawPage {
         &mut self.bytes
     }
 

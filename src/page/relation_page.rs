@@ -5,7 +5,7 @@
 
 use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
 use crate::io::{read_u32, write_u32};
-use crate::page::{Page, PageError, PageVariant};
+use crate::page::{Page, PageBytes, PageError, PageVariant};
 use crate::relation::record::{Record, RecordId};
 
 use std::any::Any;
@@ -79,7 +79,7 @@ const DELETE_MASK: u32 = 1_u32 << 31;
 ///                          ^ Free Pointer
 
 pub struct RelationPage {
-    bytes: [u8; PAGE_SIZE as usize],
+    bytes: PageBytes,
 }
 
 impl Page for RelationPage {
@@ -87,11 +87,11 @@ impl Page for RelationPage {
         read_u32(&self.bytes, PAGE_ID_OFFSET).unwrap()
     }
 
-    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
+    fn as_bytes(&self) -> &PageBytes {
         &self.bytes
     }
 
-    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
+    fn as_mut_bytes(&mut self) -> &mut PageBytes {
         &mut self.bytes
     }
 
