@@ -272,13 +272,21 @@ impl RelationPage {
     ///                 Free pointer ^         ^ offset
     ///                                        |------ size ------|
     ///
-    /// After update:
+    /// After update (to larger record):
     /// +------------------------------------------------------------------------+
     /// | Header |     ...     | records |     UPDATED RECORD     | more records |
     /// +------------------------------------------------------------------------+
     ///           Free pointer ^         ^ offset
     ///                                  |-----|------ size ------|
-    ///                     size difference ^
+    ///                 size difference (+) ^
+    ///
+    /// After update (to smaller record):
+    /// +------------------------------------------------------------------------+
+    /// | Header |         ...               | records |  RECORD  | more records |
+    /// +------------------------------------------------------------------------+
+    ///                         Free pointer ^         ^ offset
+    ///                                        |---------|--size--|
+    ///                         size difference (-) ^
     ///
     pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
         let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
