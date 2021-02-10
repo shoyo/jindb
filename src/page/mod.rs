@@ -4,7 +4,6 @@
  */
 
 use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
-use crate::page::classifier_page::ClassifierPage;
 use crate::page::dictionary_page::DictionaryPage;
 use crate::page::relation_page::RelationPage;
 use std::any::Any;
@@ -23,6 +22,9 @@ pub type PageBytes = [u8; PAGE_SIZE as usize];
 /// Pages can store various things, such as metadata (dictionary page), relation data (relation
 /// pages), index headers (index header pages) and indexes (index pages).
 pub trait Page {
+    /// Create a new concrete page instance.
+    fn new(bytes: PageBytes) -> Self;
+
     /// Return the unique page descriptor.
     fn get_id(&self) -> PageIdT;
 
@@ -40,9 +42,6 @@ pub trait Page {
 
     /// Return the amount of free space (in bytes) left in the page.
     fn get_free_space(&self) -> u32;
-
-    /// Return the page variant.
-    fn get_variant(&self) -> PageVariant;
 
     /// Return an immutable reference to this page that implements Any.
     /// Used when downcasting to a concrete page type.

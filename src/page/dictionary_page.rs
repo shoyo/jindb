@@ -5,7 +5,7 @@
 
 use crate::constants::{LsnT, PageIdT, DICTIONARY_PAGE_ID, PAGE_SIZE};
 use crate::io::{read_str256, read_u32, write_str256, write_u32};
-use crate::page::{Page, PageVariant};
+use crate::page::{Page, PageBytes, PageVariant};
 use std::any::Any;
 
 const COUNT_OFFSET: u32 = 0;
@@ -31,6 +31,10 @@ pub struct DictionaryPage {
 }
 
 impl Page for DictionaryPage {
+    fn new(bytes: PageBytes) -> Self {
+        Self { bytes }
+    }
+
     fn get_id(&self) -> u32 {
         DICTIONARY_PAGE_ID
     }
@@ -55,10 +59,6 @@ impl Page for DictionaryPage {
         unimplemented!()
     }
 
-    fn get_variant(&self) -> PageVariant {
-        PageVariant::Dictionary
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -69,13 +69,6 @@ impl Page for DictionaryPage {
 }
 
 impl DictionaryPage {
-    /// Construct a new dictionary page.
-    pub fn new(_page_id: PageIdT) -> Self {
-        Self {
-            bytes: [0; PAGE_SIZE as usize],
-        }
-    }
-
     /// Return the number of stored entries.
     pub fn get_count(&self) -> u32 {
         read_u32(&self.bytes, COUNT_OFFSET).unwrap()

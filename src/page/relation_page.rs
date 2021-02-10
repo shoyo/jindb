@@ -83,6 +83,14 @@ pub struct RelationPage {
 }
 
 impl Page for RelationPage {
+    fn new(bytes: PageBytes) -> Self {
+        let mut page = Self { bytes };
+        page.set_page_id(page_id);
+        page.set_free_pointer(PAGE_SIZE - 1);
+        page.set_num_records(0);
+        page
+    }
+
     fn get_id(&self) -> u32 {
         read_u32(&self.bytes, PAGE_ID_OFFSET).unwrap()
     }
@@ -114,10 +122,6 @@ impl Page for RelationPage {
         }
     }
 
-    fn get_variant(&self) -> PageVariant {
-        PageVariant::Relation
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -128,17 +132,6 @@ impl Page for RelationPage {
 }
 
 impl RelationPage {
-    /// Create a new in-memory representation of a database page.
-    pub fn new(page_id: PageIdT) -> Self {
-        let mut page = Self {
-            bytes: [0; PAGE_SIZE as usize],
-        };
-        page.set_page_id(page_id);
-        page.set_free_pointer(PAGE_SIZE - 1);
-        page.set_num_records(0);
-        page
-    }
-
     /// Set the page ID.
     pub fn set_page_id(&mut self, id: PageIdT) {
         write_u32(&mut self.bytes, PAGE_ID_OFFSET, id).unwrap()
