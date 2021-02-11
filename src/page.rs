@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020 - 2021.  Shoyo Inokuchi.
- * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ * Please refer to github.com/shoyo/jindb for more information about this project and its license.
  */
 
 use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
@@ -66,8 +66,7 @@ const INVALID_PAGE_ID: u32 = 0;
 /// 0 before using it to index the record on the page.
 const DELETE_MASK: u32 = 1_u32 << 31;
 
-/// An in-memory representation of a database page with slotted-page architecture. Gets written
-/// out to disk by the disk manager.
+/// An in-memory representation of a database page with slotted-page architecture.
 ///
 /// Contains a header and variable-length records that grow in opposite directions, similarly to
 /// a heap and stack. Also stores information to be used by the buffer manager for book-keeping
@@ -98,7 +97,6 @@ const DELETE_MASK: u32 = 1_u32 << 31;
 /// |           ...          | RECORD 3 | RECORD 2 | RECORD 1 |
 /// +------------------------+----------+----------+----------+
 ///                          ^ Free Pointer
-
 pub struct RelationPage;
 
 impl RelationPage {
@@ -467,6 +465,9 @@ impl RelationPage {
         Ok((offset_addr, size_addr))
     }
 }
+
+/// An in-memory representation of a database for an index. The index contains
+pub struct IndexPage;
 
 /// Custom errors to be used by pages.
 #[derive(Debug)]

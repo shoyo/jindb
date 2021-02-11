@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020 - 2021.  Shoyo Inokuchi.
- * Please refer to github.com/shoyo/jin for more information about this project and its license.
+ * Please refer to github.com/shoyo/jindb for more information about this project and its license.
  */
 
 use crate::constants::RelationIdT;
