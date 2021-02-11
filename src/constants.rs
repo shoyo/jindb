@@ -20,6 +20,5 @@ pub const DB_FILENAME: &str = "db.jin"; // safe to modify
 pub const PAGE_SIZE: u32 = 8192; // safe to modify
 pub const MAX_RECORD_SIZE: u32 = PAGE_SIZE - 4 * 8;
 pub const BUFFER_SIZE: BufferFrameIdT = 512; // safe to modify
-pub const DICTIONARY_PAGE_ID: PageIdT = 0;
-pub const CLASSIFIER_PAGE_ID: PageIdT = 1;
+pub const CATALOG_ROOT_ID: PageIdT = 0;
 pub const INVALID_LSN: LsnT = 0;

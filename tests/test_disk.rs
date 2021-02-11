@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::constants::{CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID, PAGE_SIZE};
+use jin::constants::{CATALOG_ROOT_ID, PAGE_SIZE};
 use jin::disk::{open_write_file, DiskManager};
 use std::convert::TryInto;
 use std::fs::{self, File};
@@ -35,13 +35,12 @@ fn test_disk_allocation() {
     let mut ctx = setup(0);
     let manager = &mut ctx.disk_manager;
 
-    assert_eq!(manager.is_allocated(DICTIONARY_PAGE_ID), true);
-    assert_eq!(manager.is_allocated(CLASSIFIER_PAGE_ID), true);
-    assert_eq!(manager.is_allocated(2), false);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID), true);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID + 1), false);
 
     let page_id = manager.allocate_page();
-    assert_eq!(page_id, 2);
-    assert_eq!(manager.is_allocated(2), true);
+    assert_eq!(page_id, CATALOG_ROOT_ID + 1);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID + 1), true);
 }
 
 #[test]
@@ -112,8 +111,9 @@ fn test_concurrent_read_access() {
     let num_threads = 10;
 
     // Write data to a page on disk.
+    let page_id = ctx.disk_manager.allocate_page();
     let expected = [213; PAGE_SIZE as usize];
-    ctx.disk_manager.write_page(CLASSIFIER_PAGE_ID, &expected);
+    ctx.disk_manager.write_page(page_id, &expected);
 
     // Spin up multiple threads, and make each thread independently read the same page into
     // memory. Assert that each thread obtains the correct data.
@@ -121,9 +121,7 @@ fn test_concurrent_read_access() {
         let ctx_c = ctx.clone();
         thread::spawn(move || {
             let mut actual = [0; PAGE_SIZE as usize];
-            ctx_c
-                .disk_manager
-                .read_page(CLASSIFIER_PAGE_ID, &mut actual);
+            ctx_c.disk_manager.read_page(page_id, &mut actual);
 
             for i in 0..PAGE_SIZE as usize {
                 assert_eq!(actual[i], expected[i]);
@@ -160,9 +158,7 @@ fn test_concurrent_write_access() {
     }
 
     // Assert that allocations were successful.
-    assert!(ctx
-        .disk_manager
-        .is_allocated(CLASSIFIER_PAGE_ID + num_threads as u32));
+    assert!(ctx.disk_manager.is_allocated(num_threads as u32));
 
     // Spin up a new set of threads, and make all threads access a different disk page
     // simultaneously. Assert that each page contains the correct data.
@@ -178,12 +174,10 @@ fn test_concurrent_write_access() {
             bar.wait(); // Sync all threads
 
             // Assert that each byte of the page is the page's ID.
-            ctx_c
-                .disk_manager
-                .read_page(CLASSIFIER_PAGE_ID + i, &mut data);
+            ctx_c.disk_manager.read_page(i, &mut data);
 
             for j in 0..PAGE_SIZE as usize {
-                assert_eq!(data[j], (CLASSIFIER_PAGE_ID + i) as u8);
+                assert_eq!(data[j], i as u8);
             }
         }));
     }

@@ -5,13 +5,34 @@
 
 use crate::constants::{LsnT, PageIdT, PAGE_SIZE};
 use crate::io::{read_u32, write_u32};
-use crate::page::{Page, PageError, PageVariant};
 use crate::relation::record::{Record, RecordId};
 
-use std::any::Any;
+/// Type alias for a byte array that represents an arbitrary page on disk.
+pub type PageBytes = [u8; PAGE_SIZE as usize];
 
-/// Constants for slotted-page page header.
+/// Type alias for the page ID in a page byte array.
 const PAGE_ID_OFFSET: u32 = 0;
+
+/// Utility functions for handling page byte arrays in low layers of the database.
+pub struct RawPage;
+
+impl RawPage {
+    pub fn new(id: PageIdT) -> PageBytes {
+        let mut page = [0; PAGE_SIZE as usize];
+        RawPage::set_id(&mut page, id);
+        page
+    }
+
+    pub fn get_id(bytes: &PageBytes) -> PageIdT {
+        read_u32(bytes, PAGE_ID_OFFSET).unwrap()
+    }
+
+    pub fn set_id(bytes: &mut PageBytes, id: PageIdT) {
+        write_u32(bytes, PAGE_ID_OFFSET, id).unwrap();
+    }
+}
+
+/// Constants for slotted-page page header in relation pages.
 const PREV_PAGE_ID_OFFSET: u32 = 4;
 const NEXT_PAGE_ID_OFFSET: u32 = 8;
 const FREE_POINTER_OFFSET: u32 = 12;
@@ -78,34 +99,87 @@ const DELETE_MASK: u32 = 1_u32 << 31;
 /// +------------------------+----------+----------+----------+
 ///                          ^ Free Pointer
 
-pub struct RelationPage {
-    bytes: [u8; PAGE_SIZE as usize],
-}
+pub struct RelationPage;
 
-impl Page for RelationPage {
-    fn get_id(&self) -> u32 {
-        read_u32(&self.bytes, PAGE_ID_OFFSET).unwrap()
+impl RelationPage {
+    /// Initialize a relation page.
+    /// Assumes that `bytes` is a newly initialized page byte array with its page ID set.
+    pub fn init(bytes: &mut PageBytes) {
+        RelationPage::set_free_pointer(bytes, PAGE_SIZE - 1);
     }
 
-    fn as_bytes(&self) -> &[u8; PAGE_SIZE as usize] {
-        &self.bytes
+    /// Get the page ID.
+    pub fn get_id(bytes: &PageBytes) -> PageIdT {
+        read_u32(bytes, PAGE_ID_OFFSET).unwrap()
     }
 
-    fn as_mut_bytes(&mut self) -> &mut [u8; PAGE_SIZE as usize] {
-        &mut self.bytes
+    /// Set the page ID.
+    pub fn set_id(bytes: &mut PageBytes, id: PageIdT) {
+        write_u32(bytes, PAGE_ID_OFFSET, id).unwrap();
     }
 
-    fn get_lsn(&self) -> u32 {
-        read_u32(&self.bytes, LSN_OFFSET).unwrap()
+    /// Get the previous page ID.
+    pub fn get_prev_page_id(bytes: &PageBytes) -> Option<PageIdT> {
+        let pid = read_u32(bytes, PREV_PAGE_ID_OFFSET).unwrap();
+        match pid == INVALID_PAGE_ID {
+            true => None,
+            false => Some(pid),
+        }
     }
 
-    fn set_lsn(&mut self, lsn: LsnT) {
-        write_u32(&mut self.bytes, LSN_OFFSET, lsn).unwrap()
+    /// Set the previous page ID.
+    pub fn set_prev_page_id(bytes: &mut PageBytes, id: PageIdT) {
+        write_u32(bytes, PREV_PAGE_ID_OFFSET, id).unwrap()
     }
 
-    fn get_free_space(&self) -> u32 {
-        let free_ptr = self.get_free_pointer() + 1;
-        let num_records = self.get_num_records();
+    /// Get the next page ID.
+    pub fn get_next_page_id(bytes: &PageBytes) -> Option<PageIdT> {
+        let pid = read_u32(bytes, NEXT_PAGE_ID_OFFSET).unwrap();
+        match pid == INVALID_PAGE_ID {
+            true => None,
+            false => Some(pid),
+        }
+    }
+
+    /// Set the next page ID.
+    pub fn set_next_page_id(bytes: &mut PageBytes, id: PageIdT) {
+        write_u32(bytes, NEXT_PAGE_ID_OFFSET, id).unwrap()
+    }
+
+    /// Get a pointer to the next free space.
+    pub fn get_free_pointer(bytes: &PageBytes) -> u32 {
+        read_u32(bytes, FREE_POINTER_OFFSET).unwrap()
+    }
+
+    /// Set a pointer to the next free space.
+    pub fn set_free_pointer(bytes: &mut PageBytes, ptr: u32) {
+        write_u32(bytes, FREE_POINTER_OFFSET, ptr).unwrap()
+    }
+
+    /// Get the number of records contained in the page.
+    pub fn get_num_records(bytes: &PageBytes) -> u32 {
+        read_u32(bytes, NUM_RECORDS_OFFSET).unwrap()
+    }
+
+    /// Set the number of records contained in the page.
+    pub fn set_num_records(bytes: &mut PageBytes, num: u32) {
+        write_u32(bytes, NUM_RECORDS_OFFSET, num).unwrap()
+    }
+
+    /// Get the log sequence number of the page.
+    fn get_lsn(bytes: &PageBytes) -> u32 {
+        read_u32(bytes, LSN_OFFSET).unwrap()
+    }
+
+    /// Set the log sequence number of the page.
+    fn set_lsn(bytes: &mut PageBytes, lsn: LsnT) {
+        write_u32(bytes, LSN_OFFSET, lsn).unwrap()
+    }
+
+    /// Return the amount of free space left in the page in bytes.
+    fn get_free_space(bytes: &PageBytes) -> u32 {
+        let free_ptr = RelationPage::get_free_pointer(bytes) + 1;
+        let num_records = RelationPage::get_num_records(bytes);
 
         let header = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         match header >= free_ptr {
@@ -114,117 +188,39 @@ impl Page for RelationPage {
         }
     }
 
-    fn get_variant(&self) -> PageVariant {
-        PageVariant::Relation
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-impl RelationPage {
-    /// Create a new in-memory representation of a database page.
-    pub fn new(page_id: PageIdT) -> Self {
-        let mut page = Self {
-            bytes: [0; PAGE_SIZE as usize],
-        };
-        page.set_page_id(page_id);
-        page.set_free_pointer(PAGE_SIZE - 1);
-        page.set_num_records(0);
-        page
-    }
-
-    /// Set the page ID.
-    pub fn set_page_id(&mut self, id: PageIdT) {
-        write_u32(&mut self.bytes, PAGE_ID_OFFSET, id).unwrap()
-    }
-
-    /// Get the previous page ID.
-    pub fn get_prev_page_id(&self) -> Option<PageIdT> {
-        let pid = read_u32(&self.bytes, PREV_PAGE_ID_OFFSET).unwrap();
-        match pid == INVALID_PAGE_ID {
-            true => None,
-            false => Some(pid),
-        }
-    }
-
-    /// Set the previous page ID.
-    pub fn set_prev_page_id(&mut self, id: PageIdT) {
-        write_u32(&mut self.bytes, PREV_PAGE_ID_OFFSET, id).unwrap()
-    }
-
-    /// Get the next page ID.
-    pub fn get_next_page_id(&self) -> Option<PageIdT> {
-        let pid = read_u32(&self.bytes, NEXT_PAGE_ID_OFFSET).unwrap();
-        match pid == INVALID_PAGE_ID {
-            true => None,
-            false => Some(pid),
-        }
-    }
-
-    /// Set the next page ID.
-    pub fn set_next_page_id(&mut self, id: PageIdT) {
-        write_u32(&mut self.bytes, NEXT_PAGE_ID_OFFSET, id).unwrap()
-    }
-
-    /// Get a pointer to the next free space.
-    pub fn get_free_pointer(&self) -> u32 {
-        read_u32(&self.bytes, FREE_POINTER_OFFSET).unwrap()
-    }
-
-    /// Set a pointer to the next free space.
-    pub fn set_free_pointer(&mut self, ptr: u32) {
-        write_u32(&mut self.bytes, FREE_POINTER_OFFSET, ptr).unwrap()
-    }
-
-    /// Get the number of records contained in the page.
-    pub fn get_num_records(&self) -> u32 {
-        read_u32(&self.bytes, NUM_RECORDS_OFFSET).unwrap()
-    }
-
-    /// Set the number of records contained in the page.
-    pub fn set_num_records(&mut self, num: u32) {
-        write_u32(&mut self.bytes, NUM_RECORDS_OFFSET, num).unwrap()
-    }
-
     /// Read the record at the specified slot index.
-    pub fn read_record(&self, slot: u32) -> Result<Record, PageError> {
-        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
-        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
-        let size = read_u32(&self.bytes, size_addr).unwrap();
+    pub fn read_record(bytes: &PageBytes, slot: u32) -> Result<Record, PageError> {
+        let (offset_addr, size_addr) = RelationPage::get_ptr_addrs(bytes, slot)?;
+        let offset = read_u32(bytes, offset_addr).unwrap() as usize;
+        let size = read_u32(bytes, size_addr).unwrap();
 
         // Check that the record has not been deleted.
-        if self._is_deleted(size) {
+        if RelationPage::is_deleted(size) {
             return Err(PageError::RecordDeleted);
         }
 
-        let bytes = Vec::from(&self.bytes[offset..offset + size as usize]);
+        let record_bytes = Vec::from(&bytes[offset..offset + size as usize]);
         let rid = RecordId {
-            page_id: self.get_id(),
+            page_id: RelationPage::get_id(bytes),
             slot_index: slot,
         };
 
-        Ok(Record::from_bytes(bytes, rid))
+        Ok(Record::from_bytes(record_bytes, rid))
     }
 
     /// Insert a record in the page and update the header.
-    pub fn insert_record(&mut self, record: &mut Record) -> Result<(), PageError> {
+    pub fn insert_record(bytes: &mut PageBytes, record: &mut Record) -> Result<(), PageError> {
         // Bounds-check for record insertion.
-        if record.len() + RECORD_POINTER_SIZE > self.get_free_space() {
+        if record.len() + RECORD_POINTER_SIZE > RelationPage::get_free_space(bytes) {
             return Err(PageError::PageOverflow);
         }
 
         // Calculate header addresses for new size/offset entry.
-        let num_records = self.get_num_records();
+        let num_records = RelationPage::get_num_records(bytes);
         let offset_addr = RECORDS_OFFSET + num_records * RECORD_POINTER_SIZE;
         let size_addr = offset_addr + 4;
 
-        let free_ptr = self.get_free_pointer();
+        let free_ptr = RelationPage::get_free_pointer(bytes);
         let new_free_ptr = free_ptr - record.len() as u32;
 
         // Write record data to allocated space.
@@ -232,17 +228,17 @@ impl RelationPage {
         let end = (free_ptr + 1) as usize;
         let record_data = record.as_bytes();
         for i in start..end {
-            self.bytes[i] = record_data[i - start];
+            bytes[i] = record_data[i - start];
         }
 
         // Update header.
-        self.set_free_pointer(new_free_ptr);
-        self.set_num_records(num_records + 1);
-        write_u32(&mut self.bytes, offset_addr, new_free_ptr + 1).unwrap();
-        write_u32(&mut self.bytes, size_addr, record_data.len() as u32).unwrap();
+        RelationPage::set_free_pointer(bytes, new_free_ptr);
+        RelationPage::set_num_records(bytes, num_records + 1);
+        write_u32(bytes, offset_addr, new_free_ptr + 1).unwrap();
+        write_u32(bytes, size_addr, record_data.len() as u32).unwrap();
 
         // Update record's ID.
-        record.allocate(self.get_id(), num_records);
+        record.allocate(RelationPage::get_id(bytes), num_records);
 
         Ok(())
     }
@@ -285,28 +281,32 @@ impl RelationPage {
     /// | Header |         ...               | records |  RECORD  | more records |
     /// +------------------------------------------------------------------------+
     ///                         Free pointer ^         ^ offset
-    ///                                        |---------|--size--|
+    ///                                        |-------|---size---|
     ///                         size difference (-) ^
     ///
-    pub fn update_record(&mut self, new_record: Record, slot: u32) -> Result<(), PageError> {
-        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
-        let offset = read_u32(&self.bytes, offset_addr).unwrap() as usize;
-        let old_size = read_u32(&self.bytes, size_addr).unwrap();
+    pub fn update_record(
+        bytes: &mut PageBytes,
+        new_record: Record,
+        slot: u32,
+    ) -> Result<(), PageError> {
+        let (offset_addr, size_addr) = RelationPage::get_ptr_addrs(bytes, slot)?;
+        let offset = read_u32(bytes, offset_addr).unwrap() as usize;
+        let old_size = read_u32(bytes, size_addr).unwrap();
         let new_size = new_record.size();
 
         // Check that the record has not been deleted.
-        if self._is_deleted(old_size) {
+        if RelationPage::is_deleted(old_size) {
             return Err(PageError::RecordDeleted);
         }
 
         // Check that there is enough space to insert the updated record.
         // If there is not enough space, then the caller must delete-then-insert instead.
-        if self.get_free_space() + old_size < new_size {
+        if RelationPage::get_free_space(bytes) + old_size < new_size {
             return Err(PageError::PageOverflow);
         }
 
         // Shift over bytes using a temporary buffer.
-        let free_ptr = self.get_free_pointer();
+        let free_ptr = RelationPage::get_free_pointer(bytes);
 
         let src = free_ptr as usize;
         let dst = (free_ptr + old_size - new_size) as usize;
@@ -314,31 +314,31 @@ impl RelationPage {
 
         let mut buf = vec![0; cnt];
         for i in 0..cnt {
-            buf[i] = self.bytes[src + i];
+            buf[i] = bytes[src + i];
         }
         for i in 0..cnt {
-            self.bytes[dst + i] = buf[i];
+            bytes[dst + i] = buf[i];
         }
 
         // Write update to newly adjusted space.
         let new_offset = (offset as u32 + old_size - new_size) as usize;
         let new_bytes = new_record.as_bytes();
         for i in 0..new_size as usize {
-            self.bytes[new_offset + i] = new_bytes[i];
+            bytes[new_offset + i] = new_bytes[i];
         }
 
         // Update header.
-        self.set_free_pointer(dst as u32);
-        write_u32(&mut self.bytes, size_addr, new_size).unwrap();
+        RelationPage::set_free_pointer(bytes, dst as u32);
+        write_u32(bytes, size_addr, new_size).unwrap();
 
-        for slot_idx in 0..self.get_num_records() {
-            let (offset_addr, size_addr) = self.get_pointer_addrs(slot_idx).unwrap();
-            let t_offset = read_u32(&self.bytes, offset_addr).unwrap();
-            let t_size = read_u32(&self.bytes, size_addr).unwrap();
+        for slot_idx in 0..RelationPage::get_num_records(bytes) {
+            let (offset_addr, size_addr) = RelationPage::get_ptr_addrs(bytes, slot_idx).unwrap();
+            let t_offset = read_u32(bytes, offset_addr).unwrap();
+            let t_size = read_u32(bytes, size_addr).unwrap();
 
             if t_offset < offset as u32 + old_size && t_size > 0 {
                 let new_t_offset = t_offset + old_size - new_size;
-                write_u32(&mut self.bytes, offset_addr, new_t_offset).unwrap();
+                write_u32(bytes, offset_addr, new_t_offset).unwrap();
             }
         }
 
@@ -347,19 +347,19 @@ impl RelationPage {
 
     /// Flag the record at the specified slot index for deletion.
     /// The record is not actually deleted until the deletion is committed.
-    pub fn flag_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
-        let (_, size_addr) = self.get_pointer_addrs(slot)?;
+    pub fn flag_delete_record(bytes: &mut PageBytes, slot: u32) -> Result<(), PageError> {
+        let (_, size_addr) = RelationPage::get_ptr_addrs(bytes, slot)?;
 
-        let size = read_u32(&self.bytes, size_addr).unwrap();
+        let size = read_u32(bytes, size_addr).unwrap();
 
         // Check that the record has not already been deleted.
-        if self._is_deleted(size) {
+        if RelationPage::is_deleted(size) {
             return Err(PageError::RecordDeleted);
         }
 
         // Flag the record for deletion.
-        let new_size = self._set_delete_bit(size);
-        write_u32(&mut self.bytes, size_addr, new_size).unwrap();
+        let new_size = RelationPage::set_delete_bit(size);
+        write_u32(bytes, size_addr, new_size).unwrap();
 
         Ok(())
     }
@@ -390,19 +390,19 @@ impl RelationPage {
     /// +--------------------------------------------------------------+
     ///                          Free pointer ^
     ///
-    pub fn commit_delete_record(&mut self, slot: u32) -> Result<(), PageError> {
-        let (offset_addr, size_addr) = self.get_pointer_addrs(slot)?;
-        let offset = read_u32(&self.bytes, offset_addr).unwrap();
-        let mut size = read_u32(&self.bytes, size_addr).unwrap();
+    pub fn commit_delete_record(bytes: &mut PageBytes, slot: u32) -> Result<(), PageError> {
+        let (offset_addr, size_addr) = RelationPage::get_ptr_addrs(bytes, slot)?;
+        let offset = read_u32(bytes, offset_addr).unwrap();
+        let mut size = read_u32(bytes, size_addr).unwrap();
 
         // If the record is flagged for deletion, we obtain the correct record size before
         // proceeding.
-        if self._is_deleted(size) {
-            size = self._unset_delete_bit(size);
+        if RelationPage::is_deleted(size) {
+            size = RelationPage::unset_delete_bit(size);
         }
 
         // Shift over bytes using a temporary buffer.
-        let free_ptr = self.get_free_pointer();
+        let free_ptr = RelationPage::get_free_pointer(bytes);
 
         let src = free_ptr as usize;
         let dst = (free_ptr + size) as usize;
@@ -410,25 +410,25 @@ impl RelationPage {
 
         let mut buf = vec![0; cnt];
         for i in 0..cnt {
-            buf[i] = self.bytes[src + i];
+            buf[i] = bytes[src + i];
         }
         for i in 0..cnt {
-            self.bytes[dst + i] = buf[i];
+            bytes[dst + i] = buf[i];
         }
 
         // Update header.
-        self.set_free_pointer(dst as u32);
-        write_u32(&mut self.bytes, offset_addr, 0);
-        write_u32(&mut self.bytes, size_addr, 0);
+        RelationPage::set_free_pointer(bytes, dst as u32);
+        write_u32(bytes, offset_addr, 0).unwrap();
+        write_u32(bytes, size_addr, 0).unwrap();
 
-        for slot_idx in 0..self.get_num_records() {
-            let (offset_addr, size_addr) = self.get_pointer_addrs(slot_idx).unwrap();
-            let t_offset = read_u32(&self.bytes, offset_addr).unwrap();
-            let t_size = read_u32(&self.bytes, size_addr).unwrap();
+        for slot_idx in 0..RelationPage::get_num_records(bytes) {
+            let (offset_addr, size_addr) = RelationPage::get_ptr_addrs(bytes, slot_idx).unwrap();
+            let t_offset = read_u32(bytes, offset_addr).unwrap();
+            let t_size = read_u32(bytes, size_addr).unwrap();
 
             if t_offset < offset && t_size != 0 {
                 let new_t_offset = t_offset + size;
-                write_u32(&mut self.bytes, offset_addr, new_t_offset).unwrap();
+                write_u32(bytes, offset_addr, new_t_offset).unwrap();
             }
         }
 
@@ -436,25 +436,28 @@ impl RelationPage {
     }
 
     /// Return true if the specified record is empty or flagged for deletion, false otherwise.
-    fn _is_deleted(&self, record_size: u32) -> bool {
+    fn is_deleted(record_size: u32) -> bool {
         record_size & DELETE_MASK != 0 || record_size == 0
     }
 
     /// Flag a given record for deletion.
-    fn _set_delete_bit(&self, record_size: u32) -> u32 {
+    fn set_delete_bit(record_size: u32) -> u32 {
         record_size | DELETE_MASK
     }
 
     /// Unflag a given record for deletion.
-    fn _unset_delete_bit(&self, record_size: u32) -> u32 {
+    fn unset_delete_bit(record_size: u32) -> u32 {
         record_size & !DELETE_MASK
     }
 
     /// Return the byte array addresses of the offset and size at a given slot index.
     /// Return an error if the slot index is out of bounds.
     #[inline]
-    fn get_pointer_addrs(&self, slot: u32) -> Result<(RecordOffsetT, RecordSizeT), PageError> {
-        if slot >= self.get_num_records() {
+    fn get_ptr_addrs(
+        bytes: &PageBytes,
+        slot: u32,
+    ) -> Result<(RecordOffsetT, RecordSizeT), PageError> {
+        if slot >= RelationPage::get_num_records(bytes) {
             return Err(PageError::SlotOutOfBounds);
         }
 
@@ -465,10 +468,24 @@ impl RelationPage {
     }
 }
 
+/// Custom errors to be used by pages.
+#[derive(Debug)]
+pub enum PageError {
+    /// Error to be thrown when a page insertion/update would trigger an overflow.
+    PageOverflow,
+
+    /// Error to be thrown when a slot index is out of bounds.
+    SlotOutOfBounds,
+
+    /// Error to be thrown when a specified record has already been deleted and a
+    /// read/update/delete operation cannot proceed.
+    RecordDeleted,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::io::{read_bool, read_f32, read_i32, read_str};
+    use crate::io::{read_bool, read_f32, read_i32, read_str, read_u32};
     use crate::relation::record::NULL_BITMAP_SIZE;
     use crate::relation::types::{size_of, DataType};
     use crate::relation::Attribute;
@@ -478,12 +495,16 @@ mod tests {
     #[test]
     fn test_insert_record() {
         // Initialize empty page.
-        let mut page = RelationPage::new(10);
-        assert_eq!(page.get_id(), 10);
-        assert!(page.get_next_page_id().is_none());
-        assert!(page.get_prev_page_id().is_none());
-        assert_eq!(page.get_num_records(), 0);
-        assert_eq!(page.get_free_space(), PAGE_SIZE - RECORDS_OFFSET);
+        let mut page = RawPage::new(5);
+        RelationPage::init(&mut page);
+        assert_eq!(RelationPage::get_id(&page), 5);
+        assert!(RelationPage::get_next_page_id(&page).is_none());
+        assert!(RelationPage::get_prev_page_id(&page).is_none());
+        assert_eq!(RelationPage::get_num_records(&page), 0);
+        assert_eq!(
+            RelationPage::get_free_space(&page),
+            PAGE_SIZE - RECORDS_OFFSET
+        );
 
         let varchar = "Hello, World!".to_string();
         let varchar_len = varchar.len() as u32;
@@ -506,13 +527,16 @@ mod tests {
         .unwrap();
 
         // Insert record into page.
-        page.insert_record(&mut record).unwrap();
-        assert_eq!(page.get_num_records(), 1);
+        RelationPage::insert_record(&mut page, &mut record).unwrap();
+        assert_eq!(RelationPage::get_num_records(&page), 1);
         assert_eq!(
-            page.get_free_space(),
+            RelationPage::get_free_space(&page),
             PAGE_SIZE - RECORDS_OFFSET - record.len() - RECORD_POINTER_SIZE
         );
-        assert_eq!(page.get_free_pointer(), PAGE_SIZE - record.len() - 1);
+        assert_eq!(
+            RelationPage::get_free_pointer(&page),
+            PAGE_SIZE - record.len() - 1
+        );
 
         // Assert that record bytes were written to the correct locations in the page.
 
@@ -524,15 +548,13 @@ mod tests {
         // ^ 0      ^ RECORDS_OFFSET        ^ FREE POINTER               PAGE_SIZE-1 ^
         //                                  |____________ record.len() ______________|
 
-        let page_bytes = page.as_bytes();
-
         let offset_addr = RECORDS_OFFSET;
         let size_addr = RECORDS_OFFSET + 4;
         assert_eq!(
-            read_u32(page_bytes, offset_addr).unwrap(),
+            read_u32(&page, offset_addr).unwrap(),
             PAGE_SIZE - record.len()
         );
-        assert_eq!(read_u32(page_bytes, size_addr).unwrap(), record.len());
+        assert_eq!(read_u32(&page, size_addr).unwrap(), record.len());
 
         let bitmap_size = NULL_BITMAP_SIZE;
         let bitmap_addr = PAGE_SIZE - record.len();
@@ -543,20 +565,17 @@ mod tests {
         let deci_addr = int_addr + size_of(DataType::Int);
         let str_val_addr = deci_addr + size_of(DataType::Decimal);
 
-        assert_eq!(read_u32(page_bytes, bitmap_addr).unwrap(), 0);
+        assert_eq!(read_u32(&page, bitmap_addr).unwrap(), 0);
         assert_eq!(
-            read_u32(page_bytes, str_offset_addr).unwrap(),
+            read_u32(&page, str_offset_addr).unwrap(),
             record.len() - varchar_len
         );
-        assert_eq!(read_u32(page_bytes, str_size_addr).unwrap(), varchar_len);
-        assert_eq!(read_bool(page_bytes, bool_addr).unwrap(), true);
-        assert_eq!(read_i32(page_bytes, int_addr).unwrap(), 123_456_i32);
+        assert_eq!(read_u32(&page, str_size_addr).unwrap(), varchar_len);
+        assert_eq!(read_bool(&page, bool_addr).unwrap(), true);
+        assert_eq!(read_i32(&page, int_addr).unwrap(), 123_456_i32);
+        assert_eq!(read_f32(&page, deci_addr).unwrap(), std::f32::consts::PI);
         assert_eq!(
-            read_f32(page_bytes, deci_addr).unwrap(),
-            std::f32::consts::PI
-        );
-        assert_eq!(
-            read_str(page_bytes, str_val_addr, varchar_len).unwrap(),
+            read_str(&page, str_val_addr, varchar_len).unwrap(),
             "Hello, World!".to_string()
         );
     }

@@ -3,8 +3,9 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use crate::constants::{PageIdT, CLASSIFIER_PAGE_ID, PAGE_SIZE};
+use crate::constants::{PageIdT, CATALOG_ROOT_ID, PAGE_SIZE};
 
+use crate::page::PageBytes;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -21,8 +22,7 @@ pub struct DiskManager {
 impl DiskManager {
     /// Create a new disk manager.
     ///
-    /// The first pages of both the dictionary page and classifier page are allocated when the
-    /// disk manager is initialized. (Pages with ID = 0 and ID = 1)
+    /// The first dictionary page (ID = 0) is allocated when the disk manager is initialized.
     pub fn new(filename: &str) -> Self {
         // Create database file.
         let mut file = open_write_file(filename);
@@ -32,12 +32,12 @@ impl DiskManager {
 
         Self {
             db_filename: filename.to_string(),
-            next_page_id: AtomicU32::new(CLASSIFIER_PAGE_ID + 1),
+            next_page_id: AtomicU32::new(CATALOG_ROOT_ID + 1),
         }
     }
 
     /// Write the specified byte array out to disk.
-    pub fn write_page(&self, page_id: PageIdT, page_data: &[u8; PAGE_SIZE as usize]) {
+    pub fn write_page(&self, page_id: PageIdT, page_data: &PageBytes) {
         if !self.is_allocated(page_id) {
             panic!(
                 "Cannot write page (ID: {}) which has not been allocated",
@@ -53,7 +53,7 @@ impl DiskManager {
     }
 
     /// Read a single page's data into the specified byte array.
-    pub fn read_page(&self, page_id: PageIdT, page_data: &mut [u8; PAGE_SIZE as usize]) {
+    pub fn read_page(&self, page_id: PageIdT, page_data: &mut PageBytes) {
         if !self.is_allocated(page_id) {
             panic!(
                 "Cannot read page (ID: {}) which has not been allocated",
@@ -73,7 +73,7 @@ impl DiskManager {
         let mut file = open_write_file(&self.db_filename);
 
         // Obtain the descriptor for the newly allocated page.
-        let mut page_id = self.get_next_page_id();
+        let page_id = self.get_next_page_id();
 
         // Zero-out newly allocated page on disk.
         let data = [0; PAGE_SIZE as usize];

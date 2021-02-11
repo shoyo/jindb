@@ -7,13 +7,9 @@ use crate::buffer::replacement::clock::ClockReplacer;
 use crate::buffer::replacement::lru::LRUReplacer;
 use crate::buffer::replacement::slow::SlowReplacer;
 use crate::buffer::replacement::{PageReplacer, ReplacerAlgorithm};
-use crate::constants::{
-    BufferFrameIdT, PageIdT, BUFFER_SIZE, CLASSIFIER_PAGE_ID, DICTIONARY_PAGE_ID,
-};
+use crate::constants::{BufferFrameIdT, PageIdT, BUFFER_SIZE};
 use crate::disk::DiskManager;
-use crate::page::classifier_page::ClassifierPage;
-use crate::page::relation_page::RelationPage;
-use crate::page::{init_page_variant, Page, PageVariant};
+use crate::page::{PageBytes, RawPage};
 
 use std::collections::HashMap;
 use std::fmt::{self, Formatter};
@@ -58,7 +54,7 @@ pub struct BufferFrame {
     id: BufferFrameIdT,
 
     /// The database page contained in this buffer frame.
-    page: Option<Box<dyn Page + Send + Sync>>,
+    page: Option<PageBytes>,
 
     /// True if the contained page has been modified since being read from disk.
     dirty_flag: bool,
@@ -72,7 +68,7 @@ pub struct BufferFrame {
 
 impl BufferFrame {
     /// Initialize a new buffer frame.
-    pub fn new(id: BufferFrameIdT) -> Self {
+    fn new(id: BufferFrameIdT) -> Self {
         Self {
             id,
             page: None,
@@ -83,48 +79,22 @@ impl BufferFrame {
     }
 
     /// Return an immutable reference to the frame ID.
-    pub fn get_id(&self) -> BufferFrameIdT {
+    fn get_id(&self) -> BufferFrameIdT {
         self.id
     }
 
     /// Return an immutable reference to the contained page.
-    pub fn get_page(&self) -> Option<&Box<dyn Page + Send + Sync>> {
+    pub fn get_page(&self) -> Option<&PageBytes> {
         self.page.as_ref()
     }
 
     /// Return a mutable reference to the contained page.
-    pub fn get_mut_page(&mut self) -> Option<&mut Box<dyn Page + Send + Sync>> {
+    pub fn get_mut_page(&mut self) -> Option<&mut PageBytes> {
         self.page.as_mut()
     }
 
-    /// Return an immutable reference to the contained page downcasted to a relation page.
-    /// Return an error if this buffer is empty or the contained page cannot be downcast to a
-    /// relation page.
-    pub fn get_relation_page(&self) -> Result<&RelationPage, BufferFrameError> {
-        match &self.page {
-            Some(page) => match page.as_any().downcast_ref::<RelationPage>() {
-                Some(relation_page) => Ok(relation_page),
-                None => Err(BufferFrameError::InvalidDowncast),
-            },
-            None => Err(BufferFrameError::EmptyBuffer),
-        }
-    }
-
-    /// Return a mutable reference to the contained page downcasted to a relation page.
-    /// Return an error if this buffer is empty or the contained page cannot be downcast to a
-    /// relation page.
-    pub fn get_mut_relation_page(&mut self) -> Result<&mut RelationPage, BufferFrameError> {
-        match &mut self.page {
-            Some(page) => match page.as_mut_any().downcast_mut::<RelationPage>() {
-                Some(relation_page) => Ok(relation_page),
-                None => Err(BufferFrameError::InvalidDowncast),
-            },
-            None => Err(BufferFrameError::EmptyBuffer),
-        }
-    }
-
     /// Return the dirty flag of this buffer frame.
-    pub fn is_dirty(&self) -> bool {
+    fn is_dirty(&self) -> bool {
         self.dirty_flag
     }
 
@@ -134,20 +104,20 @@ impl BufferFrame {
     }
 
     /// Return the pin count of this buffer frame.
-    pub fn get_pin_count(&self) -> u32 {
+    fn get_pin_count(&self) -> u32 {
         let pins = self.pin_count.lock().unwrap();
         *pins
     }
 
     /// Increase the pin count of this buffer frame by 1.
-    pub fn pin(&self) {
+    fn pin(&self) {
         let mut pins = self.pin_count.lock().unwrap();
         *pins += 1;
     }
 
     /// Decrease the pin count of this buffer frame by 1.
     /// Panics if the pin count is 0.
-    pub fn unpin(&self) {
+    fn unpin(&self) {
         let mut pins = self.pin_count.lock().unwrap();
         if *pins == 0 {
             panic!("Cannot unpin a page with pin count equal to 0");
@@ -156,7 +126,7 @@ impl BufferFrame {
     }
 
     /// Overwrite the existing page and reset buffer frame metadata.
-    pub fn overwrite(&mut self, page: Option<Box<dyn Page + Send + Sync>>) {
+    fn overwrite(&mut self, page: Option<PageBytes>) {
         self.page = page;
         self.dirty_flag = false;
         self.pin_count = Arc::new(Mutex::new(0));
@@ -178,7 +148,12 @@ impl BufferFrame {
 impl fmt::Debug for BufferFrame {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self.get_page() {
-            Some(page) => write!(f, "id:{:?}, pins:{:?}", page.get_id(), self.pin_count),
+            Some(page) => write!(
+                f,
+                "id:{:?}, pins:{:?}",
+                RawPage::get_id(page),
+                self.pin_count
+            ),
             None => write!(f, "id:None, pins:{:?}", self.pin_count),
         }
     }
@@ -194,21 +169,19 @@ pub enum BufferFrameError {
     InvalidDowncast,
 }
 
-/// Type alias for a guarded buffer frame.
+/// Type alias for read and write latches returned by the buffer manager.
 pub type FrameArc = Arc<RwLock<BufferFrame>>;
 pub type FrameRLatch<'a> = RwLockReadGuard<'a, BufferFrame>;
 pub type FrameWLatch<'a> = RwLockWriteGuard<'a, BufferFrame>;
 
-/// Type alias for read and write latches returned by the buffer manager.
+/// Type alias for page table used internally by buffer manager.
 type PageTable = HashMap<PageIdT, BufferFrameIdT>;
-type TypeChart = HashMap<PageIdT, PageVariant>;
 
 /// The buffer manager is responsible for managing database pages that are cached in memory.
 /// Higher layers of the database system make requests to the buffer manager to create and fetch
 /// pages. Any pages that don't exist in the buffer are retrieved from disk via the disk manager.
 /// Multiple threads may make requests to the buffer manager in parallel, so its implementation
 /// must be thread-safe.
-
 pub struct BufferManager {
     /// A pool of buffer frames to hold database pages.
     buffer: Buffer,
@@ -216,19 +189,15 @@ pub struct BufferManager {
     /// Disk manager for reading from and writing to disk.
     disk_manager: DiskManager,
 
-    /// Page replacement manager.
+    /// Page replacement manager (also serves as the free list).
     replacer: Box<dyn PageReplacer + Send + Sync>,
 
     /// Mapping of pages to buffer frames that they occupy.
     page_table: Arc<Mutex<PageTable>>,
-
-    /// Mapping of pages to their page variants.
-    type_chart: Arc<RwLock<TypeChart>>,
 }
 
 impl BufferManager {
     /// Construct a new buffer manager.
-    /// Fetch necessary pages from disk to initialize in-memory data structures for page metadata.
     pub fn new(
         buffer_size: BufferFrameIdT,
         disk_manager: DiskManager,
@@ -241,50 +210,19 @@ impl BufferManager {
             ReplacerAlgorithm::Slow => Box::new(SlowReplacer::new(buffer_size)),
         };
 
-        // Fetch classifier page from disk to initialize the type chart.
-        // If the classifier page is empty, nothing gets inserted into the type chart.
-        let mut classifier = ClassifierPage::new(CLASSIFIER_PAGE_ID);
-        disk_manager.read_page(CLASSIFIER_PAGE_ID, classifier.as_mut_bytes());
-
-        let mut type_chart = HashMap::new();
-
-        for (page_id, page_type) in classifier {
-            type_chart.insert(page_id, page_type);
-        }
-
-        type_chart.insert(DICTIONARY_PAGE_ID, PageVariant::Dictionary);
-        type_chart.insert(CLASSIFIER_PAGE_ID, PageVariant::Classifier);
-
         Self {
             buffer: Buffer::new(buffer_size),
             disk_manager,
             replacer,
             page_table: Arc::new(Mutex::new(HashMap::with_capacity(BUFFER_SIZE as usize))),
-            type_chart: Arc::new(RwLock::new(type_chart)),
         }
-    }
-
-    /// Initialize a classifier page, pin it, and return a reference to its frame.
-    pub fn create_classifier_page(&self) -> Result<FrameArc, BufferError> {
-        self._create_page(PageVariant::Classifier)
-    }
-
-    /// Initialize a dictionary page, pin it, and return a reference to its frame.
-    pub fn create_dictionary_page(&self) -> Result<FrameArc, BufferError> {
-        self._create_page(PageVariant::Dictionary)
-    }
-
-    /// Initialize a relation page, pin it, and return a reference to its frame.
-    pub fn create_relation_page(&self) -> Result<FrameArc, BufferError> {
-        self._create_page(PageVariant::Relation)
     }
 
     /// Initialize a new page, pin it, and return a reference to its frame.
     /// If there are no open buffer frames and all existing pages are pinned, then return an error.
-    fn _create_page(&self, variant: PageVariant) -> Result<FrameArc, BufferError> {
-        // Acquire locks for page table and type chart (in this order).
+    pub fn create_page(&self) -> Result<FrameArc, BufferError> {
+        // Acquire latch for page table.
         let mut page_table = self.page_table.lock().unwrap();
-        let mut type_chart = self.type_chart.write().unwrap();
 
         match self.replacer.evict() {
             Some(frame_id) => {
@@ -298,21 +236,20 @@ impl BufferManager {
 
                 // Allocate space on disk and initialize the new page.
                 let new_page_id = self.disk_manager.allocate_page();
-                let new_page = init_page_variant(new_page_id, variant);
+                let new_page = RawPage::new(new_page_id);
 
-                // Update the page table and type chart.
+                // Update the page table.
                 // If the frame contains a modified victim page, flush its data out to disk.
                 if let Some(victim) = frame.get_page() {
+                    let victim_id = RawPage::get_id(victim);
                     if frame.is_dirty() {
-                        self.disk_manager
-                            .write_page(victim.get_id(), victim.as_bytes());
+                        self.disk_manager.write_page(victim_id, victim);
                     }
 
                     // .unwrap() ok since victim page must have an page table entry.
-                    page_table.remove(&victim.get_id()).unwrap();
+                    page_table.remove(&victim_id).unwrap();
                 }
                 page_table.insert(new_page_id, frame_id);
-                type_chart.insert(new_page_id, variant);
 
                 // Place the new page in the buffer frame, flag it as dirty, and pin it.
                 frame.overwrite(Some(new_page));
@@ -336,9 +273,8 @@ impl BufferManager {
             return Err(BufferError::PageDiskDNE);
         }
 
-        // Acquire latches for page table and type chart (in this order).
+        // Acquire latch for page table.
         let mut page_table = self.page_table.lock().unwrap();
-        let type_chart = self.type_chart.read().unwrap();
 
         match self.lookup(&page_table, page_id) {
             // If the page already exists in the buffer, pin it and return its frame reference.
@@ -364,22 +300,19 @@ impl BufferManager {
                         frame.assert_unpinned();
 
                         // Fetch the requested page into memory from disk.
-                        let mut page: Box<dyn Page + Send + Sync> = match type_chart.get(&page_id) {
-                            Some(variant) => init_page_variant(page_id, *variant),
-                            None => panic!("Page ID {} does not have a type chart entry", page_id),
-                        };
-                        self.disk_manager.read_page(page_id, page.as_mut_bytes());
+                        let mut page = RawPage::new(page_id);
+                        self.disk_manager.read_page(page_id, &mut page);
 
                         // Update the page table.
                         // If the frame contains a modified victim page, flush its data out to disk.
                         if let Some(victim) = frame.get_page() {
+                            let victim_id = RawPage::get_id(victim);
                             if frame.is_dirty() {
-                                self.disk_manager
-                                    .write_page(victim.get_id(), victim.as_bytes())
+                                self.disk_manager.write_page(victim_id, &victim)
                             }
 
                             // .unwrap() ok since victim page must have an page table entry.
-                            page_table.remove(&victim.get_id()).unwrap();
+                            page_table.remove(&victim_id).unwrap();
                         }
                         page_table.insert(page_id, frame_id);
 
@@ -404,9 +337,8 @@ impl BufferManager {
             return Err(BufferError::PageDiskDNE);
         }
 
-        // Acquire latches for page table and type chart (in this order).
+        // Acquire latch for page table.
         let mut page_table = self.page_table.lock().unwrap();
-        let mut type_chart = self.type_chart.write().unwrap();
 
         match self.lookup(&page_table, page_id) {
             Some(frame_arc) => {
@@ -418,9 +350,6 @@ impl BufferManager {
                         // .unwrap() ok since page exists in buffer.
                         page_table.remove(&page_id).unwrap();
 
-                        // .unwrap() ok since allocated page must have type chart entry.
-                        type_chart.remove(&page_id).unwrap();
-
                         self.disk_manager.deallocate_page(page_id);
                         Ok(())
                     }
@@ -428,9 +357,6 @@ impl BufferManager {
                 }
             }
             None => {
-                // .unwrap() ok since allocated page must have type chart entry.
-                type_chart.remove(&page_id).unwrap();
-
                 self.disk_manager.deallocate_page(page_id);
                 Ok(())
             }
@@ -439,6 +365,7 @@ impl BufferManager {
 
     /// Flush the specified page to disk. Return an error if the page does not exist in the buffer.
     pub fn flush_page(&self, page_id: PageIdT) -> Result<(), BufferError> {
+        // Acquire latch for page table.
         let page_table = self.page_table.lock().unwrap();
 
         match self.lookup(&page_table, page_id) {
@@ -447,7 +374,7 @@ impl BufferManager {
                 if frame.is_dirty() {
                     // .unwrap() ok since dirty frame implies frame contains a page.
                     let page = frame.get_page().unwrap();
-                    self.disk_manager.write_page(page.get_id(), page.as_bytes())
+                    self.disk_manager.write_page(RawPage::get_id(page), page);
                 }
                 Ok(())
             }
@@ -463,7 +390,7 @@ impl BufferManager {
             if frame.is_dirty() {
                 // .unwrap() ok since dirty frame implies frame contains a page.
                 let page = frame.get_page().unwrap();
-                self.disk_manager.write_page(page.get_id(), page.as_bytes())
+                self.disk_manager.write_page(RawPage::get_id(page), page);
             }
         }
         Ok(())
@@ -514,10 +441,10 @@ pub enum BufferError {
     /// Error to be thrown when a page that is pinned and an operation cannot proceed.
     PagePinned,
 
-    /// Error to be thrown when the specified page does not exist in the buffer. Does NOT
-    /// guarantee that the page exists on disk.
+    /// Error to be thrown when the specified foo does not exist in the buffer. Does NOT
+    /// guarantee that the foo exists on disk.
     PageBufDNE,
 
-    /// Error to be thrown when the specified page does not exist on disk.
+    /// Error to be thrown when the specified foo does not exist on disk.
     PageDiskDNE,
 }

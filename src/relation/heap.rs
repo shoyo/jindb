@@ -8,7 +8,7 @@ use crate::constants::{PageIdT, MAX_RECORD_SIZE};
 
 use crate::relation::record::{Record, RecordId};
 
-use crate::page::{Page, PageError};
+use crate::page::{PageError, RelationPage};
 
 use std::convert::From;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// header the IDs of its previous and next pages.
 pub struct Heap {
     /// ID of the first page in the doubly linked list.
-    head_page_id: PageIdT,
+    root_id: PageIdT,
 
     /// Buffer manager to request necessary pages for relation operations.
     buffer_manager: Arc<BufferManager>,
@@ -27,18 +27,21 @@ pub struct Heap {
 impl Heap {
     /// Create a new heap for a database relation.
     pub fn new(buffer_manager: Arc<BufferManager>) -> Result<Self, BufferError> {
-        let frame_arc = buffer_manager.create_relation_page()?;
-        let frame = frame_arc.read().unwrap();
+        let frame_arc = buffer_manager.create_page()?;
+        let mut frame = frame_arc.write().unwrap();
 
-        let head_page_id = match frame.get_page() {
-            Some(ref page) => page.get_id(),
+        let head_page_id = match frame.get_mut_page() {
+            Some(page) => {
+                RelationPage::init(page);
+                RelationPage::get_id(page)
+            }
             None => panic!("Head frame latch contained no page"),
         };
 
-        buffer_manager.unpin_r(frame);
+        buffer_manager.unpin_w(frame);
 
         Ok(Self {
-            head_page_id,
+            root_id: head_page_id,
             buffer_manager,
         })
     }
@@ -48,9 +51,9 @@ impl Heap {
         let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
         let frame = frame_arc.read().unwrap();
 
-        let page = frame.get_relation_page().unwrap();
+        let page = frame.get_page().unwrap();
 
-        Ok(page.read_record(rid.slot_index)?)
+        Ok(RelationPage::read_record(page, rid.slot_index)?)
     }
 
     /// Insert a record into the relation. If there is currently no space available in the buffer
@@ -69,17 +72,17 @@ impl Heap {
         }
 
         // Traverse the heap.
-        let mut page_id = self.head_page_id;
+        let mut page_id = self.root_id;
         loop {
             // 1) Obtain a write latch for the current page's frame.
             let frame_arc = self.buffer_manager.fetch_page(page_id)?;
             let mut frame = frame_arc.write().unwrap();
 
-            let page = frame.get_mut_relation_page().unwrap();
+            let page = frame.get_mut_page().unwrap();
 
             // 2) Attempt to insert the record into the current page.
             // If the insertion was successful, return the newly initialized record ID.
-            if page.insert_record(&mut record).is_ok() {
+            if RelationPage::insert_record(page, &mut record).is_ok() {
                 frame.set_dirty_flag(true);
                 self.buffer_manager.unpin_w(frame);
 
@@ -89,7 +92,7 @@ impl Heap {
             // If the insertion was unsuccessful, attempt to traverse to the next page. If there
             // is no next page, create a new page, insert the record, and link the new page to
             // the end of the heap.
-            match page.get_next_page_id() {
+            match RelationPage::get_next_page_id(page) {
                 Some(pid) => {
                     self.buffer_manager.unpin_w(frame);
                     page_id = pid
@@ -97,18 +100,19 @@ impl Heap {
                 None => {
                     // RELEASE write latch to current page BEFORE calling buffer manager to prevent
                     // deadlocks.
-                    let prev_pid = page.get_id();
+                    let prev_pid = RelationPage::get_id(page);
                     self.buffer_manager.unpin_w(frame);
 
                     // ACQUIRE write latch to new page, insert record, and add prev page ID.
-                    let new_frame_arc = self.buffer_manager.create_relation_page()?;
+                    let new_frame_arc = self.buffer_manager.create_page()?;
                     let mut new_frame = new_frame_arc.write().unwrap();
 
-                    let new_page = new_frame.get_mut_relation_page().unwrap();
-                    let new_pid = new_page.get_id();
+                    let new_page = new_frame.get_mut_page().unwrap();
+                    let new_pid = RelationPage::get_id(new_page);
+                    RelationPage::init(new_page);
 
-                    new_page.insert_record(&mut record).unwrap();
-                    new_page.set_prev_page_id(prev_pid);
+                    RelationPage::insert_record(new_page, &mut record).unwrap();
+                    RelationPage::set_prev_page_id(new_page, prev_pid);
                     new_frame.set_dirty_flag(true);
 
                     // RELEASE write latch to new page.
@@ -118,9 +122,9 @@ impl Heap {
                     let prev_frame_arc = self.buffer_manager.fetch_page(prev_pid)?;
                     let mut prev_frame = prev_frame_arc.write().unwrap();
 
-                    let prev_page = prev_frame.get_mut_relation_page().unwrap();
+                    let prev_page = prev_frame.get_mut_page().unwrap();
 
-                    prev_page.set_next_page_id(new_pid);
+                    RelationPage::set_next_page_id(prev_page, new_pid);
                     prev_frame.set_dirty_flag(true);
 
                     // RELEASE write latch to prev page.
@@ -147,16 +151,16 @@ impl Heap {
         let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
         let mut frame = frame_arc.write().unwrap();
 
-        let page = frame.get_mut_relation_page().unwrap();
-        match page.update_record(record.clone(), rid.slot_index) {
+        let page = frame.get_mut_page().unwrap();
+        match RelationPage::update_record(page, record.clone(), rid.slot_index) {
             Ok(_) => {
                 self.buffer_manager.unpin_w(frame);
                 Ok(rid)
             }
             Err(e) => match e {
                 PageError::PageOverflow => {
-                    page.flag_delete_record(rid.slot_index)?;
-                    page.commit_delete_record(rid.slot_index)?;
+                    RelationPage::flag_delete_record(page, rid.slot_index)?;
+                    RelationPage::commit_delete_record(page, rid.slot_index)?;
 
                     self.buffer_manager.unpin_w(frame);
 
@@ -175,8 +179,8 @@ impl Heap {
         let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
         let mut frame = frame_arc.write().unwrap();
 
-        let page = frame.get_mut_relation_page().unwrap();
-        page.flag_delete_record(rid.slot_index)?;
+        let page = frame.get_mut_page().unwrap();
+        RelationPage::flag_delete_record(page, rid.slot_index)?;
 
         self.buffer_manager.unpin_w(frame);
 
@@ -188,8 +192,8 @@ impl Heap {
         let frame_arc = self.buffer_manager.fetch_page(rid.page_id)?;
         let mut frame = frame_arc.write().unwrap();
 
-        let page = frame.get_mut_relation_page().unwrap();
-        page.commit_delete_record(rid.slot_index)?;
+        let page = frame.get_mut_page().unwrap();
+        RelationPage::commit_delete_record(page, rid.slot_index)?;
 
         self.buffer_manager.unpin_w(frame);
 
