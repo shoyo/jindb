@@ -61,22 +61,22 @@ impl SystemCatalog {
         Ok(relation)
     }
 
+    /// Lookup a relation by its name and return a protected reference.
+    /// Return None if a relation does exist in the database with the given name.
+    pub fn get_relation(&self, name: &str) -> Option<Arc<Relation>> {
+        let relation_ids = self.relation_ids.read().unwrap();
+        match relation_ids.get(name) {
+            Some(&id) => self.get_relation_by_id(id),
+            None => None,
+        }
+    }
+
     /// Lookup a relation by its ID and return a protected reference.
     /// Return None if a relation does not exist in the database with the given ID.
     pub fn get_relation_by_id(&self, id: RelationIdT) -> Option<Arc<Relation>> {
         let relations = self.relations.read().unwrap();
         match relations.get(&id) {
             Some(relation) => Some(relation.clone()),
-            None => None,
-        }
-    }
-
-    /// Lookup a relation by its name and return a protected reference.
-    /// Return None if a relation does exist in the database with the given name.
-    pub fn get_relation_by_name(&self, name: &str) -> Option<Arc<Relation>> {
-        let relation_ids = self.relation_ids.read().unwrap();
-        match relation_ids.get(name) {
-            Some(&id) => self.get_relation_by_id(id),
             None => None,
         }
     }
