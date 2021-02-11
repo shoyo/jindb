@@ -3,7 +3,7 @@
  * Please refer to github.com/shoyo/jin for more information about this project and its license.
  */
 
-use jin::constants::{DICTIONARY_PAGE_ID, PAGE_SIZE};
+use jin::constants::{CATALOG_ROOT_ID, PAGE_SIZE};
 use jin::disk::{open_write_file, DiskManager};
 use std::convert::TryInto;
 use std::fs::{self, File};
@@ -35,12 +35,12 @@ fn test_disk_allocation() {
     let mut ctx = setup(0);
     let manager = &mut ctx.disk_manager;
 
-    assert_eq!(manager.is_allocated(DICTIONARY_PAGE_ID), true);
-    assert_eq!(manager.is_allocated(2), false);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID), true);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID + 1), false);
 
     let page_id = manager.allocate_page();
-    assert_eq!(page_id, 2);
-    assert_eq!(manager.is_allocated(2), true);
+    assert_eq!(page_id, CATALOG_ROOT_ID + 1);
+    assert_eq!(manager.is_allocated(CATALOG_ROOT_ID + 1), true);
 }
 
 #[test]

@@ -6,6 +6,7 @@
 use jin::buffer::replacement::ReplacerAlgorithm;
 use jin::buffer::BufferManager;
 use jin::disk::DiskManager;
+use jin::page::RelationPage;
 use std::sync::{mpsc, Arc, Barrier};
 use std::thread;
 
@@ -24,21 +25,24 @@ fn test_create_buffer_page() {
     let manager = setup();
 
     // Create a page in the buffer manager.
-    let frame_arc = manager.create_relation_page().unwrap();
+    let frame_arc = manager.create_page().unwrap();
     let frame = frame_arc.read().unwrap();
 
     // Assert that the created page is initialized as expected.
     assert!(frame.get_page().is_some());
     let page = frame.get_page().unwrap();
-    assert_eq!(page.get_id(), constants::FIRST_RELATION_PAGE_ID);
+    assert_eq!(
+        RelationPage::get_id(page),
+        constants::FIRST_RELATION_PAGE_ID
+    );
 
     // Assert that new pages can't be created when the there are no open buffer frames and all
     // existing pages are pinned.
     let mut latches = Vec::new();
     for _ in 1..constants::TEST_BUFFER_SIZE {
-        latches.push(manager.create_relation_page().unwrap());
+        latches.push(manager.create_page().unwrap());
     }
-    assert!(manager.create_relation_page().is_err());
+    assert!(manager.create_page().is_err());
 }
 
 #[test]
@@ -53,7 +57,7 @@ fn test_fetch_buffer_page() {
         assert!(result.is_err());
 
         // Create a page and notify other threads to try to fetch the new page (should pass).
-        let _ = manager_1.create_relation_page().unwrap();
+        let _ = manager_1.create_page().unwrap();
         tx.send(()).unwrap();
     });
 
@@ -78,7 +82,7 @@ fn test_delete_buffer_page() {
     // First thread
     let handle_1 = thread::spawn(move || {
         // Create new pinned page in buffer.
-        let frame_arc = manager_1.create_relation_page().unwrap();
+        let frame_arc = manager_1.create_page().unwrap();
 
         // Notify second thread to try to delete newly created page (should fail).
         tx.send(()).unwrap();

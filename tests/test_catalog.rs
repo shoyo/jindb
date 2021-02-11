@@ -93,7 +93,7 @@ fn test_get_relation() {
 
     // Fetch relation by name and assert that fetched relation is correct.
     thread::spawn(move || {
-        let result = catalog2.get_relation_by_name(&name_c);
+        let result = catalog2.get_relation(&name_c);
         assert!(result.is_some());
 
         let relation = result.unwrap();
