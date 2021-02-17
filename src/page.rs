@@ -11,9 +11,12 @@ use crate::relation::record::{Record, RecordId};
 pub type PageBytes = [u8; PAGE_SIZE as usize];
 
 /// Type alias for the page ID in a page byte array.
+/// Each page type has a different byte layout, but offset 0 is always reserved for the page ID.
 const PAGE_ID_OFFSET: u32 = 0;
 
-/// Utility functions for handling page byte arrays in low layers of the database.
+/// ===== RAW PAGE =====
+
+/// Utility struct for handling page byte arrays in low layers of the database.
 pub struct RawPage;
 
 impl RawPage {
@@ -31,6 +34,8 @@ impl RawPage {
         write_u32(bytes, PAGE_ID_OFFSET, id).unwrap();
     }
 }
+
+/// ===== RELATION PAGE =====
 
 /// Constants for slotted-page page header in relation pages.
 const PREV_PAGE_ID_OFFSET: u32 = 4;
@@ -465,6 +470,8 @@ impl RelationPage {
         Ok((offset_addr, size_addr))
     }
 }
+
+/// ===== INDEX PAGE =====
 
 /// An in-memory representation of a database for an index. The index contains
 pub struct IndexPage;
