@@ -438,17 +438,18 @@ impl RelationPage {
         Ok(())
     }
 
-    /// Return true if the specified record is empty or flagged for deletion, false otherwise.
+    /// Return whether the specified record size denotes a record that is empty or flagged for
+    /// deletion.
     fn is_deleted(record_size: u32) -> bool {
         record_size & DELETE_MASK != 0 || record_size == 0
     }
 
-    /// Flag a given record for deletion.
+    /// Return the given record size with the leftmost bit set to 1.
     fn set_delete_bit(record_size: u32) -> u32 {
         record_size | DELETE_MASK
     }
 
-    /// Unflag a given record for deletion.
+    /// Return the given record size with the leftmost bit set to 0.
     fn unset_delete_bit(record_size: u32) -> u32 {
         record_size & !DELETE_MASK
     }
