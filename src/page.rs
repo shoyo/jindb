@@ -473,8 +473,19 @@ impl RelationPage {
 
 /// ===== INDEX PAGE =====
 
-/// An in-memory representation of a database for an index. The index contains
+/// An in-memory representation of a database page storing an index. The index contains key-value
+/// pairs of column values to record IDs.
+///
+/// Data format (number denotes size in bytes):
+/// +-------------+-----------------+--------------+---------------+-----------+
+/// | PAGE ID (4) | ENTRY COUNT (4) | COLUMN 1 (?) | RECORD ID (8) |    ...    |
+/// +-------------+-----------------+--------------+---------------+-----------+
+///
+/// Note that record ID is represented internally as the page ID (4 bytes) and slot index (4
+/// bytes), which sums to 8 bytes.
 pub struct IndexPage;
+
+impl IndexPage {}
 
 /// Custom errors to be used by pages.
 #[derive(Debug)]
