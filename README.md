@@ -5,7 +5,7 @@
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/shoyo/jin)
 
 ## About
-Jin is a small relational database engine written in [Rust](https://www.rust-lang.org) with the standard library and no external dependencies. It is currently being developed for 64-bit Linux, macOS, and Windows operating systems.
+Jin is a small relational database engine written in [Rust](https://www.rust-lang.org) with the standard library and no external dependencies.
 
 Although Jin is a prototype, it implements features of a fully-fledged database such as disk I/O for data persistence, a thread-safe buffer for in-memory caching, and (soon) logging mechanisms for crash recovery. It aspires to be a small, fast, relational database engine with ACID guarantees. 
 
